@@ -6,14 +6,15 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=17';
-import { PLANS } from './plans.js?v=17';
+import { T, seeded } from './paint.js?v=18';
+import { PLANS } from './plans.js?v=18';
+import { SETS } from './sets.js?v=18';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
 const STYLES = {
-  street:   { ground: 'asphalt', wall: 'brick', wallH: 3.4, facade: [9, 15], bld: [7, 13], block: 'junk', lamp: 0xffb46a, lamps: 1 },
-  ruins:    { ground: 'asphalt', wall: 'brick', wallH: 3.0, facade: [6, 12], bld: [6, 11], block: 'rubble', lamp: 0xffa860, lamps: 0.8 },
+  street:   { ground: 'asphalt', wall: 'brick', wallH: 3.4, facade: [9, 15], bld: [7, 13], block: 'junk', lamp: 0xd8d08a, lamps: 1, tenement: true },
+  ruins:    { ground: 'asphalt', wall: 'brick', wallH: 3.0, facade: [6, 12], bld: [6, 11], block: 'rubble', lamp: 0xd8c890, lamps: 0.8, tenement: true },
   yard:     { ground: 'gravel', wall: 'corrugated', wallH: 3.2, facade: [6, 9], bld: [4, 6], block: 'junk', lamp: 0xffc070, lamps: 0.9 },
   mall:     { ground: 'tiles', wall: 'concrete', wallH: 4.2, facade: [5, 5], bld: [3, 4], block: 'counter', lamp: 0xe8f0d8, lamps: 1.1, ceil: 5 },
   zoo:      { ground: 'concrete', wall: 'brick', wallH: 2.6, facade: [4, 7], bld: [4, 7], block: 'crate', lamp: 0xffc890, lamps: 0.8, grass: true },
@@ -53,6 +54,7 @@ class Batch {
     face([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], -1, 0, 0, zy);
     face([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], 0, 1, 0, xz);
   }
+  quad4(x0, x1, z0, z1, y00, y10, y01, y11, tile = 3.6) { const P = this.p, N = this.n, U = this.uv; const A = [x0, y01, z1], Bq = [x1, y11, z1], C = [x1, y10, z0], Dq = [x0, y00, z0]; for (const v of [A, Bq, C, A, C, Dq]) { P.push(...v); N.push(0, 1, 0); U.push(v[0] / tile, -v[2] / tile); } }
   quad(x0, x1, z0, z1, y, tile = 3.6) { const P = this.p, N = this.n, U = this.uv; for (const v of [[x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z1], [x1, y, z0], [x0, y, z0]]) { P.push(...v); N.push(0, 1, 0); U.push(v[0] / tile, -v[2] / tile); } }
   mesh(mat) {
     if (!this.p.length) return null;
@@ -62,12 +64,21 @@ class Batch {
   }
 }
 
+import { makeKit } from './setkit.js?v=18';
+
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
   const g = decode(P), W = P.w, H = P.h, m = P.m;
   const X = (i) => (i - W / 2) * m, Z = (j) => (j - H / 2) * m;
   D.B = { x0: X(0), x1: X(W), z0: Z(0), z1: Z(H) };
   const at = (i, j) => (i < 0 || j < 0 || i >= W || j >= H ? ' ' : g[j][i]);
+  // ---------- the scene's set: floor heights (zones, ramps for stairs) and hand-placed dressing, in plan cells
+  const SET = SETS[def.id] || {};
+  const rampAt = (ci, cj) => { for (const r of SET.ramps || []) if (ci >= r.x0 && ci <= r.x1 && cj >= r.y0 && cj <= r.y1) { const t = r.axis === 'x' ? (ci - r.x0) / (r.x1 - r.x0) : (cj - r.y0) / (r.y1 - r.y0); return r.h0 + (r.h1 - r.h0) * Math.max(0, Math.min(1, t)); } return null; };
+  const Hc = (ci, cj) => { const rh = rampAt(ci, cj); if (rh !== null) return rh; let h = 0; for (const z of SET.zones || []) if (ci >= z.x0 && ci < z.x1 && cj >= z.y0 && cj < z.y1) h = z.h; return h; };
+  const isRamp = (i, j) => rampAt(i + 0.5, j + 0.5) !== null;
+  if (SET.zones || SET.ramps) D.hf = (x, z) => Hc(x / m + W / 2, z / m + H / 2);
+  const lowest = Math.min(0, ...(SET.zones || []).map((z) => z.h), ...(SET.ramps || []).map((r) => Math.min(r.h0, r.h1))) - 0.5;
   const walkable = (c) => c === '.' || c === ',';
 
   // ---------- open doorways so every sizable area is reachable
@@ -115,40 +126,58 @@ export function buildPlan(D, matFor) {
   let sCell, eCell;
   { let any = null; for (let k = 0; k < W * H && !any; k++) if (reach[k]) any = [k % W, (k / W) | 0];
     const far1 = bfs(...any).last, far2 = bfs(...far1).last;
-    sCell = def.startPx ? pick(def.startPx) : far1; eCell = def.exitPx ? pick(def.exitPx) : (def.startPx ? bfs(...sCell).last : far2); }
+    const near = (c) => { let bst = null, bd = 1e9; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (reach[y * W + x]) { const dd = (x - c[0]) ** 2 + (y - c[1]) ** 2; if (dd < bd) { bd = dd; bst = [x, y]; } } return bst; };
+    sCell = SET.start ? near(SET.start) : def.startPx ? pick(def.startPx) : far1; eCell = SET.exit ? near(SET.exit) : def.exitPx ? pick(def.exitPx) : (def.startPx ? bfs(...sCell).last : far2); }
   const route = bfs(...sCell).d;
   // walk a few metres in from the start along the route, and face down it
   const toward = (c, steps) => { let cur = c; for (let k = 0; k < steps; k++) { let nx = null; for (const [a, b] of [[cur[0] + 1, cur[1]], [cur[0] - 1, cur[1]], [cur[0], cur[1] + 1], [cur[0], cur[1] - 1]]) if (reach[b * W + a] && route[b * W + a] === route[cur[1] * W + cur[0]] + 1) nx = [a, b]; if (!nx) break; cur = nx; } return cur; };
   const s2 = toward(sCell, 6);
-  D.start.set(X(sCell[0] + 0.5), 0, Z(sCell[1] + 0.5)); D.startYaw = Math.atan2(-(X(s2[0]) - X(sCell[0])), -(Z(s2[1]) - Z(sCell[1])));
+  D.start.set(X(sCell[0] + 0.5), 0, Z(sCell[1] + 0.5)); D.startYaw = SET.start && SET.start[2] !== undefined ? SET.start[2] : Math.atan2(-(X(s2[0]) - X(sCell[0])), -(Z(s2[1]) - Z(sCell[1])));
 
   // ---------- geometry
   const mats = matFor(S), batches = {};
   const B = (k) => (batches[k] = batches[k] || new Batch());
   const solid = (x0, x1, z0, z1, h, see = true) => D.boxes.push({ x0, x1, z0, z1, y0: 0, y1: h, see, plan: true }); // plan walls: the walk grid doesn't pad these (narrow passages stay open)
   // floors
-  for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't')) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), 0, 3.6);
-  for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === ',')) B(S.grass ? 'grass' : 'floor').quad(X(i), X(i + w), Z(j), Z(j + h), 0.01, 3.6);
+  const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't';
+  const levels = [...new Set([0, ...(SET.zones || []).map((z) => z.h)])];
+  for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv)) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (floorish(i, j) && isRamp(i, j)) B('floor').quad4(X(i), X(i + 1), Z(j), Z(j + 1), Hc(i, j), Hc(i + 1, j), Hc(i, j + 1), Hc(i + 1, j + 1), 3.6);
+  // where two levels meet without stairs: a retaining wall with a parapet on the high side
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (!walkable(at(i, j))) continue;
+    for (const [a, b] of [[1, 0], [0, 1]]) {
+      if (!walkable(at(i + a, j + b))) continue;
+      const h1 = Hc(i + 0.5, j + 0.5), h2 = Hc(i + a + 0.5, j + b + 0.5); if (Math.abs(h1 - h2) < 0.45) continue;
+      const hi = Math.max(h1, h2), lo = Math.min(h1, h2), x = X(i + a), z = Z(j + b);
+      const bx = a ? [x - 0.1, x + 0.1, Z(j), Z(j + 1)] : [X(i), X(i + 1), z - 0.1, z + 0.1];
+      B('wall').box(bx[0], bx[1], lo - 0.2, hi + 0.95, bx[2], bx[3], 3.6); D.boxes.push({ x0: bx[0], x1: bx[1], z0: bx[2], z1: bx[3], y0: lowest, y1: hi + 0.95, see: true, plan: true });
+    }
+  }
+  for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === ',')) B(S.grass ? 'grass' : 'floor').quad(X(i), X(i + w), Z(j), Z(j + h), 0.01 + Hc(i + w / 2, j + h / 2), 3.6);
   // the outer edge: void cells touching the plan become tall facades
   const edge = (i, j) => at(i, j) === ' ' && [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([a, b]) => { const c = at(i + a, j + b); return c !== ' '; });
   for (const [i, j, w, h] of rects(W, H, edge)) {
     const fh = S.facade[0] + R() * (S.facade[1] - S.facade[0]);
-    B('facade').box(X(i), X(i + w), 0, fh, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), fh);
+    B('facade').box(X(i), X(i + w), lowest, fh, Z(j), Z(j + h), S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), fh);
   }
   // walls and fences on the plan's lines
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === '#')) {
     const outer = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === ' ');
     const wh = outer ? S.facade[0] : S.wallH;
-    B(outer ? 'facade' : 'wall').box(X(i), X(i + w), 0, wh, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
+    const base = Hc(i + w / 2, j + h / 2);
+    B(outer ? 'facade' : 'wall').box(X(i), X(i + w), lowest, wh + Math.max(0, base), Z(j), Z(j + h), outer && S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
   }
   // buildings and low blocks
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'B')) {
     const bh = S.bld[0] + R() * (S.bld[1] - S.bld[0]);
-    B('building').box(X(i), X(i + w), 0, bh, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), bh);
+    B('building').box(X(i), X(i + w), lowest, bh, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), bh);
   }
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'b')) {
     const bh = 0.9 + R() * 1.4;
-    B('block').box(X(i), X(i + w), 0, bh, Z(j), Z(j + h), 1.8); solid(X(i), X(i + w), Z(j), Z(j + h), bh);
+    const bb = Hc(i + w / 2, j + h / 2), tall = (SET.tall || []).find((t) => i >= t.x0 && i < t.x1 && j >= t.y0 && j < t.y1);
+    if (tall) { B('building').box(X(i), X(i + w), lowest, bb + tall.h, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), bb + tall.h); continue; }
+    B('block').box(X(i), X(i + w), bb, bb + bh, Z(j), Z(j + h), 1.8); solid(X(i), X(i + w), Z(j), Z(j + h), bb + bh);
   }
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 't')) { if (w * h < 3) continue; D.tree?.(X(i + w / 2), Z(j + h / 2), Math.sqrt(w * h) * m); }
   for (const k in batches) { const mesh = batches[k].mesh(mats[k] || mats.wall); if (mesh) { mesh.castShadow = k !== 'floor'; D.root.add(mesh); } }
@@ -183,11 +212,13 @@ export function buildPlan(D, matFor) {
   // ---------- CCTV on walls facing into the open
   for (let k = 0, t = 0; k < (def.cams ?? 4) && t < 600; t++) {
     const i = (R() * W) | 0, j = (R() * H) | 0; if (!reach[j * W + i]) continue;
-    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const c = at(i + a, j + b); if (c === '#' || c === ' ' || c === 'B') { D.cams.push({ p: new V(X(i + 0.5) + a * 0.3, 4.2, Z(j + 0.5) + b * 0.3), yaw: Math.atan2(-a, -b), sweep: 0.6 + R() * 0.4 }); k++; break; } }
+    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const c = at(i + a, j + b); if (c === '#' || c === ' ' || c === 'B') { D.cams.push({ p: new V(X(i + 0.5) + a * 0.3, 4.2 + Hc(i + 0.5, j + 0.5), Z(j + 0.5) + b * 0.3), yaw: Math.atan2(-a, -b), sweep: 0.6 + R() * 0.4 }); k++; break; } }
   }
+  // ---------- the scene's own set dressing (sets.js)
+  if (SET.dress) SET.dress(makeKit(D, { X, Z, Hc, m, W, H, at, reach, mats, R }));
   // ---------- dressing: junk against the walls, by style
   const kinds = { junk: ['dumpster', 'trash', 'barrel', 'mattress'], rubble: ['trash', 'barrel', 'mattress'], counter: ['crate', 'trash'], crate: ['crate', 'barrel'], grave: ['crate'] }[S.block] || ['trash'];
-  const want2 = Math.round(W * H * m * m / 90);
+  const want2 = SET.dress ? Math.round(W * H * m * m / 260) : Math.round(W * H * m * m / 90);
   for (let k = 0, t = 0; k < want2 && t < want2 * 20; t++) {
     const i = (R() * W) | 0, j = (R() * H) | 0; if (!reach[j * W + i]) continue;
     if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const c = at(i + a, j + b); return c === '#' || c === ' '; })) continue;
@@ -195,5 +226,7 @@ export function buildPlan(D, matFor) {
     D.prop(kinds[k % kinds.length], X(i + 0.5), Z(j + 0.5), R() * 6.28); k++;
   }
   if (S.ground === 'asphalt' || S.ground === 'concrete') for (let k = 0; k < 10; k++) { const i = (R() * W) | 0, j = (R() * H) | 0; if (reach[j * W + i] && open(i, j, 4) > 0.9 && Math.hypot(X(i) - D.start.x, Z(j) - D.start.z) > 8) D.fire?.(X(i + 0.5), Z(j + 0.5)); if (k > 2) break; }
-  D.finish(500 + D.idx, def.hunters || 7, 0);
+  // the scene's own hunters, where the game puts them (patrol loops in plan cells); otherwise random patrols
+  if (SET.patrols) for (const p of SET.patrols) D.routes.push(p.map(([i, j]) => [X(i), Z(j)]));
+  D.finish(500 + D.idx, SET.patrols ? 0 : def.hunters || 7, 0);
 }

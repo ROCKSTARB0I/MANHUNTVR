@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=17';
-import { T } from './paint.js?v=17';
+import { Person, BONE, SKIN_TONES } from './body.js?v=18';
+import { T } from './paint.js?v=18';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -74,9 +74,9 @@ export class Hunter {
     this.place();
   }
 
-  place() { this.body.root.position.copy(this.pos); this.body.root.rotation.y = this.yaw; }
+  place() { this.body.root.position.copy(this.pos); this.body.root.position.y = this.game.world.heightAt(this.pos.x, this.pos.z); this.body.root.rotation.y = this.yaw; }
   forward(out = new V()) { return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
-  eye(out = new V()) { return out.copy(this.pos).setY(this.body.anim.crouch ? 1.2 : 1.62); }
+  eye(out = new V()) { return out.copy(this.pos).setY((this.body.anim.crouch ? 1.2 : 1.62) + this.game.world.heightAt(this.pos.x, this.pos.z)); }
   aware() { return this.state === 'hunt' || this.state === 'attack'; }
   say(kind) {
     if (!this.alive) return;

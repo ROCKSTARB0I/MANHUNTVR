@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=17';
-import { T } from './paint.js?v=17';
+import { Loft, ring, blend } from './loft.js?v=18';
+import { T } from './paint.js?v=18';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -651,7 +651,8 @@ class Ragdoll {
         }
         for (let i = 0; i < n; i++) {
           const r = this.r[i];
-          if (x[i].y < r) { x[i].y = r; const vx = x[i].x - o[i].x, vz = x[i].z - o[i].z; o[i].x = x[i].x - vx * 0.6; o[i].z = x[i].z - vz * 0.6; }
+          const gy = r + (this.world?.heightAt?.(x[i].x, x[i].z) || 0);
+          if (x[i].y < gy) { x[i].y = gy; const vx = x[i].x - o[i].x, vz = x[i].z - o[i].z; o[i].x = x[i].x - vx * 0.6; o[i].z = x[i].z - vz * 0.6; }
           if (this.world) {
             const before = x[i].clone(); this.world.collide(x[i], r, x[i].y + r);
             if (before.x !== x[i].x || before.z !== x[i].z) { o[i].x = x[i].x; o[i].z = x[i].z; }

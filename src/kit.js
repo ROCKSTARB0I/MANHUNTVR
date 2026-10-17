@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=17';
+import { T } from './paint.js?v=18';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -83,12 +83,12 @@ class Item {
     this.kind = kind; this.def = DEF[kind];
     this.mesh = makeMesh(kind); this.pos = pos.clone(); this.vel = new V(); this.spin = new V();
     this.hand = null; this.flying = false; this.gone = false; this.thrower = null;
-    this.mesh.position.copy(pos); this.restPose();
+    this.floor = Math.max(0, pos.y - this.def.rest) || pos.y - this.def.rest; this.mesh.position.copy(pos); this.restPose(); // floor height under it
     this.glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, color: 0xfff0d0, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.glint.scale.setScalar(0.16);
     this.tipPrev = new V(); this.tipVel = new V(); this.hitCool = 0; this.ammo = kind === 'rifle' ? 12 + Math.floor(Math.random() * 8) : 0;
   }
-  restPose() { this.mesh.rotation.set(this.kind === 'bag' || this.kind === 'pills' ? 0 : -Math.PI / 2 + 0.05, Math.random() * 6.28, 0, 'YXZ'); if (this.kind === 'bag') this.mesh.scale.set(1, 0.4, 1); this.mesh.position.y = this.def.rest; }
+  restPose() { this.mesh.rotation.set(this.kind === 'bag' || this.kind === 'pills' ? 0 : -Math.PI / 2 + 0.05, Math.random() * 6.28, 0, 'YXZ'); if (this.kind === 'bag') this.mesh.scale.set(1, 0.4, 1); this.mesh.position.y = this.def.rest + (this.floor || 0); }
   tip(out) { return this.mesh.localToWorld(out.set(...this.def.tip)); }
 }
 
@@ -159,7 +159,7 @@ export class Kit {
   }
   dropStowed(it) { // a carried item put down at your feet
     const P = this.game.player; this.unslot(it); it.stowed = false;
-    this.game.scene.add(it.mesh); it.pos.set(P.pos.x + 0.3, it.def.rest, P.pos.z + 0.3); it.flying = false; it.restPose(); it.mesh.position.copy(it.pos);
+    this.game.scene.add(it.mesh); it.floor = this.game.world.heightAt(P.pos.x + 0.3, P.pos.z + 0.3); it.pos.set(P.pos.x + 0.3, it.def.rest + it.floor, P.pos.z + 0.3); it.flying = false; it.restPose(); it.mesh.position.copy(it.pos);
   }
   equip(hand, slot) { // take a carried weapon into the hand; null slot = put everything away
     this.game.switched = true;
@@ -321,7 +321,7 @@ export class Kit {
       let hitMan = null;
       if (it.thrower) for (const h of G.hunters) if (h.alive && h.body.headPos(_b).distanceTo(it.pos) < 0.2) hitMan = h;
       const wall = !G.world.clear(prev, it.pos, false);
-      if (hitMan || wall || it.pos.y <= it.def.rest) {
+      if (hitMan || wall || it.pos.y <= it.def.rest + G.world.heightAt(it.pos.x, it.pos.z)) {
         if (wall) { it.pos.copy(prev); it.vel.x *= -0.25; it.vel.z *= -0.25; }
         this.impact(it, hitMan);
       }
@@ -338,7 +338,7 @@ export class Kit {
       return;
     }
     if (sp > 2) { if (it.kind === 'brick') G.sound.thud(p); else G.sound.clank(p); G.noise(p, it.kind === 'brick' ? 12 : 9, nearCash ? 'player' : 'distract'); }
-    if (it.pos.y <= it.def.rest + 0.01) { it.flying = false; it.thrower = null; it.pos.y = it.def.rest; it.mesh.position.copy(it.pos); it.restPose(); it.mesh.position.x = it.pos.x; it.mesh.position.z = it.pos.z; }
+    if (it.pos.y <= it.def.rest + 0.01 + G.world.heightAt(it.pos.x, it.pos.z)) { it.flying = false; it.thrower = null; it.floor = G.world.heightAt(it.pos.x, it.pos.z); it.pos.y = it.def.rest + it.floor; it.mesh.position.copy(it.pos); it.restPose(); it.mesh.position.x = it.pos.x; it.mesh.position.z = it.pos.z; }
     else { it.vel.multiplyScalar(0.3); }
   }
 

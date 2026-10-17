@@ -107,6 +107,27 @@ function makeBrick(n) {
   return { map: tex(c), bump: tex(hc, { srgb: false }), normal: tex(nc, { srgb: false }), rough: tex(rc, { srgb: false }), canvas: c };
 }
 
+// tenement facade: 3 x 3 storeys of brick (10.8 m square) with sash windows,
+// sills and lintels, dark glass, a few lit rooms behind blinds. Used on the
+// street scenes' outer walls (world UV tile 10.8 m).
+function makeTenement(n, brickCanvas, seed = 7) {
+  const [c, g] = cnv(n), [e, eg] = cnv(n), r = seeded(seed), cell = n / 3;
+  const bt = n * 4 / 10.8; // the brick texture covers 4 m; this one covers 10.8 m
+  for (let y = 0; y < n; y += bt) for (let x = 0; x < n; x += bt) g.drawImage(brickCanvas, x, y, bt, bt);
+  eg.fillStyle = '#000'; eg.fillRect(0, 0, n, n);
+  for (let fy = 0; fy < 3; fy++) for (let fx = 0; fx < 3; fx++) {
+    const ww = cell * 0.36, wh = cell * 0.5, wx = fx * cell + (cell - ww) / 2, wy = fy * cell + cell * 0.2;
+    g.fillStyle = '#5a564e'; g.fillRect(wx - cell * 0.03, wy - cell * 0.05, ww + cell * 0.06, cell * 0.05); g.fillRect(wx - cell * 0.04, wy + wh, ww + cell * 0.08, cell * 0.04); // lintel, sill
+    const lit = r() < 0.22, boarded = !lit && r() < 0.15;
+    if (boarded) { g.fillStyle = '#4a3a28'; g.fillRect(wx, wy, ww, wh); g.fillStyle = 'rgba(0,0,0,0.4)'; for (let k = 1; k < 4; k++) g.fillRect(wx, wy + wh * k / 4, ww, 2); continue; }
+    const gr = g.createLinearGradient(wx, wy, wx + ww, wy + wh); gr.addColorStop(0, lit ? '#8a6a30' : '#1c2024'); gr.addColorStop(1, lit ? '#4a3416' : '#0a0c0e'); g.fillStyle = gr; g.fillRect(wx, wy, ww, wh);
+    g.fillStyle = '#2a2622'; g.fillRect(wx + ww / 2 - 2, wy, 4, wh); g.fillRect(wx, wy + wh / 2 - 2, ww, 4); // sash bars
+    if (lit) { const eg2 = eg.createLinearGradient(wx, wy, wx, wy + wh); eg2.addColorStop(0, '#b88a40'); eg2.addColorStop(1, '#6a4a1a'); eg.fillStyle = eg2; eg.fillRect(wx, wy, ww, wh); eg.fillStyle = 'rgba(0,0,0,0.5)'; for (let y = wy + 6; y < wy + wh; y += 9) eg.fillRect(wx, y, ww, 3); }
+    // grime running down from the sill
+    const sg = g.createLinearGradient(0, wy + wh, 0, wy + wh + cell * 0.4); sg.addColorStop(0, 'rgba(20,16,10,0.45)'); sg.addColorStop(1, 'rgba(20,16,10,0)'); g.fillStyle = sg; g.fillRect(wx, wy + wh + cell * 0.04, ww, cell * 0.4);
+  }
+  return { map: tex(c), emissive: tex(e) };
+}
 // facade bay: 4 m wide x 3.6 m tall of brick with one window
 function makeFacade(n, kind, brickCanvas) {
   const [c, g] = cnv(n), [e, eg] = cnv(n / 4);
@@ -487,6 +508,7 @@ export function paintAll(low) {
   const brick = makeBrick(1024);
   T.brick = brick;
   T.facade = ['dark', 'dark', 'boarded', 'lit', 'broken', 'dark'].map((k) => makeFacade(n, k, brick.canvas));
+  T.tenement = makeTenement(1024, brick.canvas);
   T.asphalt = makeAsphalt(1024);
   T.concrete = makeConcrete(1024);
   T.slab = makeTiles(1024);

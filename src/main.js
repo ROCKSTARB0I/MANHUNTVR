@@ -1,19 +1,19 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=17';
-import { District, SCENES } from './district.js?v=17';
-import { spawnHunters } from './hunters.js?v=17';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=17';
-import { Blood } from './blood.js?v=17';
-import { Director } from './director.js?v=17';
-import { Sound } from './sound.js?v=17';
-import { makeHand, Person, BONE } from './body.js?v=17';
-import { VHS } from './vhs.js?v=17';
-import { Grime } from './grime.js?v=17';
-import { Cutscene } from './cutscene.js?v=17';
-import { Arms } from './arms.js?v=17';
-import { Finisher } from './finisher.js?v=17';
+import { paintAll, T } from './paint.js?v=18';
+import { District, SCENES } from './district.js?v=18';
+import { spawnHunters } from './hunters.js?v=18';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=18';
+import { Blood } from './blood.js?v=18';
+import { Director } from './director.js?v=18';
+import { Sound } from './sound.js?v=18';
+import { makeHand, Person, BONE } from './body.js?v=18';
+import { VHS } from './vhs.js?v=18';
+import { Grime } from './grime.js?v=18';
+import { Cutscene } from './cutscene.js?v=18';
+import { Arms } from './arms.js?v=18';
+import { Finisher } from './finisher.js?v=18';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -272,7 +272,7 @@ function rabbitTick(dt) {
   if (world.gateOpen && !rabbit.leaving) rabbit.leaving = true;
 }
 function populate() {
-  G.blood = G.blood || new Blood(scene, world);
+  G.blood = G.blood || new Blood(scene, world); G.blood.world = world;
   G.kit = new Kit(G);
   G.hunters = spawnHunters(G);
   G.director = new Director(G);
@@ -292,7 +292,7 @@ function resetScene(fromSave = false) {
   world.closeGate();
   closePen();
   P.pos.copy(world.start); P.yaw = world.startYaw; P.hp = 100; P.alive = true; P.hurtT = -99;
-  dolly.position.set(P.pos.x, 0, P.pos.z); dolly.rotation.y = P.yaw; eyeY = 1.68;
+  dolly.position.set(P.pos.x, world.heightAt(P.pos.x, P.pos.z), P.pos.z); dolly.rotation.y = P.yaw; eyeY = 1.68;
   populate(); hud.fadeTo(0); $('hud').hidden = false;
   G.state = 'play'; G.time = 0; if (!fromSave) G.director.intro();
 }
@@ -372,7 +372,7 @@ function goScene(idx) {
   // (Stealth still runs on the baked lamp grid, so shadows hide you exactly as before.)
   sceneLook(idx);
   populate();
-  P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
+  P.pos.copy(world.start); dolly.position.set(P.pos.x, world.heightAt(P.pos.x, P.pos.z), P.pos.z);
   tutorCur = null; $('tip').hidden = true; tipMesh.visible = false;
 }
 
@@ -522,6 +522,8 @@ renderer.setAnimationLoop(() => {
       const dir = new V(mx, 0, mz).applyAxisAngle(new V(0, 1, 0), yaw).multiplyScalar(speed * Math.min(1, len) / Math.max(1, len));
       dolly.position.addScaledVector(dir, dt);
     }
+    // stand on the floor: stairs and ramps carry you up and down
+    { const fy = world.heightAt(xr ? P.head.x : dolly.position.x, xr ? P.head.z : dolly.position.z); dolly.position.y += (fy - dolly.position.y) * Math.min(1, dt * 12); }
     dolly.rotation.y = xr ? P.yaw : 0;
     if (!xr) { dolly.rotation.y = 0; camera.rotation.set(pitch, P.yaw, 0, 'YXZ'); }
     // head in world, room-scale aware; collide the head and carry the dolly back out of walls
@@ -533,7 +535,7 @@ renderer.setAnimationLoop(() => {
     } else {
       const fixed = dolly.position.clone(); world.collide(fixed, 0.3); dolly.position.copy(fixed);
       const eh = P.crouch ? 1.12 : 1.68; eyeY += (eh - eyeY) * Math.min(1, dt * 8);
-      P.head.set(dolly.position.x, eyeY, dolly.position.z);
+      P.head.set(dolly.position.x, eyeY + dolly.position.y, dolly.position.z);
       if (S.third && !freecam) {
         // over the right shoulder, pulled in if a wall is in the way
         const f = new V(-Math.sin(P.yaw), 0, -Math.cos(P.yaw)), r = new V(Math.cos(P.yaw), 0, -Math.sin(P.yaw));
@@ -585,7 +587,7 @@ renderer.setAnimationLoop(() => {
     if (G.finisher) G.finisher.update(dt);
     else if (!xr && S.third) {
       const B = cashBody; B.root.visible = true;
-      B.root.position.set(P.pos.x, 0, P.pos.z); B.root.rotation.y = P.yaw + Math.PI;
+      B.root.position.set(P.pos.x, dolly.position.y, P.pos.z); B.root.rotation.y = P.yaw + Math.PI;
       B.anim.speed = len > 0.01 && P.alive ? speed : 0; B.anim.crouch += ((P.crouch ? 1 : 0) - B.anim.crouch) * Math.min(1, dt * 8);
       B.anim.swing = swings.length ? Math.min(1, swings[0].t / 0.4) : -1; B.anim.struggle = G.kit.struggle ? 0.6 : 0;
       B.animate(dt, G.time); B.face(dt, sound.mouth('CASH'));
@@ -834,7 +836,7 @@ function begin(vr) {
   sound.start();
   $('screen').hidden = true; $('hud').hidden = false;
   if (S.mic && !mic) startMic();
-  teardown(); populate(); P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
+  teardown(); populate(); P.pos.copy(world.start); dolly.position.set(P.pos.x, world.heightAt(P.pos.x, P.pos.z), P.pos.z);
   if (!readSlot(G.slot) && world.idx !== 0) goScene(0);
   const save = readSlot(G.slot);
   if (save) { $('hud').hidden = true; loadingThen(() => { if (!loadGame()) { resetScene(); } $('hud').hidden = false; }, save.scene || 0); } // the card names the scene you're loading into

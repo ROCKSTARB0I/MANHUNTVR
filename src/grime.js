@@ -5,8 +5,8 @@
 // that go with all of it. Static dressing is merged into a handful of meshes so
 // the Quest can draw it cheaply; the moving things are few and small.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=17';
-import { Person } from './body.js?v=17';
+import { T, seeded } from './paint.js?v=18';
+import { Person } from './body.js?v=18';
 
 const V = THREE.Vector3;
 
@@ -89,10 +89,10 @@ export class Grime {
       for (const [c, u, hu, n] of faces) {
         if (hu < 0.15) continue;
         const reps = Math.max(1, Math.round(hu * 2 / 2.5));
-        ao.add(c.clone().setY(Math.min(0.45, h / 2)), u, hu, up, Math.min(0.45, h / 2), [0, 0, reps, 1]);
-        fl.add(c.clone().addScaledVector(n, 0.35).setY(0.004), u, hu, n.clone().negate(), 0.35, [0, 1, reps, 0]);
-        if (h > 2.2) for (let k = 0; k < hu * 0.8; k++) if (R() < 0.6) { const w = 0.15 + R() * 0.5, l = 0.8 + R() * Math.min(3, h * 0.6); st.add(c.clone().addScaledVector(u, (R() * 2 - 1) * (hu - w)).setY(h - l / 2 - 0.05), u, w, up, l / 2); }
-        if (R() < 0.3) { const w = 0.4 + R() * 0.8; mo.add(c.clone().addScaledVector(u, (R() * 2 - 1) * Math.max(0, hu - w)).setY(0.3 + R() * 0.5), u, w, up, w * 0.7); }
+        const fy = this.W.heightAt(c.x, c.z); ao.add(c.clone().setY(fy + Math.min(0.45, h / 2)), u, hu, up, Math.min(0.45, h / 2), [0, 0, reps, 1]);
+        fl.add(c.clone().addScaledVector(n, 0.35).setY(fy + 0.004), u, hu, n.clone().negate(), 0.35, [0, 1, reps, 0]);
+        if (h > 2.2) for (let k = 0; k < hu * 0.8; k++) if (R() < 0.6) { const w = 0.15 + R() * 0.5, l = 0.8 + R() * Math.min(3, h * 0.6); st.add(c.clone().addScaledVector(u, (R() * 2 - 1) * (hu - w)).setY(q.y1 - l / 2 - 0.05), u, w, up, l / 2); }
+        if (R() < 0.3) { const w = 0.4 + R() * 0.8; mo.add(c.clone().addScaledVector(u, (R() * 2 - 1) * Math.max(0, hu - w)).setY(fy + 0.3 + R() * 0.5), u, w, up, w * 0.7); }
       }
     }
     const fogged = { fog: true };
@@ -115,11 +115,11 @@ export class Grime {
       const kind = Math.floor(R() * 8), s = kind === 5 ? 0.35 + R() * 0.25 : kind === 0 || kind === 7 ? 0.2 + R() * 0.15 : 0.06 + R() * 0.07, an = R() * 6.28;
       const u = new V(Math.cos(an), 0, Math.sin(an)), v = new V(-Math.sin(an), 0, Math.cos(an));
       const cu = (kind % 4) / 4, cv = 1 - Math.floor(kind / 4) / 2;
-      lit.add(new V(x, 0.008 + R() * 0.004, z), u, s, v, s, [cu, cv - 0.5, cu + 0.25, cv]); k++;
+      lit.add(new V(x, 0.008 + R() * 0.004 + this.W.heightAt(x, z), z), u, s, v, s, [cu, cv - 0.5, cu + 0.25, cv]); k++;
     }
     for (let k = 0, tries = 0; k < nPud && tries < 400; tries++) {
       const x = B.x0 + R() * (B.x1 - B.x0), z = B.z0 + R() * (B.z1 - B.z0); if (!free(x, z)) continue;
-      const s = 0.5 + R() * 1.4, an = R() * 6.28; pud.add(new V(x, 0.006, z), new V(Math.cos(an), 0, Math.sin(an)), s, new V(-Math.sin(an), 0, Math.cos(an)), s * 0.7); k++;
+      const s = 0.5 + R() * 1.4, an = R() * 6.28; pud.add(new V(x, 0.006 + this.W.heightAt(x, z), z), new V(Math.cos(an), 0, Math.sin(an)), s, new V(-Math.sin(an), 0, Math.cos(an)), s * 0.7); k++;
     }
     const lm = lit.mesh(new THREE.MeshLambertMaterial({ map: tx.litter, transparent: true, alphaTest: 0.3, depthWrite: true }));
     if (lm) this.root.add(lm);
@@ -174,7 +174,7 @@ export class Grime {
       this.rats.push({ g, goal: p.clone(), wait: R() * 3, speed: 0 });
     }
   }
-  randomFree() { const W = this.W, B = W.B; for (let t = 0; t < 60; t++) { const x = B.x0 + 1 + this.R() * (B.x1 - B.x0 - 2), z = B.z0 + 1 + this.R() * (B.z1 - B.z0 - 2), [i, j] = W.cellOf(x, z); if (W.walkable(i, j)) return new V(x, 0, z); } return null; }
+  randomFree() { const W = this.W, B = W.B; for (let t = 0; t < 60; t++) { const x = B.x0 + 1 + this.R() * (B.x1 - B.x0 - 2), z = B.z0 + 1 + this.R() * (B.z1 - B.z0 - 2), [i, j] = W.cellOf(x, z); if (W.walkable(i, j)) return new V(x, W.heightAt(x, z), z); } return null; }
   vents() { // steam curling out of grates, water dripping from pipes
     const n = this.indoor ? 3 : 2;
     for (let k = 0; k < n; k++) {

@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=17';
-import { buildPlan } from './planlevel.js?v=17';
+import { T, seeded } from './paint.js?v=18';
+import { buildPlan } from './planlevel.js?v=18';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -99,11 +99,11 @@ export class District {
   }
 
   lamp(x, z, { h = 5.2, r = 11, i = 1, col = 0xffb46a, flicker = 0, real = true, arm = 'pole', dir = 0 } = {}) {
-    const p = new V(x, h, z);
+    const fy = this.heightAt(x, z), p = new V(x, h + fy, z);
     if (arm === 'pole') {
       const metal = this.mat('pole', { color: 0x2b2d2f, roughness: 0.6, metalness: 0.6 });
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, h + 0.3, 8), metal); pole.position.set(x - Math.sin(dir) * 0.9, (h + 0.3) / 2, z - Math.cos(dir) * 0.9); this.root.add(pole);
-      const a = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.0), metal); a.position.set(x - Math.sin(dir) * 0.45, h + 0.25, z - Math.cos(dir) * 0.45); a.rotation.y = dir; this.root.add(a);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, h + 0.3, 8), metal); pole.position.set(x - Math.sin(dir) * 0.9, (h + 0.3) / 2 + fy, z - Math.cos(dir) * 0.9); this.root.add(pole);
+      const a = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.0), metal); a.position.set(x - Math.sin(dir) * 0.45, h + 0.25 + fy, z - Math.cos(dir) * 0.45); a.rotation.y = dir; this.root.add(a);
       this.boxes.push({ x0: pole.position.x - 0.1, x1: pole.position.x + 0.1, z0: pole.position.z - 0.1, z1: pole.position.z + 0.1, y0: 0, y1: h, see: true });
     }
     const head = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.28, 0.2, 10), this.mat('lamphead', { color: 0x222222, roughness: 0.5 }));
@@ -121,7 +121,8 @@ export class District {
     this.lamps.push(L); return L;
   }
 
-  fire(x, z) { // burning oil drum: a light source with a flame
+  fire(x, z) {
+    const n0 = this.root.children.length; // burning oil drum: a light source with a flame
     const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 14, 1, true), this.mat('drum', { map: rep(T.barrel.map, 1, 1), roughness: 0.7, metalness: 0.4, side: THREE.DoubleSide }));
     drum.position.set(x, 0.45, z); this.root.add(drum);
     this.boxes.push({ x0: x - 0.32, x1: x + 0.32, z0: z - 0.32, z1: z + 0.32, y0: 0, y1: 0.9, see: true });
@@ -133,9 +134,13 @@ export class District {
     const L = this.lamp(x, z, { h: 1.4, r: 8, i: 0.9, col: 0xff7a2a, flicker: 2, arm: 'none' });
     L.flames = flames; L.bulb.visible = false; L.glow.scale.setScalar(3);
     return L;
+    { const fy = this.heightAt(x, z); if (fy) for (let k = n0; k < this.root.children.length; k++) this.root.children[k].position.y += fy; }
   }
 
   prop(kind, x, z, ry = 0) {
+    const n0 = this.root.children.length; try { return this.propAt(kind, x, z, ry); } finally { const fy = this.heightAt(x, z); if (fy) for (let k = n0; k < this.root.children.length; k++) this.root.children[k].position.y += fy; }
+  }
+  propAt(kind, x, z, ry = 0) {
     const R = this.R; (this.props || (this.props = [])).push({ kind, x, z });
     if (kind === 'dumpster') {
       const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
@@ -397,7 +402,7 @@ export class District {
     this.cams.push({ p: new V(0, 6.5, -5.6), yaw: 0.2, sweep: 0.9 });
     this.cams.push({ p: new V(20, 5.5, 5.6), yaw: Math.PI * 1.2, sweep: 0.6 });
     for (const [k, x, z] of [['crowbar', -28, 2.6], ['bag', -16, 9], ['shard', -8, -10], ['bottle', 2, 9.5], ['brick', 9, -9], ['bottle', 15, 3.5], ['shard', 21, -12], ['bag', 24, 10], ['pills', -26, -15], ['pills', 4, 16], ['pills', 26, -16]])
-      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+      this.items.push({ kind: k, p: new V(x, (k === 'shard' ? 0.03 : 0.05) + this.heightAt(x, z), z) });
     this.routes.push([[-20, -2], [-6, -3], [-6, 3], [-20, 3]], [[-17, 10], [-13, 16], [-9, 10]], [[3, -10], [7, -15], [13, -11], [9, -9]],
       [[6, 2], [24, 2], [24, -2], [6, -2]], [[19, 10], [25, 15], [21, 17], [19, 12]], [[-7, -11], [-3, -16], [-9, -16]]);
   }
@@ -458,7 +463,7 @@ export class District {
     this.cams.push({ p: new V(6, 3.3, 1.8), yaw: -0.3, sweep: 0.9 });
     this.cams.push({ p: new V(20, 3.3, -9.6), yaw: Math.PI * 0.8, sweep: 0.5 });
     for (const [k, x, z] of [['shard', -25, 11], ['bag', -18, 10], ['crowbar', -6, 12], ['bottle', 2, -10], ['brick', 12, 10], ['shard', 18, -12], ['bag', 6, 14], ['bottle', -12, -12], ['pills', -26, 15], ['pills', 0, -15], ['pills', 20, 16]])
-      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+      this.items.push({ kind: k, p: new V(x, (k === 'shard' ? 0.03 : 0.05) + this.heightAt(x, z), z) });
     this.routes.push([[-20, 0], [-4, 0]], [[-24, 10], [-6, 10]], [[0, 10], [18, 10], [18, 15], [12, 16]], [[-20, -10], [-2, -10], [-2, -14], [-8, -15]],
       [[4, 0], [22, 0]], [[6, -10], [22, -10], [22, -15]]);
   }
@@ -505,7 +510,7 @@ export class District {
     this.cams.push({ p: new V(10.5, 6, -1.2), yaw: Math.PI, sweep: 1.0 });
     this.cams.push({ p: new V(19, 3.4, 9.3), yaw: Math.PI * 0.5, sweep: 0.7 });
     for (const [k, x, z] of [['crowbar', -31, 19.4], ['brick', -28, 12], ['bottle', -14, 2], ['bag', -4, -10], ['shard', 4, 10], ['brick', 14, -12], ['bottle', 24, 12], ['bag', 30, -20], ['shard', -26, -12], ['pills', -34, -6], ['pills', 0, 24], ['pills', 34, 22], ['pills', 16, -24]])
-      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+      this.items.push({ kind: k, p: new V(x, (k === 'shard' ? 0.03 : 0.05) + this.heightAt(x, z), z) });
     this.routes.push([[-30, -1], [-12, -1], [-12, 2]], [[-17, -11], [-3, -11]], [[13, -11], [27, -11], [27, -2]], [[-6, 4], [2, 4], [2, 12], [-6, 12]],
       [[13, 4], [27, 4], [27, 13]], [[-20, 20], [-6, 21], [8, 21], [22, 22]], [[-8, -21], [8, -21]]);
   }
@@ -568,7 +573,7 @@ export class District {
     this.start.set(x + w * 0.4, 0, z + d / 2); this.startYaw = -Math.PI / 2;
   }
   scatter(R, kinds, n, zone) { for (let k = 0; k < n; k++) { const x = zone.x0 + R() * (zone.x1 - zone.x0), z = zone.z0 + R() * (zone.z1 - zone.z0); const [ci, cj] = this.cellOf(x, z); this.prop(kinds[k % kinds.length], x, z, R() * 6); } }
-  loot(list) { for (const [k, x, z] of list) this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) }); }
+  loot(list) { for (const [k, x, z] of list) this.items.push({ kind: k, p: new V(x, (k === 'shard' ? 0.03 : 0.05) + this.heightAt(x, z), z) }); }
   // standard weapon/painkiller spread across the map, avoiding solid boxes
   autoLoot(seed, n = 10) {
     const R = seeded(seed), kinds = ['bag', 'shard', 'bottle', 'brick', 'crowbar', 'bottle', 'brick', 'shard', 'bag', 'pills', 'pills', 'pills'];
@@ -576,7 +581,7 @@ export class District {
     while (made < n && tries++ < 400) {
       const x = B.x0 + 2 + R() * (B.x1 - B.x0 - 4), z = B.z0 + 2 + R() * (B.z1 - B.z0 - 4);
       if ((this.reach && !this.reach(x, z)) || this.boxes.some((q) => x > q.x0 - 0.4 && x < q.x1 + 0.4 && z > q.z0 - 0.4 && z < q.z1 + 0.4)) continue;
-      const k = kinds[made % kinds.length]; this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) }); made++;
+      const k = kinds[made % kinds.length]; this.items.push({ kind: k, p: new V(x, (k === 'shard' ? 0.03 : 0.05) + this.heightAt(x, z), z) }); made++;
     }
   }
   // cells reachable on foot from the start (start door open)
@@ -615,7 +620,7 @@ export class District {
       const wallSurf = { brick: brickMat(0x9a958e), concrete: surf(T.concrete, 0x9a968c), corrugated: { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 }, stone: surf(T.concrete, 0x8a8478) }[S.wall];
       return {
         floor: this.mat('pfloor' + this.idx, ground), grass: this.mat('pgrass', surf(T.gravel, 0x56663e)),
-        wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
+        wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.tenement ? { map: rep(T.tenement.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenement.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: rep(T.brick.normal, 1, 1), roughness: 0.95 } : S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
         building: this.mat('pbld' + this.idx, brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
         ceil: this.mat('pceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }),
       };
@@ -623,10 +628,12 @@ export class District {
   }
   // a scruffy city tree: a trunk and a few lumps of dark foliage
   tree(x, z, size = 3) {
+    const n0 = this.root.children.length;
     const bark = this.mat('bark', { color: 0x2a2018, roughness: 1 }), leaf = this.mat('leaf', { color: 0x1c2a16, roughness: 1 });
     const h = 3 + size * 0.6, t = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, h, 7), bark); t.position.set(x, h / 2, z); this.root.add(t);
     for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + size * 0.25, 1), leaf); b.position.set(x + (this.R() - 0.5) * size * 0.6, h + (this.R() - 0.3) * 1.2, z + (this.R() - 0.5) * size * 0.6); b.castShadow = true; this.root.add(b); }
     this.boxes.push({ x0: x - 0.25, x1: x + 0.25, z0: z - 0.25, z1: z + 0.25, y0: 0, y1: h, see: true });
+    { const fy = this.heightAt(x, z); if (fy) for (let k = n0; k < this.root.children.length; k++) this.root.children[k].position.y += fy; }
   }
 
   // ================================================================ streets
@@ -849,6 +856,8 @@ export class District {
 
   // -------------------------------------------------------------- queries
   // does the segment a->b (3D) clear every sight-blocking box?
+  // floor height (m) at a point; flat unless a scene's set gives zones and ramps (planlevel.js)
+  heightAt(x, z) { return this.hf ? this.hf(x, z) : 0; }
   // spatial index over the walls: 4 m buckets, rebuilt whenever the list changes
   index() {
     if (this.idxVer === this.boxes.ver && this.hidx) return;
@@ -912,7 +921,7 @@ export class District {
       const i0 = Math.max(0, Math.floor((L.p.x - L.r - B.x0) / CELL)), i1 = Math.min(nx - 1, Math.ceil((L.p.x + L.r - B.x0) / CELL));
       const j0 = Math.max(0, Math.floor((L.p.z - L.r - B.z0) / CELL)), j1 = Math.min(nz - 1, Math.ceil((L.p.z + L.r - B.z0) / CELL));
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        b.set(B.x0 + (i + 0.5) * CELL, 1.0, B.z0 + (j + 0.5) * CELL);
+        b.set(B.x0 + (i + 0.5) * CELL, 1.0, B.z0 + (j + 0.5) * CELL); b.y += this.heightAt(b.x, b.z);
         const d = b.distanceTo(L.p); if (d > L.r) continue;
         a.copy(L.p).y -= 0.25;
         if (!this.clear(a, b)) continue;
@@ -996,7 +1005,7 @@ export class District {
 
   // ---- the exit gate (chained shut until the Director opens it) and the start door
   makeGate(cx, cz, alongZ, w = 6, face = -1) {
-    const g = new THREE.Group(); g.position.set(cx, 0, cz); if (!alongZ) g.rotation.y = Math.PI / 2;
+    const g = new THREE.Group(); g.position.set(cx, this.heightAt(cx, cz), cz); if (!alongZ) g.rotation.y = Math.PI / 2;
     const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
     for (let z = -w / 2 + 0.2; z <= w / 2 - 0.2; z += 0.25) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 4, 5), bars); b.position.set(0, 2, z); g.add(b); }
     for (const y of [0.3, 2, 3.8]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, w), bars); r.position.y = y; g.add(r); }

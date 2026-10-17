@@ -6,7 +6,7 @@
 // Desktop gets a slow orbiting camera; in VR the view fades and you watch from
 // a step to the side (nothing moves you on its own), then it fades back.
 import * as THREE from '../vendor/three.module.js';
-import { BONE } from './body.js?v=17';
+import { BONE } from './body.js?v=18';
 
 const V = THREE.Vector3;
 const INTRO = 0.4, BLOW = 0.82, LASTBLOW = 1.5, HOLD = 2.2, FADE = 0.22, REACH = 0.64;
@@ -82,7 +82,7 @@ export class Finisher {
     // Cash squares up to the man he's holding down, at striking distance
     const to = h.pos.clone().sub(P.pos).setY(0); this.face = to.lengthSq() ? to.normalize() : new V(0, 0, -1);
     this.cashPos = h.pos.clone().addScaledVector(this.face, -REACH).setY(0);
-    C.root.visible = true; C.root.position.copy(this.cashPos); C.root.rotation.y = Math.atan2(this.face.x, this.face.z);
+    C.root.visible = true; C.root.position.copy(this.cashPos); C.root.position.y = G.world.heightAt(this.cashPos.x, this.cashPos.z); C.root.rotation.y = Math.atan2(this.face.x, this.face.z);
     h.yaw = Math.atan2(this.face.x, this.face.z); h.place?.(); // back to Cash
     // your weapon, in his right fist, held the way your hand held it
     const it = this.it; it.mesh.updateMatrixWorld(true); this.hand.obj.updateMatrixWorld(true);

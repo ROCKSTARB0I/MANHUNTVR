@@ -1,7 +1,7 @@
 // blood.js — droplets thrown by wounds (instanced, ballistic), splats where
 // they land, and pools that spread slowly under the dead.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=17';
+import { T } from './paint.js?v=18';
 
 const V = THREE.Vector3, MAX = 400;
 export class Blood {
@@ -28,13 +28,13 @@ export class Blood {
     if (!this.mats) this.mats = T.blood.map((t) => new THREE.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: 0.14, polygonOffset: true, polygonOffsetFactor: -2 }));
     const m = new THREE.Mesh(this.quad || (this.quad = new THREE.PlaneGeometry(1, 1)), this.mats[T.blood.indexOf(map)]);
     m.rotation.x = -Math.PI / 2; m.rotation.z = dirn ? Math.atan2(-vel.z, vel.x) : Math.random() * 6.28;
-    m.scale.set(s * (dirn ? 1.4 : 1), s * (dirn ? 0.8 : 1), 1); m.position.set(p.x, 0.008 + this.splats.length % 7 * 0.0006, p.z);
+    m.scale.set(s * (dirn ? 1.4 : 1), s * (dirn ? 0.8 : 1), 1); m.position.set(p.x, 0.008 + this.splats.length % 7 * 0.0006 + (this.world?.heightAt?.(p.x, p.z) || 0), p.z);
     this.scene.add(m); this.splats.push(m);
     if (this.splats.length > 160) { const o = this.splats.shift(); this.scene.remove(o); }
   }
   pool(p, size) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: T.blood[7], transparent: true, depthWrite: false, roughness: 0.04, metalness: 0.15, polygonOffset: true, polygonOffsetFactor: -1 }));
-    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.position.set(p.x, 0.006, p.z); m.scale.setScalar(0.01);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.position.set(p.x, 0.006 + (this.world?.heightAt?.(p.x, p.z) || 0), p.z); m.scale.setScalar(0.01);
     this.scene.add(m); this.pools.push({ m, size, t: 0 });
   }
   // a wound that keeps pumping in pulses, following the body part it's on
@@ -54,7 +54,7 @@ export class Blood {
     for (let i = 0; i < this.p.length; i++) {
       const p = this.p[i], v = this.v[i];
       v.y -= g; p.addScaledVector(v, dt);
-      if (p.y <= 0.01) { if (Math.random() < 0.4) this.splat(p, (0.05 + Math.random() * 0.12) * (0.6 + this.sz[i] * 0.5), v); continue; }
+      if (p.y <= 0.01 + (this.world?.heightAt?.(p.x, p.z) || 0)) { if (Math.random() < 0.4) this.splat(p, (0.05 + Math.random() * 0.12) * (0.6 + this.sz[i] * 0.5), v); continue; }
       this.p[w] = p; this.v[w] = v; this.sz[w] = this.sz[i]; w++;
     }
     this.p.length = w; this.v.length = w; this.sz.length = w;
