@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=16';
+import { T } from './paint.js?v=17';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -98,11 +98,15 @@ export class Kit {
     this.inv = { melee: null, single: null, lure: null, gun: null };
     // lock-on reticle that floats behind a target's head
     const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
-    g.strokeStyle = '#fff'; g.lineWidth = 10; g.beginPath(); g.arc(64, 64, 50, 0, Math.PI * 2); g.stroke();
-    g.lineWidth = 6; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; g.beginPath(); g.moveTo(64 + Math.cos(a) * 34, 64 + Math.sin(a) * 34); g.lineTo(64 + Math.cos(a) * 18, 64 + Math.sin(a) * 18); g.stroke(); }
+    // Manhunt's lock-on: three small triangles round the head, points facing in
+    g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 3;
+    for (const a of [-Math.PI / 2 - 2.1, -Math.PI / 2 + 2.1, Math.PI / 2 + Math.PI]) {
+      const cx = 64 + Math.cos(a) * 44, cy = 64 + Math.sin(a) * 44, ia = a + Math.PI; // pointing toward the centre
+      g.beginPath(); g.moveTo(cx + Math.cos(ia) * 12, cy + Math.sin(ia) * 12); g.lineTo(cx + Math.cos(ia + 2.4) * 11, cy + Math.sin(ia + 2.4) * 11); g.lineTo(cx + Math.cos(ia - 2.4) * 11, cy + Math.sin(ia - 2.4) * 11); g.closePath(); g.fill(); g.stroke();
+    }
     const tx = new THREE.CanvasTexture(c);
     this.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthTest: false, opacity: 0.9 }));
-    this.mark.renderOrder = 900; this.mark.scale.setScalar(0.22); this.mark.visible = false; game.scene.add(this.mark);
+    this.mark.renderOrder = 900; this.mark.scale.setScalar(0.46); this.mark.visible = false; game.scene.add(this.mark);
     this.fill = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, transparent: true, depthTest: false, opacity: 0.6, blending: THREE.AdditiveBlending }));
     this.fill.renderOrder = 901; this.fill.visible = false; game.scene.add(this.fill);
     // the kill light: snaps on over an execution so you see everything
@@ -457,8 +461,8 @@ export class Kit {
     if (!target) for (const hand of G.hands) { const c = this.candidate(hand); if (c) { target = c; break; } }
     if (!target || this.exec || this.struggle) { this.mark.visible = this.fill.visible = false; G.execMeter = null; if (!target) this.charge = null; return; }
     const head = target.body.headPos(_b);
-    this.mark.position.copy(head).y += 0.32; this.mark.visible = true; this.fill.position.copy(this.mark.position);
-    if (!C) { this.mark.material.color.setHex(0xffffff); this.mark.material.opacity = 0.35 + Math.sin(G.time * 6) * 0.1; this.fill.visible = false; G.execMeter = { t: 0, lvl: -1 }; return; }
+    this.mark.position.copy(head); this.mark.visible = true; // round the head, not above it this.fill.position.copy(this.mark.position);
+    if (!C) { this.mark.material.color.setHex(0xd8261a); this.mark.material.opacity = 0.55 + Math.sin(G.time * 6) * 0.15; this.fill.visible = false; G.execMeter = { t: 0, lvl: -1 }; return; }
     // lost him? (he turned, walked off, or noticed)
     if (!target.alive || target.aware() || target.pos.distanceTo(G.player.pos) > 3.2 || !C.hand.item) { this.charge = null; return; }
     if (this.held(C.hand)) {
@@ -466,7 +470,7 @@ export class Kit {
       if (lvl !== C.lvl) { C.lvl = lvl; C.hand.haptic?.(0.3 + lvl * 0.35, 50); G.sound.lock?.(lvl); }
       const L = LEVELS[lvl]; this.mark.material.color.setHex(L.color); this.mark.material.opacity = 0.95;
       this.fill.material.color.setHex(L.color); this.fill.visible = true; this.fill.scale.setScalar(0.12 + Math.min(1, C.t / CHARGE[1]) * 0.25);
-      this.mark.scale.setScalar(0.22 + Math.sin(G.time * (8 + lvl * 6)) * 0.015);
+      this.mark.scale.setScalar(0.46 - Math.min(1, C.t / CHARGE[1]) * 0.12 + Math.sin(G.time * (8 + lvl * 6)) * 0.012); // they close in as it charges
       G.execMeter = { t: Math.min(1, C.t / (CHARGE[1] + 0.3)), lvl };
     } else {
       this.charge = null; this.mark.visible = this.fill.visible = false; G.execMeter = null;

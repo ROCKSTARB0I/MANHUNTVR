@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=16';
-import { Score } from './score.js?v=16';
+import { LINE, VOICES } from './lines.js?v=17';
+import { Score } from './score.js?v=17';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -37,6 +37,7 @@ export class Sound {
   src(buf, loop = false) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = loop; return s; }
   // spatial output node at a world position
   at(p) {
+    if (!this.ctx) return null; // audio not started yet (before the first click): stay silent, don't throw
     const C = this.ctx, pn = C.createPanner();
     pn.panningModel = 'HRTF'; pn.distanceModel = 'inverse'; pn.refDistance = 1.2; pn.rolloffFactor = 1.3; pn.maxDistance = 60;
     if (pn.positionX) { pn.positionX.value = p.x; pn.positionY.value = p.y; pn.positionZ.value = p.z; } else pn.setPosition(p.x, p.y, p.z);
@@ -50,6 +51,7 @@ export class Sound {
 
   // filtered noise burst
   burst(out, { dur = 0.1, f = 1000, q = 1, type = 'bandpass', gain = 0.5, attack = 0.003, decay = null, sweep = null, t = 0, buf = null } = {}) {
+    if (!this.ctx || !out) return;
     const C = this.ctx, s = this.src(buf || this.noise), fl = C.createBiquadFilter(), g = C.createGain(), t0 = this.now() + t;
     fl.type = type; fl.frequency.value = f; fl.Q.value = q;
     if (sweep) fl.frequency.exponentialRampToValueAtTime(sweep, t0 + dur);
@@ -59,6 +61,7 @@ export class Sound {
     s.start(t0, Math.random() * 1.5); s.stop(t0 + (decay ?? dur) + 0.05);
   }
   tone(out, { f = 200, f2 = null, dur = 0.2, type = 'sine', gain = 0.3, t = 0, attack = 0.005 } = {}) {
+    if (!this.ctx || !out) return;
     const C = this.ctx, o = C.createOscillator(), g = C.createGain(), t0 = this.now() + t;
     o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
     g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + attack); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);

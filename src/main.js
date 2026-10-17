@@ -1,19 +1,19 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=16';
-import { District, SCENES } from './district.js?v=16';
-import { spawnHunters } from './hunters.js?v=16';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=16';
-import { Blood } from './blood.js?v=16';
-import { Director } from './director.js?v=16';
-import { Sound } from './sound.js?v=16';
-import { makeHand, Person, BONE } from './body.js?v=16';
-import { VHS } from './vhs.js?v=16';
-import { Grime } from './grime.js?v=16';
-import { Cutscene } from './cutscene.js?v=16';
-import { Arms } from './arms.js?v=16';
-import { Finisher } from './finisher.js?v=16';
+import { paintAll, T } from './paint.js?v=17';
+import { District, SCENES } from './district.js?v=17';
+import { spawnHunters } from './hunters.js?v=17';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=17';
+import { Blood } from './blood.js?v=17';
+import { Director } from './director.js?v=17';
+import { Sound } from './sound.js?v=17';
+import { makeHand, Person, BONE } from './body.js?v=17';
+import { VHS } from './vhs.js?v=17';
+import { Grime } from './grime.js?v=17';
+import { Cutscene } from './cutscene.js?v=17';
+import { Arms } from './arms.js?v=17';
+import { Finisher } from './finisher.js?v=17';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -176,9 +176,9 @@ const hud = (() => {
       ex.hidden = !em || em.lvl < 0;
       if (em && em.lvl >= 0) { ex.querySelector('b').style.width = em.t * 100 + '%'; ex.querySelector('b').style.background = LEVELS[em.lvl].css; ex.lastElementChild.textContent = LEVELS[em.lvl].name; ex.lastElementChild.style.color = LEVELS[em.lvl].css; }
       if (em && em.lvl >= 0) { g.fillStyle = 'rgba(8,8,10,0.92)'; g.fillRect(14, 14, 484, 70); g.fillStyle = LEVELS[em.lvl].css; g.fillRect(20, 20, 472 * em.t, 58); g.fillStyle = '#000'; g.font = 'bold 40px "Courier New", monospace'; g.fillText(LEVELS[em.lvl].name, 34, 64); tex.needsUpdate = true; }
-      $('mLight').style.width = light * 100 + '%'; $('mLight').style.background = light > 0.35 ? '#ffdd66' : light > 0.15 ? '#a08a40' : '#3c4450';
+      $('mLight').style.width = light * 100 + '%'; $('mLight').style.height = Math.min(1, light) * 100 + '%'; $('mLight').style.background = light > 0.35 ? '#ffdd66' : light > 0.15 ? '#a08a40' : '#3c4450';
       $('mNoise').style.width = noise * 100 + '%';
-      $('mHp').style.width = Math.max(0, P.hp) + '%'; updateWeapon();
+      $('mHp').style.width = Math.max(0, P.hp) + '%'; $('mHp').style.height = Math.max(0, P.hp) + '%'; updateWeapon(); drawStance();
       $('show').textContent = G.director?.gate ? 'THE GATE IS OPEN — EAST WALL' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
     },
   };
@@ -198,8 +198,20 @@ function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
   g.restore();
 }
 let shownWeapon = '?';
+// Manhunt's stance figure: standing / crouched / running; dark blue when you're hidden in the shadows
+let shownStance = '';
+function drawStance() {
+  const st = !P.alive ? 'dead' : P.crouch ? 'crouch' : P.speed > 2.6 ? 'run' : 'stand', col = P.hidden ? '#2c4f86' : '#d6d6c6', key = st + col; if (key === shownStance) return; shownStance = key;
+  const g = $('stance').getContext('2d'); g.clearRect(0, 0, 60, 96); g.fillStyle = col; g.strokeStyle = col; g.lineCap = 'round'; g.lineWidth = 7;
+  const head = (x, y) => { g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); }, limb = (pts) => { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.stroke(); };
+  if (st === 'crouch') { head(34, 34); limb([[32, 44], [26, 64]]); limb([[26, 64], [40, 74], [36, 90]]); limb([[26, 64], [16, 80], [24, 90]]); limb([[31, 48], [42, 60]]); limb([[30, 48], [20, 60]]); }
+  else if (st === 'run') { head(34, 12); limb([[32, 22], [28, 50]]); limb([[28, 50], [42, 66], [38, 90]]); limb([[28, 50], [16, 70], [6, 80]]); limb([[31, 26], [44, 40]]); limb([[30, 26], [16, 36]]); }
+  else if (st === 'dead') { limb([[8, 86], [52, 86]]); head(54, 80); }
+  else { head(30, 12); limb([[30, 22], [30, 52]]); limb([[30, 52], [24, 90]]); limb([[30, 52], [36, 90]]); limb([[30, 26], [20, 50]]); limb([[30, 26], [40, 50]]); }
+}
 function updateWeapon() {
   const it = G.hands[0]?.item || G.hands[1]?.item, kind = it ? it.kind : null;
+  $('weapon').className = !kind ? '' : kind === 'crowbar' || kind === 'shard' ? 'red' : kind === 'bottle' || kind === 'brick' || kind === 'rifle' ? 'blue' : ''; // the pill takes the item's colour, as in the game
   const key = (kind === 'rifle' ? 'rifle' + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
   const g = $('wIcon').getContext('2d'); g.clearRect(0, 0, 96, 96); drawWeapon(g, kind);
   $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
@@ -344,18 +356,21 @@ function win() {
   } else setTimeout(() => { $('banner').innerHTML = 'THE END'; setTimeout(() => { $('banner').hidden = true; if (renderer.xr.isPresenting) renderer.xr.getSession().end(); $('screen').hidden = false; G.state = 'menu'; document.exitPointerLock?.(); }, 6000); }, 9000);
 }
 // swap the whole world for another scene
+// Manhunt's night: dirty orange street light everywhere you can see, shadows deep enough to hide in, but never a black screen
+function sceneLook(idx) {
+  const def = SCENES[idx] || {};
+  scene.fog.density = Math.min(0.022, (def.fog || 0.04) * 0.5);
+  hemi.intensity = 3.0; hemi.color.set(0x6c6d6a); hemi.groundColor.set(0x2a2924); // a neutral grey night, as the game has it
+  scene.fog.color.set(0x1b1c1b); if (scene.background?.isColor) scene.background.set(0x0d0e0e);
+  moon.intensity = 1.1; moon.color.set(0xa4a6a2);
+  renderer.toneMappingExposure = 1.5 * S.exposure * 1.45;
+}
 function goScene(idx) {
   teardown(); world.dispose();
   world = new District(scene, idx); G.world = world; cut.world = world;
   // scenes after Born Again were too dark to read: more fill light, thinner fog, a touch more exposure.
   // (Stealth still runs on the baked lamp grid, so shadows hide you exactly as before.)
-  const later = idx > 0;
-  scene.fog.density = (SCENES[idx].fog || 0.042) * (later ? 0.7 : 1);
-  hemi.intensity = later ? 1.5 : (SCENES[idx].amb || 0.35);
-  hemi.color.set(later ? 0x5a554c : 0x2a2824); hemi.groundColor.set(later ? 0x1e1a15 : 0x0b0907);
-  scene.fog.color.set(later ? 0x16130f : 0x070706); if (scene.background?.isColor) scene.background.set(later ? 0x100e0b : 0x040404);
-  moon.intensity = later ? 0.8 : 0.2;
-  renderer.toneMappingExposure = 1.5 * S.exposure * (later ? 1.25 : 1);
+  sceneLook(idx);
   populate();
   P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
   tutorCur = null; $('tip').hidden = true; tipMesh.visible = false;
@@ -653,7 +668,7 @@ function knock(p) {
 function vrKnocks() {
   for (const h of G.hands) {
     if (h.vel.length() < 1.1) continue;
-    for (const q of world.boxes) {
+    for (const q of world.near(h.pos.x - 0.1, h.pos.z - 0.1, h.pos.x + 0.1, h.pos.z + 0.1)) {
       if (h.pos.y < q.y0 || h.pos.y > q.y1 || !q.see) continue;
       const dx = Math.max(q.x0 - h.pos.x, 0, h.pos.x - q.x1), dz = Math.max(q.z0 - h.pos.z, 0, h.pos.z - q.z1);
       if (dx * dx + dz * dz < 0.0025) { knock(h.pos); break; }
@@ -890,7 +905,7 @@ async function startVR() {
   } catch (e) { $('vrNote').textContent = 'Could not start VR: ' + e.message; }
 }
 if (navigator.xr) navigator.xr.isSessionSupported('immersive-vr').then((ok) => { if (!ok) $('enterVR').classList.add('dim'); });
-populate(); // the Hoods are already out there, seen on the menu feed
+sceneLook(world.idx); populate(); // the Hoods are already out there, seen on the menu feed
 $('loading').hidden = true;
 // the menu theme starts with the first click or key (browsers need a gesture for sound)
 addEventListener('pointerdown', () => sound.start(), { once: true });

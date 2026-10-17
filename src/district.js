@@ -4,15 +4,22 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=16';
+import { T, seeded } from './paint.js?v=17';
+import { buildPlan } from './planlevel.js?v=17';
 
 const V = THREE.Vector3;
-const CELL = 0.5;
+const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
+// the wall list: every push/splice bumps a version so the spatial index knows to rebuild
+class BoxList extends Array {
+  static get [Symbol.species]() { return Array; }
+  push(...a) { this.ver = (this.ver || 0) + 1; return super.push(...a); }
+  splice(...a) { this.ver = (this.ver || 0) + 1; return super.splice(...a); }
+}
 
 export class District {
   constructor(scene, idx = 0) {
     this.scene = scene; this.idx = idx; this.def = SCENES[idx]; this.B = { ...this.def.B };
-    this.boxes = [];          // {x0,x1,z0,z1,y0,y1, solid, see}  see=false -> fences you can see through
+    this.boxes = new BoxList(); // {x0,x1,z0,z1,y0,y1, solid, see}  see=false -> fences you can see through
     this.lamps = [];          // {p, r, i, col, flicker, light, bulb}
     this.cams = [];           // CCTV spots {p, yaw, sweep}
     this.items = [];          // item spawns {kind, p}
@@ -600,6 +607,28 @@ export class District {
   }
   finish(seed, hunters, cams = 3) { this.pending = { seed, hunters }; this.autoCams(seed + 3, cams); }
 
+  // ================================================================ traced Manhunt maps
+  buildPlan() {
+    const surf = (t, color, extra = {}) => ({ map: rep(t.map, 1, 1), normalMap: t.normal ? rep(t.normal, 1, 1) : undefined, roughnessMap: t.rough ? rep(t.rough, 1, 1) : undefined, bumpMap: t.normal ? undefined : rep(t.bump, 1, 1), bumpScale: 0.03, roughness: 1, color, ...extra });
+    buildPlan(this, (S) => {
+      const ground = { asphalt: surf(T.asphalt, 0xffffff, { roughness: 0.9 }), gravel: surf(T.gravel, 0x9a8a76), tiles: surf(T.slab, 0xb0aa9c, { roughness: 0.55 }), concrete: surf(T.concrete, 0x9a9890) }[S.ground];
+      const wallSurf = { brick: brickMat(0x9a958e), concrete: surf(T.concrete, 0x9a968c), corrugated: { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 }, stone: surf(T.concrete, 0x8a8478) }[S.wall];
+      return {
+        floor: this.mat('pfloor' + this.idx, ground), grass: this.mat('pgrass', surf(T.gravel, 0x56663e)),
+        wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
+        building: this.mat('pbld' + this.idx, brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
+        ceil: this.mat('pceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }),
+      };
+    });
+  }
+  // a scruffy city tree: a trunk and a few lumps of dark foliage
+  tree(x, z, size = 3) {
+    const bark = this.mat('bark', { color: 0x2a2018, roughness: 1 }), leaf = this.mat('leaf', { color: 0x1c2a16, roughness: 1 });
+    const h = 3 + size * 0.6, t = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, h, 7), bark); t.position.set(x, h / 2, z); this.root.add(t);
+    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + size * 0.25, 1), leaf); b.position.set(x + (this.R() - 0.5) * size * 0.6, h + (this.R() - 0.3) * 1.2, z + (this.R() - 0.5) * size * 0.6); b.castShadow = true; this.root.add(b); }
+    this.boxes.push({ x0: x - 0.25, x1: x + 0.25, z0: z - 0.25, z1: z + 0.25, y0: 0, y1: h, see: true });
+  }
+
   // ================================================================ streets
   // tenement blocks on a grid of alleys; variants for alleys, slums, back streets
   buildStreets() {
@@ -820,9 +849,25 @@ export class District {
 
   // -------------------------------------------------------------- queries
   // does the segment a->b (3D) clear every sight-blocking box?
+  // spatial index over the walls: 4 m buckets, rebuilt whenever the list changes
+  index() {
+    if (this.idxVer === this.boxes.ver && this.hidx) return;
+    const m = new Map(); this.stamp = this.stamp || 1;
+    for (const q of this.boxes) for (let j = Math.floor(q.z0 / HC); j <= Math.floor(q.z1 / HC); j++) for (let i = Math.floor(q.x0 / HC); i <= Math.floor(q.x1 / HC); i++) { const k = i * 73856093 ^ j * 19349663; let a = m.get(k); if (!a) m.set(k, a = []); a.push(q); }
+    this.hidx = m; this.idxVer = this.boxes.ver;
+  }
+  // walls whose buckets overlap the rectangle (each once)
+  near(x0, z0, x1, z1) {
+    this.index(); const out = [], st = ++this.stamp;
+    for (let j = Math.floor(Math.min(z0, z1) / HC); j <= Math.floor(Math.max(z0, z1) / HC); j++) for (let i = Math.floor(Math.min(x0, x1) / HC); i <= Math.floor(Math.max(x0, x1) / HC); i++) {
+      const a = this.hidx.get(i * 73856093 ^ j * 19349663); if (!a) continue;
+      for (const q of a) if (q._st !== st) { q._st = st; out.push(q); }
+    }
+    return out;
+  }
   clear(a, b, forSight = true) {
     const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
-    for (const q of this.boxes) {
+    for (const q of this.near(a.x, a.z, b.x, b.z)) {
       if (forSight && !q.see) continue;
       let t0 = 0, t1 = 1;
       if (!slab(a.x, dx, q.x0, q.x1)) continue;
@@ -836,7 +881,7 @@ export class District {
 
   // push a circle (x,z,r) out of walls; returns the corrected point
   collide(p, r, h = 1.6) {
-    for (let it = 0; it < 2; it++) for (const q of this.boxes) {
+    for (let it = 0; it < 2; it++) for (const q of this.near(p.x - r, p.z - r, p.x + r, p.z + r)) {
       if (q.y1 < 0.35 || q.y0 > h) continue;
       const cx = Math.max(q.x0, Math.min(p.x, q.x1)), cz = Math.max(q.z0, Math.min(p.z, q.z1));
       const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
@@ -864,7 +909,9 @@ export class District {
     this.lamps.forEach((L, li) => {
       const g = this.lgrid[li];
       if (L.base <= 0) return;
-      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const i0 = Math.max(0, Math.floor((L.p.x - L.r - B.x0) / CELL)), i1 = Math.min(nx - 1, Math.ceil((L.p.x + L.r - B.x0) / CELL));
+      const j0 = Math.max(0, Math.floor((L.p.z - L.r - B.z0) / CELL)), j1 = Math.min(nz - 1, Math.ceil((L.p.z + L.r - B.z0) / CELL));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         b.set(B.x0 + (i + 0.5) * CELL, 1.0, B.z0 + (j + 0.5) * CELL);
         const d = b.distanceTo(L.p); if (d > L.r) continue;
         a.copy(L.p).y -= 0.25;
@@ -884,13 +931,18 @@ export class District {
 
   // ------------------------------------------------------------- walk grid
   bakeWalk() {
-    const B = this.B, nx = this.lnx, nz = this.lnz, r = 0.35;
-    this.walk = new Uint8Array(nx * nz);
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-      const x = B.x0 + (i + 0.5) * CELL, z = B.z0 + (j + 0.5) * CELL;
-      let ok = 1;
-      for (const q of this.boxes) { if (q.y1 < 0.35) continue; if (x > q.x0 - r && x < q.x1 + r && z > q.z0 - r && z < q.z1 + r) { ok = 0; break; } }
-      this.walk[j * nx + i] = ok;
+    const B = this.B, nx = this.lnx, nz = this.lnz, r0 = 0.35;
+    this.walk = new Uint8Array(nx * nz).fill(1);
+    if (this.planVoid) for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) if (this.planVoid(B.x0 + (i + 0.5) * CELL, B.z0 + (j + 0.5) * CELL)) this.walk[j * nx + i] = 0; // off the map plan
+    for (const q of this.boxes) { // rasterise each wall's footprint (grown by the walker's radius)
+      if (q.y1 < 0.35) continue;
+      const r = q.plan ? 0.08 : r0;
+      const i0 = Math.max(0, Math.ceil((q.x0 - r - B.x0) / CELL - 0.5)), i1 = Math.min(nx - 1, Math.floor((q.x1 + r - B.x0) / CELL - 0.5));
+      const j0 = Math.max(0, Math.ceil((q.z0 - r - B.z0) / CELL - 0.5)), j1 = Math.min(nz - 1, Math.floor((q.z1 + r - B.z0) / CELL - 0.5));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const x = B.x0 + (i + 0.5) * CELL, z = B.z0 + (j + 0.5) * CELL;
+        if (x > q.x0 - r && x < q.x1 + r && z > q.z0 - r && z < q.z1 + r) this.walk[j * nx + i] = 0;
+      }
     }
   }
   cellOf(x, z) { return [Math.floor((x - this.B.x0) / CELL), Math.floor((z - this.B.z0) / CELL)]; }
@@ -1026,22 +1078,22 @@ class MinHeap {
 
 // ------------------------------------------------------------------ scenes
 export const SCENES = [
-  { id: 'born-again', title: 'BORN AGAIN', area: 'Carcer Market', build: 'buildPens', B: { x0: -36, x1: 36, z0: -26, z1: 26 }, gang: 'hoods', fog: 0.042 },
-  { id: 'doorway', title: 'DOORWAY INTO HELL', area: 'Carcer Market', build: 'buildStreets', variant: 'alleys', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'hoods', fog: 0.045, hunters: 6 },
+  { id: 'born-again', title: 'BORN AGAIN', area: 'Carcer Market', build: 'buildPlan', plan: 'born-again', style: 'street', B: { x0: -36, x1: 36, z0: -26, z1: 26 }, gang: 'hoods', fog: 0.042 },
+  { id: 'doorway', title: 'DOORWAY INTO HELL', area: 'Carcer Market', build: 'buildPlan', plan: 'doorway', style: 'ruins', variant: 'alleys', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'hoods', fog: 0.045, hunters: 6 },
   { id: 'road-to-ruin', title: 'ROAD TO RUIN', area: 'Carcer Market', build: 'buildRailyard', B: { x0: -40, x1: 40, z0: -20, z1: 20 }, gang: 'hoods', fog: 0.045, hunters: 7 },
-  { id: 'white-trash', title: 'WHITE TRASH', area: 'Dentons City Junkyard', build: 'buildJunkyard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'skinz', fog: 0.045 },
-  { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildMall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
-  { id: 'grounds', title: 'GROUNDS FOR ASSAULT', area: 'Carcer City Zoo', build: 'buildZoo', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'wardogs', fog: 0.045, hunters: 7 },
-  { id: 'strapped', title: 'STRAPPED FOR CASH', area: 'Carcer City Zoo', build: 'buildZoo', variant: 'house', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.65, hunters: 7 },
+  { id: 'white-trash', title: 'WHITE TRASH', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'white-trash', style: 'yard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'skinz', fog: 0.045 },
+  { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'fuelled', style: 'mall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
+  { id: 'grounds', title: 'GROUNDS FOR ASSAULT', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'grounds', style: 'zoo', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'wardogs', fog: 0.045, hunters: 7 },
+  { id: 'strapped', title: 'STRAPPED FOR CASH', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'strapped', style: 'zoo', variant: 'house', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.65, hunters: 7 },
   { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildStreets', variant: 'slums', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
-  { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildStreets', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
-  { id: 'graveyard', title: 'GRAVEYARD SHIFT', area: 'East Los Ablos', build: 'buildGraveyard', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'innocentz', fog: 0.05, hunters: 8 },
-  { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
+  { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildPlan', plan: 'drunk-driving', style: 'street', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
+  { id: 'graveyard', title: 'GRAVEYARD SHIFT', area: 'East Los Ablos', build: 'buildGraveyard', planWip: 'graveyard', style: 'cemetery', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'innocentz', fog: 0.05, hunters: 8 },
+  { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', planWip: 'madness', style: 'asylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
   { id: 'doing-time', title: 'DOING TIME', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 7 },
   { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPrison', variant: 'yard', B: { x0: -34, x1: 34, z0: -20, z1: 20 }, gang: 'smileys', fog: 0.045, hunters: 8, rabbit: true },
-  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 8 },
-  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildOffices', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'cerberus', fog: 0.05, amb: 0.7, hunters: 7 },
-  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildRailyard', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
+  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 8 },
+  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'cerberus', fog: 0.05, amb: 0.7, hunters: 7 },
+  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
   { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'wardogs', fog: 0.045, hunters: 9 },
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildEstate', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildMansion', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'cerberus', fog: 0.055, amb: 0.65, hunters: 8 },
