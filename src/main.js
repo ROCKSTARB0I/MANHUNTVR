@@ -340,7 +340,13 @@ function win() {
 function goScene(idx) {
   teardown(); world.dispose();
   world = new District(scene, idx); G.world = world; cut.world = world;
-  scene.fog.density = SCENES[idx].fog || 0.042; hemi.intensity = SCENES[idx].amb || 0.35;
+  // scenes after Born Again were too dark to read: more fill light, thinner fog, a touch more exposure.
+  // (Stealth still runs on the baked lamp grid, so shadows hide you exactly as before.)
+  const later = idx > 0;
+  scene.fog.density = (SCENES[idx].fog || 0.042) * (later ? 0.7 : 1);
+  hemi.intensity = (SCENES[idx].amb || 0.35) * (later ? 1.9 : 1);
+  moon.intensity = later ? 0.42 : 0.2;
+  renderer.toneMappingExposure = 1.5 * S.exposure * (later ? 1.25 : 1);
   populate();
   P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
 }
