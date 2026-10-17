@@ -3,9 +3,9 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=23';
-import { makeHunterWeapon } from './body.js?v=23';
-import { T } from './paint.js?v=23';
+import { PLANS } from './plans.js?v=24';
+import { makeHunterWeapon } from './body.js?v=24';
+import { T } from './paint.js?v=24';
 
 const V = THREE.Vector3;
 
@@ -45,7 +45,7 @@ export class Objectives {
     this.mesh(g);
     const b = this.box({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0: 0, y1: 3.4, see: kind !== 'scrap' });
     const gt = { g, b, kind, open: false, swing: 0, at: new V(cx, y, cz), len };
-    gt.unlock = () => { if (gt.open) return; gt.open = true; this.unbox(b); this.G.sound.rattle?.(gt.at); };
+    gt.unlock = () => { if (gt.open) return; gt.open = true; this.unbox(b); if (kind === 'scrap') { g.visible = false; this.G.sound.thud?.(gt.at, 1.5); } else this.G.sound.rattle?.(gt.at); };
     this.gates = this.gates || []; this.gates.push(gt);
     return gt;
   }
@@ -55,6 +55,23 @@ export class Objectives {
     for (let i = i0; i <= i1; i++) { const ok = W.reach(this.X(i + 0.5), this.Z(j + 0.5)); if (ok && !cur) cur = [i, i]; else if (ok) cur[1] = i; else if (cur) { out.push(cur); cur = null; } }
     if (cur) out.push(cur); return out;
   }
+  runsV(i, j0, j1) {
+    const W = this.G.world, out = []; let cur = null;
+    for (let j = j0; j <= j1; j++) { const ok = W.reach(this.X(i + 0.5), this.Z(j + 0.5)); if (ok && !cur) cur = [j, j]; else if (ok) cur[1] = j; else if (cur) { out.push(cur); cur = null; } }
+    if (cur) out.push(cur); return out;
+  }
+  // gates across every gap in a column of cells (pick chooses the kind for each run)
+  gateCol(i, j0, j1, pick) { return this.runsV(i, j0, j1).map(([a, b]) => this.gate(this.X(i + 0.3), this.X(i + 0.7), this.Z(a), this.Z(b + 1), pick(a, b))); }
+  gateRow(j, i0, i1, pick) { return this.runs(j, i0, i1).map(([a, b]) => this.gate(this.X(a), this.X(b + 1), this.Z(j + 0.3), this.Z(j + 0.7), pick(a, b))); }
+  cell(i, j) { return new V(this.X(i), 0, this.Z(j)); }
+  inCells(i0, i1, j0, j1) { const P = this.G.player.pos, i = P.x / this.m + (this.X(0) / -this.m), j = P.z / this.m + (this.Z(0) / -this.m); return i >= i0 && i <= i1 && j >= j0 && j <= j1; }
+  // a hunter kept out of sight until the scene calls him in
+  hold(h) { if (!h) return; h.dormant = true; h.body.root.visible = false; }
+  wake(h, at, charge = true) {
+    if (!h || !h.dormant) return; h.dormant = false; h.body.root.visible = true; if (at) { h.pos.copy(at); h.place(); }
+    const P = this.G.player.pos.clone(); h.investigate?.(P); if (charge) { h.susp = 1.4; h.last?.copy(P); } h.say?.('spot');
+  }
+  noCrowbars() { const K = this.G.kit; for (const it of [...K.items]) if (it.kind === 'crowbar' && !it.hand) K.remove(it); }
   hasItem(kind) { const G = this.G; return G.hands.some((h) => h.item?.kind === kind) || Object.values(G.kit.inv || {}).some((it) => it?.kind === kind); }
   nearPlayer(p, r) { const P = this.G.player.pos; return Math.hypot(P.x - p.x, P.z - p.z) < r; }
   // E on desktop: the closest live interaction spot in reach
@@ -75,6 +92,64 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Born Again: follow the street, bag the Hood at the wall, then a fistfight in the basketball court
+  // (the court's electric gates stay shut until he's dead), the car park, the mall, the chute.
+  'born-again'(O, G) {
+    const { X, Z } = O, H = G.hunters, W = G.world;
+    const courtGates = [...O.gateCol(104, 100, 126, () => 'chain'), ...O.gateCol(105, 128, 152, () => 'chain')];
+    const fighter = H[2]; O.hold(fighter);
+    if (!G.kit.items.some((it) => it.kind === 'bag' && it.pos.distanceTo(O.cell(180, 60)) < 18)) G.kit.spawn('bag', new V(X(184), 0.04, Z(58)));
+    let phase = 0; const said = {}; const once = (k, id) => { if (said[k]) return; said[k] = 1; G.sound.say(id); };
+    O.set('Follow the street');
+    O.tick = () => {
+      if (phase === 0 && H[0] && (G.player.pos.distanceTo(H[0].pos) < 14 || !H[0].alive)) { phase = 1; O.set('Execute the hunter with the plastic bag', 'dir_ba_bag'); }
+      if (phase === 1 && H[0] && !H[0].alive) { phase = 2; O.set('Get down into the basketball court', 'dir_ba_court'); }
+      if (phase <= 2 && O.inCells(105, 160, 68, 117) && W.heightAt(G.player.pos.x, G.player.pos.z) < -1.2) { phase = 3; O.wake(fighter, O.cell(112, 74)); O.set('Beat up the hunter using your fists', 'dir_ba_fists'); }
+      if (phase === 3 && fighter && !fighter.alive) { phase = 4; for (const g of courtGates) g.unlock(); O.set('Find a way to the car park', 'dir_ba_gate'); }
+      if (phase === 4 && O.inCells(58, 102, 95, 150)) { phase = 5; O.set('Kill the Hoods in the car park', 'dir_ba_carpark'); }
+      if (phase === 5 && H[3] && H[4] && !H[3].alive && !H[4].alive) { phase = 6; O.set('Find a way into the mall', 'dir_ba_mall'); }
+      if (phase === 6 && O.inCells(0, 56, 100, 176)) { phase = 7; O.set('Kill all the hunters to open the chute door', 'dir_ba_chute'); }
+    };
+  },
+  // Doorway Into Hell: out of the chute and through a derelict house to the street; a padlocked gate
+  // blocks the alley east; the crowbar is upstairs where the wall says so, with a Hood waiting; the
+  // fight in the cellar opens the way out.
+  'doorway'(O, G) {
+    const { X, Z } = O, H = G.hunters, W = G.world;
+    O.lockExit = true; O.noCrowbars();
+    let lock = null; for (const g of O.gateCol(136, 30, 90, (a, b) => (a <= 71 && b >= 70 ? 'chain' : 'scrap'))) if (g.kind === 'chain') lock = g;
+    const ambusher = H[4], fighter = H[6];
+    O.hold(ambusher); O.hold(fighter); if (ambusher) ambusher.dropOnDeath = 'crowbar';
+    let phase = 0; const said = {}; const once = (k, id) => { if (said[k]) return; said[k] = 1; G.sound.say(id); };
+    O.set('Get to the street');
+    O.spots.push({ at: lock ? lock.at : new V(), r: lock ? Math.max(2.2, lock.len / 2 + 1.2) : 2, reach: 0.6, label: 'E — break the padlock', live: () => lock && !lock.open && O.hasItem('crowbar'),
+      act: () => { lock.unlock(); G.sound.crunch?.(lock.at); phase = Math.max(phase, 3); O.set('Get down into the cellar', 'dir_dh_broke'); } });
+    O.tick = () => {
+      if (phase === 0 && O.inCells(76, 104, 0, 154)) { phase = 1; O.set('Find something to break the PADLOCK', 'dir_dh_padlock'); }
+      if (lock && !lock.open && G.player.pos.distanceTo(lock.at) < 7) once('gate', 'dir_dh_gate');
+      if (ambusher?.dormant && G.player.pos.distanceTo(O.cell(66, 70)) < 4.5) { O.wake(ambusher, O.cell(70, 64)); once('amb', 'dir_dh_ambush'); }
+      if (phase <= 2 && O.hasItem('crowbar')) { phase = 2; O.set('Use the CROWBAR to break the PADLOCK', 'dir_dh_crowbar'); }
+      if (phase >= 3 && phase < 4 && O.inCells(196, 214, 67, 81)) { phase = 4; O.wake(fighter, O.cell(212, 70)); O.set('Win the fight in the cellar', 'dir_dh_fight'); }
+      if (phase === 4 && fighter && !fighter.alive) { phase = 5; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Get out through the open door', 'dir_dh_out'); }
+    };
+  },
+  // Road to Ruin: make for the derelict library; its cellar is padlocked (crowbar); inside, the wall
+  // gives way at the back and the last Hoods come down from the alley; kill them and get out the back.
+  'road-to-ruin'(O, G) {
+    const H = G.hunters;
+    O.lockExit = true;
+    let lock = null; for (const g of O.gateCol(97, 56, 66, () => 'chain')) lock = lock || g;
+    const hole = O.gateRow(45, 98, 101, () => 'scrap');
+    if (H[4]) H[4].dropOnDeath = 'crowbar';
+    let phase = 0;
+    O.set('Make your way to the abandoned library');
+    O.spots.push({ at: lock ? lock.at : new V(), r: lock ? Math.max(2.2, lock.len / 2 + 1.2) : 2, reach: 0.6, label: 'E — break the padlock', live: () => lock && !lock.open && O.hasItem('crowbar'),
+      act: () => { lock.unlock(); G.sound.crunch?.(lock.at); phase = 2; O.set('Get through the cellar to the exit out the back', 'dir_rr_in'); } });
+    O.tick = () => {
+      if (phase === 0 && G.player.pos.distanceTo(O.cell(94, 56)) < 11) { phase = 1; O.set('Find a way into the library cellar', 'dir_rr_library'); }
+      if (phase === 2 && O.inCells(98, 115, 46, 67)) { phase = 3; for (const g of hole) g.unlock(); O.lockExit = false; for (const k of [5, 6]) if (H[k]?.alive) H[k].investigate?.(G.player.pos.clone()); G.sound.say('dir_rr_back'); }
+    };
+  },
   // White Trash: kill the Skin on the yard gate; take the knife off the one that has it and cut the
   // rope gate; smash the trailer's toilet window to draw out the Skin with the nail gun; throw the
   // switch in the guard hut to open the electric gate, which brings the rest of them running.

@@ -5,8 +5,8 @@
 // that go with all of it. Static dressing is merged into a handful of meshes so
 // the Quest can draw it cheaply; the moving things are few and small.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=23';
-import { Person } from './body.js?v=23';
+import { T, seeded } from './paint.js?v=24';
+import { Person } from './body.js?v=24';
 
 const V = THREE.Vector3;
 
