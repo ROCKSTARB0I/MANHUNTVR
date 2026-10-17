@@ -76,3 +76,16 @@ Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill,
   crates; a railed gate at the end. 49:08 Cerberus van cutscene, then White Trash.
 - Wiki: Road to Ruin ("der2") reuses the Doorway Into Hell radar map: warehouse -> restroom -> alley ->
   padlocked gate -> long corridor -> street -> library cellar (hung corpses) -> back alley -> gate.
+
+## White Trash (video 49:08–66:20)
+- Intro: Ramirez kills a drunk Skin in the junkyard; Cerberus Securicar backs into an alley and dumps Cash.
+- Alley of graffiti brick and rusted container walls, fires in drums, wrecked trucks and tyre stacks.
+- Maze walls of crushed cars, many under dark camo tarps; concrete slab walls; corrugated fences.
+- Middle: a gutted concrete building with windows; yellow crane, yellow taxi and red wrecks, a green
+  Quonset hangar, green fuel tanks, a trailer (Skin on the toilet, nailgun), a guard house with the gate switch.
+- Objectives (wiki): kill the gate Skin, get a knife to cut the rope gate, nailgun from the trailer,
+  switch in the guard house opens the electric gate, exit.
+
+## Story cutscenes to add after the levels (in order)
+- Born Again intro (execution chamber), Road to Ruin outro (Cerberus van grabs Cash),
+  White Trash intro (Ramirez and the Skinz; Cash dumped from the van) ... keep logging per level.
