@@ -3,7 +3,7 @@
 // it moves (and falls) with the man. Sizes follow the body's cross-sections in
 // body.js (chest bone at 1.30 m, spine 1.10, hips 0.95, head 1.60).
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=24';
+import { T } from './paint.js?v=25';
 
 const srgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: Array.isArray(c) ? srgb(c) : c, roughness: 0.85, side: THREE.DoubleSide }, o));

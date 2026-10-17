@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=24';
-import { buildPlan } from './planlevel.js?v=24';
+import { T, seeded } from './paint.js?v=25';
+import { buildPlan } from './planlevel.js?v=25';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1094,7 +1094,7 @@ export const SCENES = [
   { id: 'doorway', title: 'DOORWAY INTO HELL', area: 'Carcer Market', build: 'buildPlan', plan: 'doorway', style: 'ruins', variant: 'alleys', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'hoods', fog: 0.045, hunters: 6 },
   { id: 'road-to-ruin', title: 'ROAD TO RUIN', area: 'Carcer Market', build: 'buildPlan', plan: 'doorway', style: 'ruins', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'hoods', fog: 0.045, hunters: 7 },
   { id: 'white-trash', title: 'WHITE TRASH', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'white-trash', style: 'yard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'skinz', fog: 0.045 },
-  { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'fuelled', style: 'mall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
+  { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'fuelled', style: 'yard', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.045 },
   { id: 'grounds', title: 'GROUNDS FOR ASSAULT', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'grounds', style: 'zoo', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'wardogs', fog: 0.045, hunters: 7 },
   { id: 'strapped', title: 'STRAPPED FOR CASH', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'strapped', style: 'zoo', variant: 'house', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.65, hunters: 7 },
   { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildStreets', variant: 'slums', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },

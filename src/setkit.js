@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=24';
+import { T } from './paint.js?v=25';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -94,6 +94,33 @@ export function makeKit(D, { X, Z, Hc, m }) {
     tank: (i, j, ry) => { const g = new THREE.Group(), m2 = mat('tank', { color: 0x4a6a5a, roughness: 0.5, metalness: 0.4 }); const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 2.2, 6, 14), m2); t.rotation.z = Math.PI / 2; t.position.y = 1.2; g.add(t); for (const x of [-0.9, 0.9]) { const l = new THREE.Mesh(box(0.2, 0.5, 1.2), mat('tankleg', { color: 0x2a2a28 })); l.position.set(x, 0.25, 0); g.add(l); } return place(g, i, j, ry, 3.8, 1.7, 2); },
     tyres: (i, j, n = 5) => { const g = new THREE.Group(); for (let k = 0; k < n; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.14, 8, 16), rubber()); t.rotation.x = Math.PI / 2; t.position.set((Math.random() - 0.5) * 0.12, 0.14 + k * 0.27, (Math.random() - 0.5) * 0.12); g.add(t); } return place(g, i, j, Math.random() * 6, 1, 1, n * 0.27); },
     drums: (i, j, n = 4) => { for (let k = 0; k < n; k++) D.prop('barrel', wx(i + (k % 2) * 1.3), wz(j + Math.floor(k / 2) * 1.3), Math.random() * 6); },
+    // Fuelled By Hate: open containers, scrap mounds, the crusher, the raised guard hut, the fuse box
+    container: (i, j, ry, col = 0x7a4a2a) => { const g = new THREE.Group(), cm = mat('cont' + col, { map: T.corrugated.map, color: col, roughness: 0.7, metalness: 0.4, side: THREE.DoubleSide }), L = 6, Wd = 2.4, Hh = 2.6;
+      for (const [w, h, d, x, y, z] of [[L, Hh, 0.06, 0, Hh / 2, Wd / 2], [L, Hh, 0.06, 0, Hh / 2, -Wd / 2], [L, 0.06, Wd, 0, Hh, 0], [0.06, Hh, Wd, -L / 2, Hh / 2, 0]]) { const p = new THREE.Mesh(box(w, h, d), cm); p.position.set(x, y, z); p.castShadow = true; g.add(p); }
+      const door = new THREE.Mesh(box(0.06, Hh, Wd / 2), cm); door.position.set(L / 2 + 0.5, Hh / 2, Wd / 2 + 0.5); door.rotation.y = 1.2; g.add(door);
+      place(g, i, j, ry); const x = wx(i), z = wz(j), y = fy(i, j), c = Math.cos(ry), sn = Math.sin(ry);
+      for (const [lx, lz, w, d] of [[0, Wd / 2, L, 0.15], [0, -Wd / 2, L, 0.15], [-L / 2, 0, 0.15, Wd]]) { const px = x + lx * c + lz * sn, pz = z - lx * sn + lz * c, hx = (Math.abs(w * c) + Math.abs(d * sn)) / 2, hz = (Math.abs(w * sn) + Math.abs(d * c)) / 2; solid(px - hx, px + hx, pz - hz, pz + hz, y, y + Hh); }
+      return g; },
+    mound: (i, j, r = 4, h = 3) => { const g = new THREE.Group(), sm = mat('mound', { map: T.scrap.map, color: 0x5a5650, roughness: 0.8, metalness: 0.3 });
+      for (let k = 0; k < 7; k++) { const c = new THREE.Mesh(new THREE.DodecahedronGeometry(r * (0.4 + Math.random() * 0.35), 1), sm); c.position.set((Math.random() - 0.5) * r, h * (0.2 + Math.random() * 0.25), (Math.random() - 0.5) * r); c.scale.y = 0.6; c.rotation.set(Math.random(), Math.random(), Math.random()); c.castShadow = true; g.add(c); }
+      return place(g, i, j, Math.random() * 6, r * 1.3, r * 1.3, h); },
+    crusher: (i, j, ry) => { const g = new THREE.Group(), gm = mat('crusherG', { color: 0x3a5a3a, roughness: 0.6, metalness: 0.5 }), dk = mat('crusherD', { color: 0x1c1c1a, roughness: 0.7, metalness: 0.5 }), rust = mat('crusherR', { color: 0x6a3a1c, roughness: 0.9 });
+      const body = new THREE.Mesh(box(5, 3.2, 4), gm); body.position.y = 1.6; g.add(body); const hop = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 1.6, 1.6, 4, 1, true), rust); hop.position.y = 4; hop.rotation.y = Math.PI / 4; g.add(hop);
+      const press = new THREE.Mesh(box(4.6, 0.5, 3.6), dk); press.position.y = 5.4; g.add(press); for (const s2 of [1, -1]) { const ram = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.4, 10), dk); ram.position.set(s2 * 1.6, 6.4, 0); g.add(ram); }
+      const belt = new THREE.Mesh(box(1.4, 0.2, 9), dk); belt.position.set(0, 2.6, -6.2); belt.rotation.x = -0.32; g.add(belt); for (let k = 0; k < 4; k++) { const leg = new THREE.Mesh(box(0.15, 1 + k * 0.8, 0.15), gm); leg.position.set(0, (1 + k * 0.8) / 2, -9.5 + k * 2.2); g.add(leg); }
+      const stairs = new THREE.Group(); for (let k = 0; k < 10; k++) { const st = new THREE.Mesh(box(1, 0.08, 0.32), dk); st.position.set(3.1, 0.32 * k + 0.1, 1.9 - k * 0.3); stairs.add(st); } g.add(stairs);
+      return place(g, i, j, ry, 5.4, 4.4, 5.5); },
+    hutRaised: (i, j, ry) => { const g = new THREE.Group(), wd = mat('hutW', { map: T.wood.map, color: 0x8a7a64, roughness: 0.9 }), dk = mat('hutD', { color: 0x2a2826, roughness: 0.8 });
+      for (const [x, z] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) { const leg = new THREE.Mesh(box(0.2, 2.6, 0.2), dk); leg.position.set(x, 1.3, z); g.add(leg); }
+      const cab = new THREE.Mesh(box(3, 2.4, 3), wd); cab.position.y = 3.8; g.add(cab); const roof = new THREE.Mesh(box(3.4, 0.2, 3.4), dk); roof.position.y = 5.1; g.add(roof);
+      const tv = new THREE.Mesh(box(1.6, 0.6, 0.05), mat('hutTV', { color: 0x9ab8d8, emissive: 0x6a88b8, emissiveIntensity: 1.4 })); tv.position.set(0, 4.1, 1.52); g.add(tv); g.userData.tv = tv;
+      for (let k = 0; k < 9; k++) { const st = new THREE.Mesh(box(1, 0.08, 0.3), dk); st.position.set(2, 0.28 * k + 0.1, 1.6 - k * 0.3); g.add(st); }
+      const gateM = new THREE.Mesh(box(0.05, 1.1, 1), mat('hutGate', { color: 0x4a4640, metalness: 0.7, roughness: 0.5 })); gateM.position.set(1.5, 0.6, 1.9); g.add(gateM);
+      return place(g, i, j, ry, 3, 3, 5.2); },
+    fusebox: (i, j, ry) => { const g = new THREE.Group(), p = new THREE.Mesh(box(0.15, 1.8, 0.15), mat('pole', { color: 0x3a3632 })); p.position.y = 0.9; g.add(p);
+      const b = new THREE.Mesh(box(0.5, 0.6, 0.25), mat('fuse', { color: 0x6a6a5a, metalness: 0.6, roughness: 0.5 })); b.position.set(0, 1.4, 0.2); g.add(b); const l = new THREE.Mesh(box(0.06, 0.06, 0.02), mat('fuseL', { color: 0x30ff40, emissive: 0x20c030, emissiveIntensity: 1 })); l.position.set(0.15, 1.6, 0.33); g.add(l); g.userData.led = l;
+      return place(g, i, j, ry, 0.5, 0.5, 1.8); },
+    timber: (i, j, ry) => { const g = new THREE.Group(), w = mat('timber', { map: T.wood.map, color: 0x9a8060, roughness: 1 }); for (let k = 0; k < 12; k++) { const b = new THREE.Mesh(box(4, 0.2, 0.2), w); b.position.set(0, 0.1 + Math.floor(k / 4) * 0.21, -0.35 + (k % 4) * 0.23); g.add(b); } return place(g, i, j, ry, 4, 1, 0.7); },
     // restroom: a row of stalls with half-open doors, and sinks on the wall opposite
     stalls: (i, j, ry, n = 3) => { const g = new THREE.Group(), pm = mat('stall', { color: 0x6a6448, roughness: 0.55, metalness: 0.2 }), wc = mat('porcelain', { color: 0xc8c2b0, roughness: 0.25 });
       for (let k = 0; k <= n; k++) { const p = new THREE.Mesh(box(0.05, 2.0, 1.5), pm); p.position.set(k * 0.95 - n * 0.475, 1.15, 0.75); g.add(p); }

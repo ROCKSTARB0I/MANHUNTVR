@@ -3,9 +3,9 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=24';
-import { makeHunterWeapon } from './body.js?v=24';
-import { T } from './paint.js?v=24';
+import { PLANS } from './plans.js?v=25';
+import { makeHunterWeapon } from './body.js?v=25';
+import { T } from './paint.js?v=25';
 
 const V = THREE.Vector3;
 
@@ -92,6 +92,43 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Fuelled By Hate (scene 5). Hunters by index: 0-2 containers, 3 the guard hut, 4-6 the core,
+  // 7-9 arrive when the gasoline is taken (9 guards the crane), 10 rushes out when the crane clears the
+  // path, 11-13 the crusher yard, 14 the last one at the exit.
+  'fuelled'(O, G) {
+    const { X, Z } = O, H = G.hunters, W = G.world, dead = (ks) => ks.every((k) => !H[k] || !H[k].alive);
+    O.lockExit = true;
+    const neck = O.gateRow(93, 125, 140, () => 'chain');
+    const crane1 = O.gateRow(117, 36, 50, () => 'scrap');
+    const crane2 = O.gateRow(143, 30, 64, () => 'scrap');
+    for (const k of [3, 7, 8, 9, 10, 14]) O.hold(H[k]);
+    // the gas can in the hangar
+    const canAt = O.cell(180.5, 168), can = new THREE.Group();
+    { const m = new THREE.MeshStandardMaterial({ color: 0xa81c14, roughness: 0.4, metalness: 0.3 }); const b = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.45, 0.18), m); b.position.y = 0.23; can.add(b);
+      const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.14, 8), new THREE.MeshStandardMaterial({ color: 0x222222 })); sp.position.set(0.12, 0.5, 0); sp.rotation.z = -0.5; can.add(sp);
+      can.position.set(canAt.x, W.heightAt(canAt.x, canAt.z), canAt.z); O.mesh(can); }
+    let phase = 0, carrying = false;
+    O.set('Clear the area of hunters to open the gate');
+    O.spots.push({ at: O.cell(88, 123), at3: new V(X(88), 1.4, Z(121.4)), r: 1.8, reach: 0.6, label: 'E — smash the fuse box', live: () => phase === 2,
+      act: () => { phase = 3; G.sound.spark?.(O.cell(88, 121)); G.sound.thud?.(O.cell(88, 121), 1); O.wake(H[3], O.cell(104, 135), false); H[3]?.investigate?.(O.cell(89, 124)); O.set('Kill the hunter from the hut'); } });
+    O.spots.push({ at: canAt, r: 1.8, reach: 0.6, label: 'E — pick up the gasoline', live: () => phase >= 4 && !carrying && can.visible,
+      act: () => { carrying = true; can.visible = false; phase = Math.max(phase, 5); for (const k of [7, 8]) O.wake(H[k], O.cell(138, 153), false); O.wake(H[9], O.cell(58, 128), false);
+        O.set('Head back with the gasoline to refuel the crane', 'dir_fh_gas'); } });
+    O.spots.push({ at: O.cell(50, 129), at3: new V(X(50), 1.5, Z(127)), r: 3, reach: 0.9, label: 'E — refuel the crane and clear the path', live: () => carrying && phase === 5,
+      act: () => { phase = 6; carrying = false; G.sound.buzz?.(O.cell(50, 124)); G.sound.thud?.(O.cell(42, 117), 2); for (const g of crane1) g.unlock(); O.wake(H[10], O.cell(42, 108));
+        O.set('Find the crusher machine', 'dir_fh_crane'); } });
+    O.spots.push({ at: O.cell(50, 138), at3: new V(X(52), 1.5, Z(139)), r: 3.2, reach: 0.9, label: 'E — use the crane to clear the path', live: () => phase === 8,
+      act: () => { phase = 9; G.sound.buzz?.(O.cell(54, 148)); G.sound.thud?.(O.cell(47, 134), 2); for (const g of crane2) g.unlock(); O.wake(H[14], O.cell(22, 165)); W.openGate(); G.director.gate = true; O.lockExit = false;
+        O.set('Find the double doors to get to the exit', 'dir_fh_exit'); } });
+    O.tick = () => {
+      if (phase === 0 && dead([0, 1, 2])) { phase = 1; for (const g of neck) g.unlock(); O.set('Find a way to the hut', 'dir_fh_gate'); }
+      if (phase === 1 && G.player.pos.distanceTo(O.cell(100, 128)) < 14) { phase = 2; O.set('Find a way to lure out the hunter', 'dir_fh_hut'); }
+      if (phase === 2 && G.player.noiseLvl > 9 && G.player.pos.distanceTo(O.cell(100, 128)) < 10) { O.spots[0].act(); }
+      if (phase === 3 && H[3] && !H[3].alive) { phase = 4; O.set('Find the gasoline to fill the crane', 'dir_fh_fuel'); }
+      if (phase === 6 && G.player.pos.distanceTo(O.cell(58, 86)) < 16) { phase = 7; O.set('Hunt down the hunters to open the gate', 'dir_fh_crusher'); }
+      if (phase === 7 && dead([10, 11, 12, 13])) { phase = 8; O.set('Use the crane to unblock the path', 'dir_fh_crane2'); }
+    };
+  },
   // Born Again: follow the street, bag the Hood at the wall, then a fistfight in the basketball court
   // (the court's electric gates stay shut until he's dead), the car park, the mall, the chute.
   'born-again'(O, G) {

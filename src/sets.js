@@ -150,4 +150,32 @@ export const SETS = {
       for (let k = 0; k < 6; k++) K.blood(80 + Math.random() * 140, 60 + Math.random() * 100, 1.2);
     },
   },
+  // Fuelled By Hate: the far end of the junkyard. Containers first (three Skinz), then the yard with the
+  // raised guard hut (a lazy Skin watching TV: knock out the fuse box), the crane with no fuel blocking the
+  // way to the crusher, the gasoline in the hangar, the crusher yard, a second crane, the exit doors.
+  'fuelled': {
+    start: [130, 6], exit: [8, 182], blockH: [2.6, 4.2], blockMat: 'scrap',
+    patrols: [[[114, 22], [114, 70]], [[130, 16], [130, 60], [146, 40]], [[148, 72], [148, 22]], [[100, 131], [100, 131]],
+      [[90, 126], [62, 140]], [[125, 142], [125, 160]], [[102, 175], [126, 175]],
+      [[150, 160], [172, 170]], [[118, 140], [104, 128]], [[56, 127], [62, 131]], [[42, 108], [42, 108]],
+      [[66, 80], [66, 92]], [[40, 74], [70, 74]], [[51, 109], [86, 110]], [[20, 170], [20, 170]]],
+    dress(K) {
+      // the containers: open boxes in rows down the lanes, shadows inside
+      const cols = [0x7a4a2a, 0x3a4a5a, 0x5a5a3a, 0x7a2a20, 0x4a4a48];
+      [[114, 30, 0], [114, 50, PI], [130, 30, PI], [130, 70, 0], [147, 52, 0], [147, 14, PI], [114, 82, 0]].forEach(([i, j, r], k) => K.container(i, j, r + PI / 2, cols[k % cols.length]));
+      K.lamp(122, 8, { h: 6, r: 14, col: 0xffc070 }); K.lamp(140, 60, { h: 6, r: 14, col: 0xffc070 }); K.fire(118, 88); K.drums(150, 86, 4);
+      // the yard: raised guard hut with the TV on, fuse box, the first crane parked across the crusher road
+      K.hutRaised(100, 128, 0); K.fusebox(88, 121, 0); K.lamp(106, 136, { h: 6, r: 14, col: 0xffd090 }); K.fire(70, 136); K.tyres(116, 122, 5); K.timber(80, 146, 0);
+      K.crane(50, 124, PI / 2); K.mound(30, 125, 3, 2.6); K.drums(58, 142, 4);
+      // the south corridor and the hangar with the gasoline
+      K.quonset(168, 168, 0, 12, 3.6); K.lamp(150, 158, { h: 6, r: 14, col: 0xffc070 }); K.tyres(140, 176, 6); K.tyres(144, 176, 4); K.timber(96, 176, 0); K.fire(112, 170); K.prop('van', 84, 170, 0.1);
+      // the crusher yard: scrap mounds, crate stacks, the crusher on its belt
+      K.crusher(58, 86, 0); for (const [i, j, r] of [[28, 72, 4], [80, 66, 4.5], [32, 98, 4], [84, 104, 3.5], [48, 66, 3]]) K.mound(i, j, r, 3.2);
+      for (const [i, j] of [[70, 100], [74, 104], [24, 84], [86, 82]]) { K.prop('crate', i, j, 0.2); K.prop('crate', i + 1.2, j, 0.6); }
+      K.lamp(40, 80, { h: 7, r: 16, col: 0xffc070 }); K.lamp(76, 92, { h: 7, r: 16, col: 0xffc070 }); K.fire(46, 100);
+      // the second crane by the way down to the exit; the exit lane
+      K.crane(52, 136, -PI / 2); K.fire(14, 176); K.fire(30, 176); K.lamp(22, 160, { h: 6, r: 14, col: 0xffd090 }); K.graffiti(4, 160, PI / 2, 2.2);
+      for (let k = 0; k < 6; k++) K.blood(40 + Math.random() * 100, 70 + Math.random() * 100, 1.2);
+    },
+  },
 };
