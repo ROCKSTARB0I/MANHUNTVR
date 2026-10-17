@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0a0606"/><circle cx="32" cy="32" r="14" fill="#c8261e"/><circle cx="32" cy="32" r="6" fill="#0a0606"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/>
+    </filter>
+    <pattern id="scan" width="64" height="1.6" patternUnits="userSpaceOnUse"><rect width="64" height="0.5" fill="#000" opacity="0.22"/></pattern>
+    <radialGradient id="glow" cx="50%" cy="55%" r="60%"><stop offset="0" stop-color="#2a0806"/><stop offset="1" stop-color="#050404"/></radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#glow)"/>
+  <!-- execution reticle -->
+  <g fill="none" stroke="#c8261e" stroke-width="2.6" opacity="0.9">
+    <circle cx="32" cy="35" r="21"/>
+    <path d="M32 9v7M32 54v7M6 35h7M51 35h7"/>
+  </g>
+  <!-- the M, rough-cut like the logo -->
+  <path filter="url(#rough)" fill="#ece6d8" d="M17 46V22h7l8 12 8-12h7v24h-6V32l-9 12-9-12v14z"/>
+  <!-- a drip of blood off the M -->
+  <path fill="#b2120c" d="M43.2 45.5h2.6v5.2a1.3 1.3 0 0 1-2.6 0z"/><circle cx="44.5" cy="53.6" r="1.1" fill="#b2120c"/>
+  <rect width="64" height="64" rx="12" fill="url(#scan)"/>
+  <!-- REC -->
+  <circle cx="53" cy="10" r="3.4" fill="#ff2a1a"/>
+</svg>
