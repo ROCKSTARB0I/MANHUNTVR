@@ -109,3 +109,19 @@ canvas.cut { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: c
 #tip b { color: #e2241a; font-weight: bold; }
 .meters .m { display: block; grid-template-columns: none; }
 .meters .m.noise { display: none; }
+
+/* ---- the front end: Fake Receipt (Ray Larabie, freeware) on a plain, old PS2-style menu ---- */
+@font-face { font-family: 'Fake Receipt'; src: url('fonts/FakeReceipt.otf') format('opentype'); font-display: block; }
+#screen, #screen *, #pause, #pause *, #loadScreen, #loadScreen *, #slots, #slots * { font-family: 'Fake Receipt', 'Courier New', monospace !important; }
+#screen::before { background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px); }
+.logo { letter-spacing: 0.08em; font-weight: normal; text-shadow: none; filter: none; color: #e4dfd2; }
+.sub { letter-spacing: 0.25em; margin: 6px 0 40px; color: #9a9488; }
+#menuList { gap: 2px; }
+#menuList button, #pauseList button { font-size: 22px; letter-spacing: 0.1em; padding: 4px 10px 4px 26px; color: #8e897e; text-shadow: none; background: none !important; }
+#menuList button.sel, #menuList button:hover, #menuList button:focus-visible,
+#pauseList button.sel, #pauseList button:hover, #pauseList button:focus-visible { color: #f2eee4; background: none !important; outline: none; }
+#menuList button.sel::before, #menuList button:hover::before, #pauseList button.sel::before, #pauseList button:hover::before {
+  content: ''; position: absolute; left: 6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; background: #b2120c; }
+#pauseList button { position: relative; }
+.slot .go, .slot .del { border-radius: 0; background: transparent; }
+.slot .go b { font-weight: normal; }
