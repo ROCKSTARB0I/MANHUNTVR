@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=6';
-import { District, SCENES } from './district.js?v=6';
-import { spawnHunters } from './hunters.js?v=6';
-import { Kit, LEVELS } from './kit.js?v=6';
-import { Blood } from './blood.js?v=6';
-import { Director } from './director.js?v=6';
-import { Sound } from './sound.js?v=6';
-import { makeHand, Person, BONE } from './body.js?v=6';
-import { VHS } from './vhs.js?v=6';
-import { Cutscene } from './cutscene.js?v=6';
+import { paintAll, T } from './paint.js?v=7';
+import { District, SCENES } from './district.js?v=7';
+import { spawnHunters } from './hunters.js?v=7';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=7';
+import { Blood } from './blood.js?v=7';
+import { Director } from './director.js?v=7';
+import { Sound } from './sound.js?v=7';
+import { makeHand, Person, BONE } from './body.js?v=7';
+import { VHS } from './vhs.js?v=7';
+import { Cutscene } from './cutscene.js?v=7';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -163,7 +163,7 @@ const hud = (() => {
       meter(g, 18, 142, 'HEALTH', Math.max(0, P.hp / 100), P.hp > 40 ? '#b23a2a' : '#ff2a1a', 170);
       g.fillStyle = '#e8d5a0'; g.font = 'bold 26px "Courier New", monospace';
       g.fillText(G.director?.gate ? 'GATE OPEN' : `KILLS ${G.director?.kills || 0}/${G.director?.quota || 0}`, 22, 240);
-      { const it = G.hands[0]?.item || G.hands[1]?.item; g.fillStyle = '#9aa2aa'; g.font = 'bold 22px "Courier New", monospace'; g.fillText(it ? WNAMES[it.kind] : 'BARE HANDS', 22, 206); }
+      { const it = G.hands[0]?.item || G.hands[1]?.item; g.fillStyle = '#9aa2aa'; g.font = 'bold 22px "Courier New", monospace'; g.fillText((it ? WNAMES[it.kind] : 'BARE HANDS') + `  (${G.kit.carried().length}/4)`, 22, 206); }
       radar(g, 418, 128, 88); radar(rg, 80, 80, 74);
       tex.needsUpdate = true;
       const em = G.execMeter, ex = $('exec');
@@ -194,9 +194,10 @@ function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
 let shownWeapon = '?';
 function updateWeapon() {
   const it = G.hands[0]?.item || G.hands[1]?.item, kind = it ? it.kind : null;
-  const key = kind === 'rifle' ? 'rifle' + it.ammo : kind; if (key === shownWeapon) return; shownWeapon = key;
+  const key = (kind === 'rifle' ? 'rifle' + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
   const g = $('wIcon').getContext('2d'); g.clearRect(0, 0, 96, 96); drawWeapon(g, kind);
   $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
+  $('wList').innerHTML = SLOTS.map((s, i) => { const c = G.kit.inv[s]; return `<span class="${c && c === it ? 'on' : ''}">${i + 1} ${c ? WNAMES[c.kind] : '—'}</span>`; }).join('');
 }
 function who(L) { return L.who === 'DIRECTOR' ? 'THE DIRECTOR' : L.who === 'CASH' ? 'CASH' : L.who === 'NEWS' ? 'CHANNEL 6' : 'HOOD'; }
 function meter(g, x, y, label, v, col, w = 310) {
@@ -352,7 +353,11 @@ addEventListener('keydown', (e) => {
   if (G.state === 'paused') { if (e.code === 'ArrowDown') pauseSelect(pauseSel + 1); if (e.code === 'ArrowUp') pauseSelect(pauseSel - 1); if (e.code === 'Enter') pauseDo(pauseItems[pauseSel].dataset.a); return; }
   if (G.state !== 'play') return;
   const R = dHands[0];
-  if (e.code === 'KeyE') { if (R.item?.kind === 'bag') { R.use = true; R.useHeld = true; } else G.kit.pickInView(R.item ? dHands[1] : R, camera.getWorldPosition(new V()), camera.getWorldDirection(new V())); }
+  if (e.code === 'KeyE') { if (R.item?.kind === 'bag') { R.use = true; R.useHeld = true; } else G.kit.pickInView(R, camera.getWorldPosition(new V()), camera.getWorldDirection(new V())); }
+  // inventory: 1 melee, 2 single-use, 3 lure, 4 gun, X bare hands
+  const slotKey = { Digit1: 'melee', Digit2: 'single', Digit3: 'lure', Digit4: 'gun' }[e.code];
+  if (slotKey) G.kit.equip(R, slotKey);
+  if (e.code === 'KeyX') G.kit.equip(R, null);
   if (e.code === 'KeyG') { const h = R.item ? R : dHands[1]; if (h.item) G.kit.drop(h, new V()); }
   if (e.code === 'KeyQ') G.kit.throwFrom(R.item && R.item.kind !== 'bag' ? R : dHands[1], camera.getWorldDirection(new V()));
   if (e.code === 'KeyF') { // swap hands
@@ -378,6 +383,7 @@ canvas.addEventListener('mousedown', (e) => {
 });
 addEventListener('mouseup', (e) => { if (e.button === 0) dHands[0].useHeld = false; drag = null; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+addEventListener('wheel', (e) => { if (G.state === 'play' && !renderer.xr.isPresenting) G.kit.cycle(dHands[0], e.deltaY > 0 ? 1 : -1); }, { passive: true });
 addEventListener('mousemove', (e) => {
   let dx = 0, dy = 0;
   if (document.pointerLockElement === canvas) { dx = e.movementX; dy = e.movementY; }
@@ -431,7 +437,7 @@ function vrInput(dt) {
       if (Math.abs(ax[0]) > 0.7 && snapReady) { P.yaw -= Math.sign(ax[0]) * Math.PI / 6; snapReady = false; }
       if (Math.abs(ax[0]) < 0.3) snapReady = true;
       if (press(5)) vrCrouch = !vrCrouch; // B
-      if (press(4)) { /* A */ }
+      if (press(4)) G.kit.cycle(h); // A: next weapon
     }
   }
   const mag = Math.hypot(mx, mz); if (mag < 0.15) { vrSprint = false; return [0, 0, false]; }
@@ -513,7 +519,7 @@ renderer.setAnimationLoop(() => {
     if (moved > 9) { moved = 0; P.speed = 0; stepAcc = 0; } // a teleport (reset, menu -> pen), not a sprint
     P.speed = P.speed * 0.8 + Math.min(6, moved) * 0.2;
     P.moving = P.speed > 0.25;
-    P.moveVis = P.speed > 2.6 ? 0.35 : P.speed > 1.2 ? 0.12 : P.speed > 0.3 ? 0.04 : 0;
+    P.moveVis = P.speed > 2.6 ? 0.35 : P.speed > 1.2 ? 0.12 : (xr ? P.walking : P.speed > 0.3) ? 0.04 : 0;
     // light: lamps + hunters' torches on you
     P.light = world.lightAt(P.pos);
     for (const h of G.hunters) {
@@ -524,11 +530,13 @@ renderer.setAnimationLoop(() => {
       if (cos > Math.cos(0.42) && world.clear(tp, P.chest)) P.light += 0.9 * (1 - d / 16);
     }
     // Manhunt's shadows: dark enough and perfectly still = invisible
-    P.hidden = P.alive && P.light < 0.14 && P.speed < 0.18;
+    // in the headset only real walking breaks cover (the stick, or crossing the room); looking around, leaning and hand movement don't
+    P.walking = xr ? (len > 0.15 && P.alive) || P.speed > 0.7 : P.speed > 0.18;
+    P.hidden = P.alive && P.light < 0.14 && !P.walking;
     vhs.hide += ((P.hidden ? 1 : 0) - vhs.hide) * Math.min(1, dt * 4);
     for (const R of G.rings) R.t += dt; G.rings = G.rings.filter((R) => R.t < 0.75);
     // footsteps make noise; louder when running, nearly silent crouched
-    stepAcc += P.speed * dt;
+    stepAcc += (xr && !P.walking ? 0 : P.speed) * dt; // leaning and looking around in VR make no footsteps
     const stride = P.speed > 2.6 ? 0.85 : 0.7;
     if (stepAcc > stride && P.alive) {
       stepAcc = 0;
@@ -683,7 +691,7 @@ function saveGame() {
     dir: { kills: G.director.kills, points: G.director.points, spotted: G.director.spotted, gate: G.director.gate },
     hunters: G.hunters.map((h) => ({ alive: h.alive, x: h.pos.x, z: h.pos.z, yaw: h.yaw, wp: h.wp })),
     items: G.kit.items.filter((it) => !it.gone && !it.hand).map((it) => ({ kind: it.kind, x: it.pos.x, y: it.def.rest, z: it.pos.z })),
-    held: G.hands.map((h) => h.item ? h.item.kind : null),
+    held: G.hands.map((h) => h.item ? h.item.kind : null), inv: SLOTS.map((s) => G.kit.inv[s]?.kind || null), invAmmo: G.kit.inv.gun?.ammo ?? 0,
     cams: G.director.cams.map((c) => c.alive),
   };
   data.savedAt = Date.now(); data.stars = G.director.rating ? G.director.rating() : 0; data.quota = G.director.quota;
@@ -701,7 +709,8 @@ function loadGame() {
   if (d.dir.gate) { G.director.gate = true; world.openGate(); }
   d.hunters.forEach((s, i) => { const h = G.hunters[i]; if (!h) return; h.pos.set(s.x, 0, s.z); h.yaw = s.yaw; h.wp = s.wp; h.place(); if (!s.alive) { h.alive = false; h.state = 'dead'; if (h.torch) { h.torch.intensity = 0; h.beam.visible = false; } if (h.body.weapon) h.body.weapon.parent?.remove(h.body.weapon); h.body.die(new V(), null, world); G.blood.pool(h.pos.clone(), 1.2); } });
   G.kit.clear(); d.items.forEach((it) => G.kit.spawn(it.kind, new V(it.x, it.y, it.z)));
-  d.held.forEach((k, i) => { if (k && G.hands[i]) G.kit.grab(G.hands[i], G.kit.spawn(k, P.head.clone())); });
+  if (d.inv) { const R = G.hands[0]; d.inv.forEach((k) => { if (k) { const it = G.kit.spawn(k, P.head.clone()); if (k === 'rifle') it.ammo = d.invAmmo; G.kit.grab(R, it); } }); const first = d.held && d.held[0]; if (first) G.kit.equip(R, SLOT[first]); }
+  else d.held.forEach((k, i) => { if (k && G.hands[i]) G.kit.grab(G.hands[i], G.kit.spawn(k, P.head.clone())); });
   d.cams.forEach((alive, i) => { const c = G.director.cams[i]; if (c && !alive) { c.alive = false; c.led.visible = false; c.head.rotation.x = 1.2; c.head.rotation.z = 0.6; } });
   G.state = 'play'; return true;
 }
@@ -726,6 +735,7 @@ const TUTOR = [
   ['throw', () => G.hands.some((h) => h.item && (h.item.kind === 'bottle' || h.item.kind === 'brick')), 'Press <b>Q</b> or <b>right-click</b> to throw. Noise draws the hunters to it.', 'Swing your arm and <b>let go of grip</b> to throw. Noise draws the hunters to it.', () => G.thrown],
   ['exec', () => G.hands.some((h) => h.item && G.kit.candidate(h)), 'Behind him and unseen: <b>hold click</b> to charge an execution. Grey, green, red. Let go, then <b>click</b> to strike.', 'Behind him and unseen: <b>hold trigger</b> to charge an execution. Grey, green, red. Let go, then really strike.', () => G.kit.exec || G.kit.struggle],
   ['bag', () => G.hands.some((h) => h.item && h.item.kind === 'bag'), 'The bag: get behind a hunter, charge with <b>click</b>, then <b>keep holding</b> while he struggles.', 'The bag: get behind a hunter, charge with <b>trigger</b>, then <b>hold grip and pull</b> while he struggles.', () => G.kit.struggle],
+  ['switch', () => G.kit.carried().length >= 2, 'You carry one of each kind. Press <b>1–4</b> or roll the <b>mouse wheel</b> to switch, <b>X</b> for bare hands.', 'You carry one of each kind. Press <b>A</b> to switch weapons.', () => G.switched],
   ['run', () => P.speed > 2.6, 'Running is <b>loud</b>. The rings on your radar show how far the noise carries.', 'Running is <b>loud</b>. The rings on your radar show how far the noise carries.', null],
   ['knock', () => G.time > 75, 'Press <b>T</b> facing a wall to <b>tap on it</b> and lure a hunter toward you.', '<b>Knock on a wall</b> with your hand to lure a hunter toward you.', () => G.knocked],
   ['spotted', () => G.hunters.some((h) => h.alive && h.aware()), 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', () => !G.hunters.some((h) => h.alive && h.aware())],

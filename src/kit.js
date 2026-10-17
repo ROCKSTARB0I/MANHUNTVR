@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=6';
+import { T } from './paint.js?v=7';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V();
@@ -17,6 +17,9 @@ export const LEVELS = [
 ];
 const CHARGE = [1.0, 2.2];                       // seconds to reach green, red
 const NEED = { shard: [1, 3, 5], crowbar: [1, 2, 4], brick: [1, 3, 4], bottle: [1, 2, 3], bag: [2.0, 3.5, 5.5] };
+// Manhunt-style inventory: one of each kind carried at once
+export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', crowbar: 'melee', rifle: 'gun' };
+export const SLOTS = ['melee', 'single', 'lure', 'gun'];
 export function levelOf(t) { return t >= CHARGE[1] ? 2 : t >= CHARGE[0] ? 1 : 0; }
 
 const DEF = {
@@ -90,6 +93,7 @@ class Item {
 export class Kit {
   constructor(game) {
     this.game = game; this.items = []; this.struggle = null; this.exec = null; this.charge = null; this.firsts = new Set();
+    this.inv = { melee: null, single: null, lure: null, gun: null };
     // lock-on reticle that floats behind a target's head
     const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
     g.strokeStyle = '#fff'; g.lineWidth = 10; g.beginPath(); g.arc(64, 64, 50, 0, Math.PI * 2); g.stroke();
@@ -105,8 +109,8 @@ export class Kit {
     for (const s of game.world.items) this.spawn(s.kind, s.p);
   }
   spawn(kind, p) { const it = new Item(kind, p); this.game.scene.add(it.mesh); this.game.scene.add(it.glint); this.items.push(it); return it; }
-  remove(it) { it.gone = true; it.mesh.parent?.remove(it.mesh); it.glint.parent?.remove(it.glint); if (it.hand) it.hand.item = null; this.items = this.items.filter((x) => x !== it); }
-  clear() { this.killGlow = 0; this.killLight.intensity = 0; for (const s of this.lens) s.parent?.remove(s); this.lens = []; for (const it of [...this.items]) this.remove(it); this.struggle = null; this.exec = null; this.charge = null; this.mark.visible = this.fill.visible = false; }
+  remove(it) { this.unslot(it); it.gone = true; it.mesh.parent?.remove(it.mesh); it.glint.parent?.remove(it.glint); if (it.hand) it.hand.item = null; this.items = this.items.filter((x) => x !== it); }
+  clear() { this.inv = { melee: null, single: null, lure: null, gun: null }; this.killGlow = 0; this.killLight.intensity = 0; for (const s of this.lens) s.parent?.remove(s); this.lens = []; for (const it of [...this.items]) this.remove(it); this.struggle = null; this.exec = null; this.charge = null; this.mark.visible = this.fill.visible = false; }
 
   // ------------------------------------------------------------ holding
   grab(hand, it) {
@@ -114,8 +118,15 @@ export class Kit {
       const P = this.game.player; P.hp = Math.min(100, P.hp + 45); this.remove(it); this.game.tookPills = true;
       this.game.sound.rustle(null, 0.3); this.game.sound.pills?.(); hand.haptic?.(0.5, 60); this.game.hud?.flash('heal'); return;
     }
-    if (hand.item) this.drop(hand, new V());
-    it.hand = hand; it.flying = false; hand.item = it;
+    const slot = SLOT[it.kind];
+    if (slot && this.inv[slot] && this.inv[slot] !== it) { // already carrying one of these: swap, drop the old one
+      const old = this.inv[slot];
+      if (old.hand) this.drop(old.hand, new V()); else this.dropStowed(old);
+    }
+    if (hand.item && hand.item !== it) { if (SLOT[hand.item.kind] && this.inv[SLOT[hand.item.kind]] === hand.item) this.stow(hand.item); else this.drop(hand, new V()); }
+    if (it.hand && it.hand !== hand) { it.hand.item = null; }
+    if (slot) this.inv[slot] = it;
+    it.stowed = false; it.hand = hand; it.flying = false; hand.item = it;
     hand.obj.add(it.mesh); it.mesh.position.set(0, 0, 0); it.mesh.rotation.set(0, 0, 0); it.mesh.scale.set(1, 1, 1);
     if (it.kind === 'bag') { it.mesh.position.set(0, -0.04, -0.02); it.mesh.scale.set(1, 0.8, 1); }
     if (it.kind === 'brick') it.mesh.position.set(-0.03, 0, 0.02);
@@ -127,16 +138,40 @@ export class Kit {
   }
   drop(hand, vel) {
     const it = hand.item; if (!it) return;
-    hand.item = null; it.hand = null;
+    this.unslot(it); hand.item = null; it.hand = null;
     it.mesh.updateMatrixWorld(true);
     const wp = it.mesh.getWorldPosition(new V()), wq = it.mesh.getWorldQuaternion(new THREE.Quaternion());
     this.game.scene.add(it.mesh); it.mesh.position.copy(wp); it.mesh.quaternion.copy(wq); it.mesh.scale.set(1, 1, 1);
     it.pos.copy(wp); it.vel.copy(vel); it.flying = true; it.thrower = vel.length() > 3 ? 'cash' : null; if (it.thrower) this.game.thrown = true;
     it.spin.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 12).multiplyScalar(Math.min(1, vel.length() / 5));
   }
+  // ---- inventory
+  unslot(it) { const s = SLOT[it.kind]; if (s && this.inv[s] === it) this.inv[s] = null; }
+  stow(it) { // tucked away: off the hand, out of the world, still yours
+    if (it.hand) { it.hand.item = null; it.hand = null; }
+    it.mesh.parent?.remove(it.mesh); it.stowed = true; it.glint.material.opacity = 0;
+  }
+  dropStowed(it) { // a carried item put down at your feet
+    const P = this.game.player; this.unslot(it); it.stowed = false;
+    this.game.scene.add(it.mesh); it.pos.set(P.pos.x + 0.3, it.def.rest, P.pos.z + 0.3); it.flying = false; it.restPose(); it.mesh.position.copy(it.pos);
+  }
+  equip(hand, slot) { // take a carried weapon into the hand; null slot = put everything away
+    this.game.switched = true;
+    if (!slot) { if (hand.item && SLOT[hand.item.kind]) this.stow(hand.item); this.game.sound.rustle(null, 0.1); return; }
+    const it = this.inv[slot]; if (!it || it === hand.item) return;
+    if (it.hand) it.hand.item = null;
+    this.grab(hand, it);
+  }
+  cycle(hand, dir = 1) { // next carried weapon after the one in hand (fists count as a stop)
+    const order = [null, ...SLOTS], cur = hand.item ? SLOT[hand.item.kind] || null : null;
+    let i = order.indexOf(cur);
+    for (let k = 0; k < order.length; k++) { i = (i + dir + order.length) % order.length; const s = order[i]; if (s === null || this.inv[s]) { this.equip(hand, s); return; } }
+  }
+  carried() { return SLOTS.map((s) => this.inv[s]).filter(Boolean); }
+
   nearest(p, maxD, flat = false) {
     let best = null, bd = maxD;
-    for (const it of this.items) { if (it.hand || it.flying) continue; const d = flat ? Math.hypot(it.pos.x - p.x, it.pos.z - p.z) : it.mesh.position.distanceTo(p); if (d < bd) { bd = d; best = it; } }
+    for (const it of this.items) { if (it.hand || it.flying || it.stowed) continue; const d = flat ? Math.hypot(it.pos.x - p.x, it.pos.z - p.z) : it.mesh.position.distanceTo(p); if (d < bd) { bd = d; best = it; } }
     return best;
   }
 
@@ -159,7 +194,7 @@ export class Kit {
     let best = null, bs = -1e9;
     const P = this.game.player, f = new V(dir.x, 0, dir.z).normalize();
     for (const it of this.items) {
-      if (it.hand || it.flying) continue;
+      if (it.hand || it.flying || it.stowed) continue;
       const to = new V(it.pos.x - P.pos.x, 0, it.pos.z - P.pos.z), d = to.length(); if (d > 1.7) continue;
       const s = (d > 0.01 ? to.normalize().dot(f) : 1) * 0.6 - d; if (s > bs) { bs = s; best = it; }
     }
@@ -258,6 +293,7 @@ export class Kit {
     this.updateCharge(dt);
     // things in the air
     for (const it of [...this.items]) {
+      if (it.stowed) continue;
       if (!it.flying) {
         if (!it.hand) { const t = G.time * 2 + it.pos.x; it.glint.position.copy(it.mesh.position).y += 0.06; it.glint.material.opacity = 0.25 + Math.max(0, Math.sin(t * 1.7)) * 0.45 * (1 - Math.min(1, G.player.pos.distanceTo(it.pos) / 14)); }
         continue;
@@ -322,7 +358,7 @@ export class Kit {
   // ------------------------------------------------------------ the bag
   startBag(hand, it, h, level = 0) {
     const G = this.game;
-    hand.item = null; it.hand = null;
+    this.unslot(it); hand.item = null; it.hand = null;
     const headBone = h.body.bones[4];
     headBone.add(it.mesh); it.mesh.position.set(0, 0.12, 0.0); it.mesh.rotation.set(Math.PI, 0, 0); it.mesh.scale.set(1.25, 1.2, 1.25);
     h.state = 'bagged'; h.speed = 0; h.hitsTaken = (h.hitsTaken || 0) + 1; h.firstHit = G.time; h.stealthStart = true;
