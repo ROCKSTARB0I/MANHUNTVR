@@ -87,3 +87,25 @@ canvas.cut { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: c
 #wIcon { width: 64px; height: 64px; }
 #wList { display: grid; gap: 1px; margin-top: 4px; font-size: 10px; letter-spacing: 0.08em; color: #8a8478; text-align: left; }
 #wList span.on { color: #fff; }
+
+/* ---- Manhunt's HUD layout: radar bottom-left, stance figure + vertical bars bottom-right, item pill top-right ---- */
+#radar { left: 14px; top: auto; bottom: 14px; width: 150px; height: 150px; }
+.meters { left: auto; right: 18px; bottom: 16px; display: flex; align-items: flex-end; gap: 6px; }
+.meters .m span { display: none; }
+.meters .m i { display: block; position: relative; width: 9px; height: 92px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.35); }
+.meters .m b { position: absolute; left: 0; bottom: 0; width: 100% !important; transition: height 0.2s; }
+#mHp { background: #6fb43c !important; }
+.meters .noise { display: none; }
+#stance { width: 46px; height: 74px; margin-right: 4px; }
+#show { right: auto; left: 50%; transform: translateX(-50%); bottom: 14px; font-size: 12px; opacity: 0.75; }
+#hud .rec { right: auto; left: 16px; top: 12px; }
+#weapon { top: 16px; right: 16px; transform: none; grid-auto-flow: column; align-items: center; gap: 8px; padding: 4px 18px 4px 8px; border-right: 0; border-radius: 22px;
+  background: linear-gradient(180deg, rgba(120, 190, 100, 0.75), rgba(60, 120, 50, 0.75)); border: 1px solid rgba(220, 255, 200, 0.5); color: #fff; text-shadow: 0 1px 2px #000; }
+#weapon.red { background: linear-gradient(180deg, rgba(200, 80, 70, 0.8), rgba(130, 30, 25, 0.8)); border-color: rgba(255, 200, 190, 0.5); }
+#weapon.blue { background: linear-gradient(180deg, rgba(90, 150, 200, 0.8), rgba(40, 80, 130, 0.8)); border-color: rgba(200, 225, 255, 0.5); }
+#wIcon { width: 40px; height: 40px; }
+#wList { position: absolute; right: 0; top: 54px; text-align: right; text-shadow: 0 0 4px #000; }
+#tip { top: 40px; border-left: 0; background: rgba(0, 0, 0, 0.82); font-family: 'Courier New', monospace; font-weight: bold; font-size: 15px; }
+#tip b { color: #e2241a; font-weight: bold; }
+.meters .m { display: block; grid-template-columns: none; }
+.meters .m.noise { display: none; }

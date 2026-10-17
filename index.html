@@ -13,16 +13,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <canvas id="view" tabindex="0"></canvas>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="4"/></filter></svg>
 <div id="hud" hidden>
   <div class="meters">
-    <div class="m"><span>SEEN</span><i><b id="mLight"></b></i></div>
-    <div class="m"><span>NOISE</span><i><b id="mNoise"></b></i></div>
+    <canvas id="stance" width="60" height="96"></canvas>
     <div class="m"><span>HEALTH</span><i><b id="mHp"></b></i></div>
+    <div class="m"><span>SEEN</span><i><b id="mLight"></b></i></div>
+    <div class="m noise"><span>NOISE</span><i><b id="mNoise"></b></i></div>
   </div>
   <div id="show"></div>
   <div id="weapon"><canvas id="wIcon" width="96" height="96"></canvas><span id="wName">BARE HANDS</span><div id="wList"></div></div>
@@ -95,6 +96,6 @@
   </div>
 </div>
 
-<script type="module" src="src/main.js?v=16"></script>
+<script type="module" src="src/main.js?v=17"></script>
 </body>
 </html>
