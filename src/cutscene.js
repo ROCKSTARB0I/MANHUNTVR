@@ -6,8 +6,8 @@
 // transparent 2D layer on top. Desktop shows it full screen; VR shows it as a
 // flat screen in a dark room. Any key, click or controller button skips.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=15';
-import { T } from './paint.js?v=15';
+import { Person, BONE as B } from './body.js?v=16';
+import { T } from './paint.js?v=16';
 
 const V = THREE.Vector3;
 const RW = 1280, RH = 720, W = 960, H = 540;
@@ -141,7 +141,7 @@ export class Cutscene {
     box(0.06, 0.85, 0.06, -0.8, 0.45, 0.28, steel); box(0.06, 0.85, 0.06, 0.8, 0.45, 0.28, steel); box(0.06, 0.85, 0.06, -0.8, 0.45, -0.28, steel); box(0.06, 0.85, 0.06, 0.8, 0.45, -0.28, steel);
     box(0.22, 0.05, 0.8, 0.58, 0.92, 0.7, vinyl); box(0.22, 0.05, 0.8, 0.58, 0.92, -0.7, vinyl);
     // Cash, strapped down in an orange jumpsuit, arms out
-    const cash = new Person({ mask: null, weapon: null, top: [0.62, 0.3, 0.06], legs: [0.62, 0.3, 0.06], skin: [0.55, 0.38, 0.28], bulk: 1.12, stubble: true, cashFace: true });
+    const cash = new Person({ mask: null, weapon: null, top: [0.62, 0.3, 0.06], legs: [0.62, 0.3, 0.06], skin: [0.55, 0.38, 0.28], bulk: 1.15, stubble: true, cashFace: true });
     cash.root.rotation.set(-Math.PI / 2, 0, -Math.PI / 2); cash.root.position.set(-0.8, 1.06, 0); C.add(cash.root); this.cashBed = cash;
     // leather straps across shins, thighs, waist and chest, and on both wrists
     const leather = new THREE.MeshStandardMaterial({ color: 0x2a1e16, roughness: 0.55, map: T.fleece.map });
@@ -202,7 +202,7 @@ export class Cutscene {
     // real shadows on the sets (desktop only: the Quest can't spare it)
     this.shadowsWas = this.renderer.shadowMap.enabled; if (!vr) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     // Cash on the mattress in the real pen
-    this.cashPen = new Person({ mask: null, weapon: null, cash: true, top: [0.14, 0.16, 0.2], legs: [0.3, 0.38, 0.52], hood: false, skin: [0.55, 0.38, 0.28], bulk: 1.12, stubble: true });
+    this.cashPen = new Person({ mask: null, weapon: null, cash: true, stains: 0.5, top: [0.44, 0.5, 0.58], legs: [0.62, 0.68, 0.78], hood: false, skin: [0.55, 0.38, 0.28], bulk: 1.15, stubble: true });
     this.world.scene.add(this.cashPen.root);
     document.getElementById('skip').hidden = false;
   }

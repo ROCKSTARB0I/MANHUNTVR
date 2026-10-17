@@ -1,19 +1,19 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=15';
-import { District, SCENES } from './district.js?v=15';
-import { spawnHunters } from './hunters.js?v=15';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=15';
-import { Blood } from './blood.js?v=15';
-import { Director } from './director.js?v=15';
-import { Sound } from './sound.js?v=15';
-import { makeHand, Person, BONE } from './body.js?v=15';
-import { VHS } from './vhs.js?v=15';
-import { Grime } from './grime.js?v=15';
-import { Cutscene } from './cutscene.js?v=15';
-import { Arms } from './arms.js?v=15';
-import { Finisher } from './finisher.js?v=15';
+import { paintAll, T } from './paint.js?v=16';
+import { District, SCENES } from './district.js?v=16';
+import { spawnHunters } from './hunters.js?v=16';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=16';
+import { Blood } from './blood.js?v=16';
+import { Director } from './director.js?v=16';
+import { Sound } from './sound.js?v=16';
+import { makeHand, Person, BONE } from './body.js?v=16';
+import { VHS } from './vhs.js?v=16';
+import { Grime } from './grime.js?v=16';
+import { Cutscene } from './cutscene.js?v=16';
+import { Arms } from './arms.js?v=16';
+import { Finisher } from './finisher.js?v=16';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -84,7 +84,7 @@ const P = G.player = {
 dolly.position.copy(P.pos); dolly.rotation.y = P.yaw;
 
 // Cash's own body, seen in third person on desktop
-const cashBody = new Person({ mask: null, weapon: null, cash: true, top: [0.14, 0.16, 0.2], legs: [0.3, 0.38, 0.52], hood: false, dirt: 0.5, skin: [0.55, 0.38, 0.28], bulk: 1.12, stubble: true });
+const cashBody = new Person({ mask: null, weapon: null, cash: true, stains: 0.5, top: [0.44, 0.5, 0.58], legs: [0.62, 0.68, 0.78], hood: false, dirt: 0.5, skin: [0.55, 0.38, 0.28], bulk: 1.15, stubble: true });
 cashBody.root.visible = false; scene.add(cashBody.root);
 let eyeY = 1.68;
 

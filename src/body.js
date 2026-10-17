@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=15';
-import { T } from './paint.js?v=15';
+import { Loft, ring, blend } from './loft.js?v=16';
+import { T } from './paint.js?v=16';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -43,7 +43,7 @@ const SKIN_TONES = [[0.62, 0.44, 0.34], [0.48, 0.32, 0.23], [0.30, 0.20, 0.14], 
 // front and back, so chest, glutes, biceps and calves have real shape.
 function buildGeometry(o) {
   const Lt = new Loft(), Ll = new Loft(), Ls = new Loft();
-  const skin = o.skin, top = o.top, legs = o.legs, boots = o.cash ? [0.7, 0.68, 0.64] : [0.06, 0.05, 0.045], sole = o.cash ? [0.84, 0.83, 0.79] : [0.03, 0.03, 0.03]; // Cash wears scuffed white sneakers
+  const skin = o.skin, top = o.top, legs = o.legs, boots = o.cash ? [0.22, 0.22, 0.24] : [0.06, 0.05, 0.045], sole = o.cash ? [0.86, 0.85, 0.82] : [0.03, 0.03, 0.03]; // Cash: dark sneakers, white soles
   const v = (x, y, z) => new V(x, y, z);
   const W = (n) => [[B[n], 1]];
   const k = o.bulk;
@@ -63,12 +63,14 @@ function buildGeometry(o) {
     : y < 1.47 ? W('chest') : blend(B.chest, B.neck, 0.6);
   const R = ([y, hx, f, b, n], col, pad = 0) => ring(v(0, y, 0), up, fwd, hx + pad, f + pad, tw(y), col, { rxn: hx + pad, ryn: b + pad, n });
   Ll.tube(torso.map((r) => R(r, legs)), 20, { capStart: true });
-  Ll.blob(v(0, 1.02, 0.0), 0.152 * k, 0.012, 0.098 * k, tw(1.02), [legs[0] * 0.7, legs[1] * 0.7, legs[2] * 0.7], 18, 4); // belt line
-  Lt.tube(chest.map((r) => R(r, top, 0.006)), 20, { capStart: true });
+  Ll.blob(v(0, 1.02, 0.0), 0.152 * k, o.cash ? 0.02 : 0.012, 0.098 * k, tw(1.02), o.cash ? [0.12, 0.09, 0.07] : [legs[0] * 0.7, legs[1] * 0.7, legs[2] * 0.7], 18, 4); // belt line
+  // Cash's denim jacket hangs wide open over a cream T-shirt: colour the front of the torso by angle
+  const tee = [0.72, 0.66, 0.54], openFront = o.cash ? (r, a) => (Math.sin(a) > 0 && Math.abs(Math.cos(a)) < 0.4 ? tee : r.col) : null;
+  Lt.tube(chest.map((r) => R(r, top, 0.006)), o.cash ? 36 : 20, { capStart: true, colFn: openFront });
   // the hood bunched behind the neck, and a collar ring
   if (o.hood === 'up') Lt.tube([ring(v(0, 1.46, -0.01), up, fwd, 0.15 * k, 0.075, blend(B.chest, B.neck, 0.2), top, { ryn: 0.11 }), ring(v(0, 1.54, -0.02), up, fwd, 0.125, 0.08, blend(B.neck, B.head, 0.3), top, { ryn: 0.115 }), ring(v(0, 1.62, -0.02), up, fwd, 0.118, 0.085, blend(B.neck, B.head, 0.7), top, { ryn: 0.12 })], 18);
   else if (o.hood !== false) Lt.blob(v(0, 1.5, -0.075), 0.115, 0.06, 0.065, blend(B.chest, B.neck, 0.4), [top[0] * 0.85, top[1] * 0.85, top[2] * 0.85], 14, 8);
-  Lt.tube([ring(v(0, 1.495, 0.005), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), top, { ryn: 0.078 }), ring(v(0, 1.525, 0.008), up, fwd, 0.072, 0.066, blend(B.chest, B.neck, 0.6), top, { ryn: 0.072 })], 16);
+  Lt.tube([ring(v(0, 1.495, 0.005), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), o.cash ? tee : top, { ryn: 0.078 }), ring(v(0, 1.525, 0.008), up, fwd, 0.072, 0.066, blend(B.chest, B.neck, 0.6), o.cash ? tee : top, { ryn: 0.072 })], 16); // collar (Cash: the T-shirt's crew neck)
   // trapezius slopes from the neck to the shoulders
   for (const sd of [1, -1]) Lt.blob(v(0.085 * sd * k, 1.475, -0.02), 0.075 * k, 0.04, 0.06, blend(B.chest, B.neck, 0.25), top, 12, 8);
   // shoulders: deltoid caps under the cloth
@@ -90,9 +92,15 @@ function buildGeometry(o) {
     const fore = [[0.08, 0.046, 0.046, 0.044], [0.3, 0.045, 0.044, 0.04], [0.6, 0.038, 0.036, 0.034], [0.88, 0.032, 0.03, 0.029]];
     const rings = [];
     upper.forEach(([t, rx, f, b]) => rings.push(ring(at(a, e, t), dA, fwd, rx * k + 0.01, f * k + 0.012, t < 0.15 ? blend(B.chest, B['arm' + S], 0.7) : blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), top, { ryn: b * k + 0.012 })));
-    fore.forEach(([t, rx, f, b]) => rings.push(ring(at(e, w, t), dF, fwd, rx + 0.012 - t * 0.004, f + 0.012 - t * 0.004, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top, { ryn: b + 0.012 - t * 0.004 })));
-    rings.push(ring(at(e, w, 0.97), dF, fwd, 0.036, 0.034, W('fore' + S), [top[0] * 0.8, top[1] * 0.8, top[2] * 0.8])); // cuff
-    Lt.tube(rings, 14, { capEnd: true });
+    if (o.cash) { // sleeves rolled up thick just below the elbow, bare forearms
+      for (const [t, g] of [[0.04, 0.022], [0.12, 0.026], [0.2, 0.02]]) rings.push(ring(at(e, w, t), dF, fwd, 0.046 + g, 0.045 + g, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top.map((c) => c * (t === 0.12 ? 1.1 : 0.85)), { ryn: 0.044 + g }));
+      Lt.tube(rings, 14, { capEnd: true });
+      Ls.tube(fore.map(([t, rx, f, b]) => ring(at(e, w, t), dF, fwd, rx * k, f * k, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), skin, { ryn: b * k })).concat([ring(at(e, w, 0.98), dF, fwd, 0.03, 0.028, W('fore' + S), skin)]), 14);
+    } else {
+      fore.forEach(([t, rx, f, b]) => rings.push(ring(at(e, w, t), dF, fwd, rx + 0.012 - t * 0.004, f + 0.012 - t * 0.004, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top, { ryn: b + 0.012 - t * 0.004 })));
+      rings.push(ring(at(e, w, 0.97), dF, fwd, 0.036, 0.034, W('fore' + S), [top[0] * 0.8, top[1] * 0.8, top[2] * 0.8])); // cuff
+      Lt.tube(rings, 14, { capEnd: true });
+    }
     // hand: wrist, palm (wide front-to-back), fingers loosely curled, thumb forward
     const d = new V(0, -1, 0);
     Ls.tube([
@@ -251,22 +259,16 @@ export class Person {
       pg.fillStyle = '#1a1a1a'; pg.font = 'bold 34px "Courier New", monospace'; pg.textAlign = 'center'; pg.fillText('10771', 64, 44);
       const pt = new THREE.CanvasTexture(pc); pt.colorSpace = THREE.SRGBColorSpace;
       const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.042), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
-      patch.position.set(-0.075, 0.06, 0.142 * (o.bulk || 1)); patch.rotation.set(-0.12, -0.25, 0); this.bones[B.chest].add(patch);
+      patch.scale.setScalar(0.7); patch.position.set(-0.13, 0.08, 0.125 * (o.bulk || 1)); patch.rotation.set(-0.12, -0.6, 0); this.bones[B.chest].add(patch);
       const k = o.bulk || 1, ch = this.bones[B.chest];
       const jacket = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(o.top[0] * 0.85, o.top[1] * 0.85, o.top[2] * 0.85, THREE.SRGBColorSpace), map: T.fleece.map, roughness: 0.95, side: THREE.DoubleSide });
       // the jacket's raised collar round the back and sides of the neck
-      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.11, 0.075, 20, 1, true, Math.PI * 0.62, Math.PI * 1.76), jacket); collar.position.set(0, 0.215, -0.012); collar.rotation.x = -0.12; ch.add(collar);
-      // the cream shirt showing in a V where the jacket hangs open
-      const shirtM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.66, 0.6, 0.48, THREE.SRGBColorSpace), map: T.fleece.map, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
-      const sv = new THREE.Shape(); sv.moveTo(-0.07, 0.2); sv.lineTo(0.07, 0.2); sv.lineTo(0.012, -0.12); sv.lineTo(-0.012, -0.12); sv.closePath();
-      const shirt = new THREE.Mesh(new THREE.ShapeGeometry(sv), shirtM); shirt.position.set(0, 0.0, 0.142 * k); shirt.rotation.x = -0.08; ch.add(shirt);
-      for (const sd of [1, -1]) { // the jacket's open front edges either side of it
-        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.34, 0.012), jacket); edge.position.set(sd * 0.045, 0.04, 0.144 * k); edge.rotation.set(-0.08, 0, sd * 0.2); ch.add(edge);
-      }
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.135, 0.045, 20, 1, true, Math.PI * 0.62, Math.PI * 1.76), jacket); collar.position.set(0, 0.19, -0.015); collar.rotation.x = -0.15; ch.add(collar); // folded down onto the shoulders
       // the dark blue strap he hangs weapons from: over the left shoulder, across chest and back to the right hip
-      const strapM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.1, 0.13, 0.24, THREE.SRGBColorSpace), roughness: 0.6 });
+      const strapM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.07, 0.075, 0.09, THREE.SRGBColorSpace), roughness: 0.55 });
       for (const z of [0.135 * k, -0.118]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.62, 0.012), strapM); st.position.set(0.0, -0.02, z); st.rotation.set(z > 0 ? -0.1 : 0.1, 0, -0.72); ch.add(st); }
       const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.016), new THREE.MeshStandardMaterial({ color: 0x8a8a84, metalness: 0.9, roughness: 0.35 })); buckle.position.set(-0.053, -0.08, 0.145 * k); buckle.rotation.z = -0.72; ch.add(buckle);
+      const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.05), strapM); pouch.position.set(-0.15, -0.2, 0.07); pouch.rotation.set(0, -0.5, -0.1); this.bones[B.spine].add(pouch); // holster at the right hip
     }
     // weapon in the right hand
     this.weapon = o.weapon ? makeHunterWeapon(o.weapon) : null;
@@ -698,7 +700,7 @@ class Ragdoll {
 // bones that curl around whatever he's holding.
 export function makeHand(left = false) {
   const L = new Loft();
-  const skin = [0.52, 0.36, 0.27], knuckle = [0.56, 0.35, 0.28], nail = [0.66, 0.52, 0.47], scar = [0.6, 0.42, 0.36], sleeve = [0.14, 0.16, 0.2], cuff = [0.7, 0.64, 0.52], ink = skin; // Cash: dark Darkwoods inmate jacket, cream shirt cuff rolled at the wrist
+  const skin = [0.52, 0.36, 0.27], knuckle = [0.56, 0.35, 0.28], nail = [0.66, 0.52, 0.47], scar = [0.6, 0.42, 0.36], sleeve = skin, cuff = skin, ink = skin; // Cash's jacket sleeves are rolled up past the elbow: bare forearms (arms.js adds the rolled cuff and the jacket)
   const v = (x, y, z) => new V(x, y, z);
   // bones: 0 wrist, then per finger (index..pinky) 3 bones, thumb 3 bones
   const bones = [new THREE.Bone()]; bones[0].position.set(0, 0.075, 0.0);
