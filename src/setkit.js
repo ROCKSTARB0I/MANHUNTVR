@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=20';
+import { T } from './paint.js?v=21';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -67,6 +67,21 @@ export function makeKit(D, { X, Z, Hc, m }) {
     // a bare bulb hanging indoors
     bulb: (i, j, o = {}) => D.lamp(wx(i), wz(j), { h: 3.0, r: 7, i: 0.8, arm: 'none', col: 0xffe2a0, ...o }),
     tree: (i, j, size = 3) => D.tree(wx(i), wz(j), size),
+    // restroom: a row of stalls with half-open doors, and sinks on the wall opposite
+    stalls: (i, j, ry, n = 3) => { const g = new THREE.Group(), pm = mat('stall', { color: 0x6a6448, roughness: 0.55, metalness: 0.2 }), wc = mat('porcelain', { color: 0xc8c2b0, roughness: 0.25 });
+      for (let k = 0; k <= n; k++) { const p = new THREE.Mesh(box(0.05, 2.0, 1.5), pm); p.position.set(k * 0.95 - n * 0.475, 1.15, 0.75); g.add(p); }
+      for (let k = 0; k < n; k++) { const d = new THREE.Mesh(box(0.8, 1.8, 0.04), pm); const x = k * 0.95 - n * 0.475 + 0.475; d.position.set(x - 0.38 + Math.cos(0.6 + k * 0.4) * 0.38, 1.1, 1.5 + Math.sin(0.6 + k * 0.4) * 0.38); d.rotation.y = -(0.6 + k * 0.4); g.add(d); const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.42, 12), wc); t.position.set(x, 0.21, 0.35); g.add(t); }
+      return place(g, i, j, ry, n * 0.95, 1.6, 2.1); },
+    sinks: (i, j, ry, n = 3) => { const g = new THREE.Group(), wc = mat('porcelain', { color: 0xc8c2b0, roughness: 0.25 }), mir = mat('mirror', { color: 0x30342e, roughness: 0.1, metalness: 0.9 });
+      for (let k = 0; k < n; k++) { const s = new THREE.Mesh(box(0.55, 0.18, 0.45), wc); s.position.set(k * 0.8, 0.85, 0.25); g.add(s); const mr = new THREE.Mesh(box(0.5, 0.6, 0.02), mir); mr.position.set(k * 0.8, 1.6, 0.03); g.add(mr); }
+      return place(g, i, j, ry, n * 0.8, 0.5, 1); },
+    // a body wrapped in a filthy sheet, hung from the ceiling on a rope
+    hanged: (i, j, y = 3.4) => { const g = new THREE.Group(), sheet = mat('shroud', { color: 0x6a5e4a, roughness: 1 }), bl = mat('shroudblood', { color: 0x3a0806, roughness: 0.4 }), rope = mat('rope', { color: 0x4a3a24, roughness: 1 });
+      const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.1, 6, 12), sheet); b.position.y = y - 1.5; b.scale.z = 0.8; g.add(b);
+      const h = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), sheet); h.position.y = y - 0.62; g.add(h);
+      const st = new THREE.Mesh(new THREE.SphereGeometry(0.21, 10, 8, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), bl); st.position.y = y - 1.55; st.scale.set(1.02, 2.6, 0.84); g.add(st);
+      const r = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), rope); r.position.y = y - 0.3; g.add(r);
+      g.rotation.z = (Math.random() - 0.5) * 0.08; place(g, i, j, Math.random() * 6); K.blood(i, j, 1.4); return g; },
     // ---- vehicles
     boxTruck: (i, j, ry = 0) => { // the white box truck with the blue stripe (Born Again's car park)
       const g = new THREE.Group(); const bt = bodyTex('#2a4a9a');

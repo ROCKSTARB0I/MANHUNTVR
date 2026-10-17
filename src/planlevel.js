@@ -6,9 +6,9 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=20';
-import { PLANS } from './plans.js?v=20';
-import { SETS } from './sets.js?v=20';
+import { T, seeded } from './paint.js?v=21';
+import { PLANS } from './plans.js?v=21';
+import { SETS } from './sets.js?v=21';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -64,7 +64,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=20';
+import { makeKit } from './setkit.js?v=21';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
@@ -80,6 +80,7 @@ export function buildPlan(D, matFor) {
   if (SET.zones || SET.ramps) D.hf = (x, z) => Hc(x / m + W / 2, z / m + H / 2);
   const lowest = Math.min(0, ...(SET.zones || []).map((z) => z.h), ...(SET.ramps || []).map((r) => Math.min(r.h0, r.h1))) - 0.5;
   const walkable = (c) => c === '.' || c === ',' || c === 'i'; // i: indoors (roofed)
+  const lining = (i, j) => { for (const L of SET.linings || []) if (i >= L.x0 && i < L.x1 && j >= L.y0 && j < L.y1) return L.mat; return SET.inner || 'plaster'; };
 
   // ---------- open doorways so every sizable area is reachable
   const comp = new Int32Array(W * H).fill(-1), sizes = []; let nc = 0;
@@ -141,7 +142,8 @@ export function buildPlan(D, matFor) {
   // floors
   const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't' || at(i, j) === 'i';
   const levels = [...new Set([0, ...(SET.zones || []).map((z) => z.h)])];
-  for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv)) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
+  for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv && !(SET.inner && at(i, j) === 'i'))) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
+  if (SET.inner) for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'i' && !isRamp(i, j))) B(lining(i, j) === 'tiles' ? 'tfloor' : 'ifloor').quad(X(i), X(i + w), Z(j), Z(j + h), Hc(i + w / 2, j + h / 2), 3.6);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (floorish(i, j) && isRamp(i, j)) B('floor').quad4(X(i), X(i + 1), Z(j), Z(j + 1), Hc(i, j), Hc(i + 1, j), Hc(i, j + 1), Hc(i + 1, j + 1), 3.6);
   // where two levels meet without stairs: a retaining wall with a parapet on the high side
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
@@ -168,6 +170,15 @@ export function buildPlan(D, matFor) {
     const wh = outer ? S.facade[0] : inner ? Math.max(S.wallH, 3.8) : S.wallH;
     const base = Hc(i + w / 2, j + h / 2);
     B(outer ? 'facade' : 'wall').box(X(i), X(i + w), lowest, wh + Math.max(0, base), Z(j), Z(j + h), outer && S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
+  }
+  // indoors (when the set asks): every wall face inside a room gets plaster, or tiles in the rooms the set names
+  if (SET.inner) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (at(i, j) !== 'i') continue; const y0 = Hc(i + 0.5, j + 0.5), y1 = y0 + 3.4, k = lining(i, j), t = 0.04;
+    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const c = at(i + a, j + b); if (c !== '#' && c !== ' ' && c !== 'B' && c !== 'b') continue;
+      if (a) { const x = a > 0 ? X(i + 1) : X(i); B(k).box(a > 0 ? x - t : x, a > 0 ? x : x + t, y0, y1, Z(j), Z(j + 1), 3.6); }
+      else { const z = b > 0 ? Z(j + 1) : Z(j); B(k).box(X(i), X(i + 1), y0, y1, b > 0 ? z - t : z, b > 0 ? z : z + t, 3.6); }
+    }
   }
   // buildings and low blocks
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'B')) {

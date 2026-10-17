@@ -21,7 +21,7 @@ export const LINES = [
   // ---------------------------------------------------------------- Director
   ['dir_intro_1', 'DIRECTOR', 'Start of scene', "Wake up, James. James Earl Cash. Can you hear me? That's me in your ear. Don't bother looking for me."],
   ['dir_intro_2', 'DIRECTOR', 'Start of scene', "The State was going to put you to sleep at midnight. I paid a great deal of money to make sure it didn't. Welcome to Carcer City."],
-  ['dir_intro_3', 'DIRECTOR', 'Start of scene', "Now you're going to pay me back. There are men out there who've been told you're worth a lot of money dead. Kill every last one of them, and that gate on the east wall opens."],
+  ['dir_intro_3', 'DIRECTOR', 'Start of scene', "Now you're going to pay me back. There are men out there who've been told you're worth a lot of money dead. Kill every last one of them, and the exit opens."],
   ['dir_intro_4', 'DIRECTOR', 'Start of scene', "Stay in the dark. Keep quiet. And when you get behind one of them... make it count. The cameras are rolling."],
   ['dir_gate_open', 'DIRECTOR', 'Pen gate opens', "Your cell door is open. Action."],
   ['dir_pickup_bag', 'DIRECTOR', 'First time picking up a plastic bag', "A plastic bag. Simple. Intimate. Get behind one and pull it tight."],
@@ -54,7 +54,7 @@ export const LINES = [
   ['dir_distract', 'DIRECTOR', 'A thrown object draws a hunter away', "He took the bait. Go. Now."],
   ['dir_hurt', 'DIRECTOR', 'James is badly hurt', "You're bleeding on my set, James. Don't die yet. We're not finished."],
   ['dir_one_left', 'DIRECTOR', 'One kill away from the gate opening', "One more. Give me one more and the gate is yours."],
-  ['dir_gate', 'DIRECTOR', 'Exit gate unlocks', "That's a wrap on this scene. The gate on the east wall is open. Walk out. Don't run. Walking looks better."],
+  ['dir_gate', 'DIRECTOR', 'Exit gate unlocks', "That's a wrap on this scene. The exit's open. Walk out. Don't run. Walking looks better."],
   ['dir_rate_low', 'DIRECTOR', 'Scene rating: 1 star', "Hm. Competent, I suppose. Nobody is going to pay to watch that twice."],
   ['dir_rate_mid', 'DIRECTOR', 'Scene rating: 2-3 stars', "Not bad, James. Not bad at all. But I know you have more in you."],
   ['dir_rate_high', 'DIRECTOR', 'Scene rating: 4-5 stars', "Wonderful. Simply wonderful. That's going straight to the premium customers."],

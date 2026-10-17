@@ -91,4 +91,39 @@ export const SETS = {
       K.bulb(207, 75, { col: 0xff9a7a, flicker: 1 });
     },
   },
+  // Road to Ruin ("der2") is the same Carcer Market blocks as Doorway Into Hell, walked the other way:
+  // out of the cellar, through a warehouse and its tiled restroom, an alley, a long corridor,
+  // across the street to the derelict library, through its cellar of hanging bodies, out a back gate.
+  'road-to-ruin': {
+    start: [192, 74, PI / 2], exit: [90, 5], inner: 'plaster',
+    linings: [{ x0: 155, y0: 57, x1: 179, y1: 70, mat: 'tiles' }],
+    patrols: [[[157, 53], [167, 53]], [[167, 63], [157, 63]], [[150, 44], [150, 36]], [[72, 14], [72, 34]], [[90, 96], [90, 62]], [[104, 50], [114, 58], [104, 64]], [[124, 45], [124, 62]]],
+    dress(K) {
+      // the cellar Cash climbs out of, and the street outside it
+      K.bulb(207, 75, { col: 0xff9a7a, flicker: 1 }); for (let k = 0; k < 5; k++) K.blood(202 + Math.random() * 12, 68 + Math.random() * 14, 1.4);
+      K.prop('dumpster', 186, 79, 0); K.prop('trash', 184, 70, 1); K.lamp(188, 68, { h: 5.2, r: 12, col: 0xc8d4e0 });
+      // warehouse: bare bulbs over crates; restroom: stalls, sinks, blood on the tiles
+      K.bulb(160, 53); K.bulb(174, 53); K.prop('crate', 157, 52, 0.2); K.prop('crate', 172, 54, 0.6); K.prop('barrel', 177, 52, 0);
+      K.bulb(162, 63, { col: 0xd8e8b0, flicker: 1 }); K.bulb(174, 63, { col: 0xd8e8b0 }); K.stalls(160, 57.3, 0, 4); K.sinks(160, 69.6, PI, 3);
+      for (let k = 0; k < 4; k++) K.blood(157 + Math.random() * 20, 61 + Math.random() * 7, 1.2);
+      // the alley and the yard: dumpsters full of junk, chalk on the brick
+      K.prop('dumpster', 160, 32, 0.1); K.prop('trash', 152, 44, 2); K.graffiti(157.4, 40, PI / 2, 2);
+      // the long corridor west of the street: plaster, one bulb at each end
+      K.bulb(72, 16); K.bulb(72, 32);
+      // the street: blue-white lamps, the box truck, a parked van with its lights on, the moon over the roofs
+      K.lamp(80, 40, { h: 5.4, r: 13, col: 0xc8d4e0 }); K.lamp(100, 80, { h: 5.4, r: 13, col: 0xc8d4e0 }); K.lamp(80, 120, { h: 5.4, r: 13, col: 0xc8d4e0 });
+      K.boxTruck(84, 70, PI / 2); K.van(98, 112, 0.1); K.car(82, 132, 3.0);
+      for (const [i, j] of [[80, 14], [97, 92], [102, 140]]) K.rubble(i, j, 2, 1);
+      // the derelict library in the middle of the street
+      K.sign('CARCER CITY\nPUBLIC LIBRARY', 99.6, 32, -PI / 2, { w: 4.6, h: 1.4, y: 4.4, bg: '#3a3428', fg: '#c8b88a', font: 'bold 60px Georgia' });
+      K.doorway(99.7, 42, -PI / 2, 1.6, 2.4); K.sign('KEEP OUT', 99.5, 45, -PI / 2, { w: 1.4, h: 0.5, y: 1.4, bg: '#c8b030', fg: '#141414' });
+      // its cellar: corpses strung up in the dark, a couple of weak bulbs, blood and shelving
+      for (const [i, j] of [[103, 49], [108, 52], [112, 48], [106, 57], [114, 56], [110, 65], [103, 65]]) K.hanged(i + 0.5, j + 0.5);
+      K.bulb(105, 52, { col: 0xffd890, i: 0.6, flicker: 1 }); K.bulb(113, 60, { col: 0xffd890, i: 0.6 });
+      K.prop('crate', 115, 50, 0.3); K.prop('barrel', 101, 60, 0); K.prop('mattress', 116, 64, 1.2);
+      // out the back: the alley to the gate where the van waits
+      K.lamp(84, 8, { h: 5.4, r: 12, col: 0xc8d4e0 }); K.tree(108, 8, 3);
+      K.sign('FOR LEASE\ncall today\n555-7625  555-5440', 106.5, 24, -PI / 2, { w: 7, h: 3.2, y: 8, bg: '#ece8dc', fg: '#c01c14', font: 'bold 72px Arial' });
+    },
+  },
 };

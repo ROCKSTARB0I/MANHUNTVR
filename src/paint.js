@@ -504,6 +504,45 @@ function makeLabel(text, bg, fg, w = 256, h = 128) {
 }
 
 
+// Road to Ruin's insides: rough ochre plaster, grime blotches, a rust-red damp band up
+// from the floor (the tile is 3.6 m tall on walls; canvas bottom = floor).
+function makePlaster(n) {
+  const S = surf(n), big = field(n, 3, 4, 51), mid = field(n, 14, 4, 52), fine = field(n, 96, 2, 53), r = seeded(54);
+  const crack = lineMask(n, 14, 0.7, 1.5, 55, [10, 40]);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, h = 1 - y / n; // height up the wall, 0..1 of 3.6 m
+    let c = [168, 142, 84].map((v) => v * (0.82 + mid[i] * 0.3 + fine[i] * 0.08));
+    for (let k = 0; k < 3; k++) S.C[i * 3 + k] = c[k];
+    const blot = Math.max(0, big[i] - 0.45) * 1.6 + Math.max(0, mid[i] - 0.62) * 1.2; mixC(S, i, [52, 40, 22], Math.min(0.75, blot));
+    // rising damp: rust red, wavy top edge at ~0.9-1.2 m, darker at the floor, tide line on top
+    const edge = 0.26 + (mid[i] - 0.5) * 0.08 + (big[i] - 0.5) * 0.06;
+    if (h < edge) { const t = Math.min(1, (edge - h) / 0.06); mixC(S, i, [104 + fine[i] * 20, 44, 24], 0.7 * t); mulC(S, i, 1 - (1 - h / edge) * 0.45); }
+    else if (h < edge + 0.012) mulC(S, i, 0.72);
+    S.H[i] = 0.5 + mid[i] * 0.12 + fine[i] * 0.06; S.G[i] = 0.92;
+    if (crack[i] > 0) { mulC(S, i, 1 - crack[i] * 0.55); S.H[i] -= crack[i] * 0.2; }
+  }
+  // patches where the plaster has fallen off: brick showing
+  for (let k = 0; k < 0; k++) { const x = r() * n, y = r() * n * 0.7, rad = (24 + r() * 44) * n / 1024; disc(n, x, y, rad * 1.5, rad, (j, t) => { if (t > 0.35 + mid[j] * 0.5 + fine[j] * 0.25) return; const bx = j % n, by = (j / n) | 0, mortar = (by % 22 < 3) || ((bx + ((by / 22) | 0) % 2 * 24) % 48 < 3); mixC(S, j, mortar ? [90, 84, 72] : [112, 54, 36], 0.9); S.H[j] = mortar ? 0.25 : 0.38; }); }
+  // drips running down from the ceiling
+  for (let k = 0; k < 40; k++) { const x = r() * n, len = (60 + r() * 300) * n / 1024; for (let y = 0; y < len; y++) { const j = (y | 0) * n + (x | 0); mixC(S, j, [60, 46, 26], 0.35 * (1 - y / len)); } }
+  return bake(S, 2.2);
+}
+// small glazed wall tiles, cream gone yellow, black grout, grime and old blood low down
+function makeWallTiles(n) {
+  const S = surf(n), per = 24, tw = n / per, gw = Math.max(1.2, n / 500), mid = field(n, 12, 4, 61), fine = field(n, 128, 2, 62), big = field(n, 3, 3, 63), r = seeded(64);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, tx = Math.floor(x / tw), ty = Math.floor(y / tw), u = x - tx * tw, v = y - ty * tw, e = Math.min(u, tw - u, v, tw - v), k = hash2(ty * per + tx, 3), h = 1 - y / n;
+    if (e < gw) { const g = 46 + fine[i] * 20; S.C[i * 3] = g; S.C[i * 3 + 1] = g * 0.92; S.C[i * 3 + 2] = g * 0.7; S.H[i] = 0.3; S.G[i] = 0.95; continue; }
+    const base = (186 + k * 22) * (0.86 + mid[i] * 0.2); S.C[i * 3] = base; S.C[i * 3 + 1] = base * 0.92; S.C[i * 3 + 2] = base * 0.6;
+    mulC(S, i, 1 - Math.max(0, 0.4 - h) * 0.9 - Math.max(0, big[i] - 0.55) * 0.6); // grime collects low and in patches
+    if (hash2(ty * per + tx, 5) < 0.03) mixC(S, i, [40, 34, 24], 0.85); // a tile missing
+    S.H[i] = 0.62; S.G[i] = 0.25 + big[i] * 0.3;
+  }
+  for (let k = 0; k < 5; k++) { const x = r() * n, y = n * (0.55 + r() * 0.35), rad = (40 + r() * 90) * n / 1024; disc(n, x, y, rad * (0.6 + r()), rad, (j, t) => mixC(S, j, [92, 10, 6], (1 - t) * 0.75)); }
+  for (let k = 0; k < 18; k++) { const x = r() * n, y0 = n * (0.4 + r() * 0.3), len = (40 + r() * 200) * n / 1024; for (let y = 0; y < len; y++) for (let w = 0; w < 3; w++) { const j = ((y0 + y) | 0) % n * n + ((x + w) | 0) % n; mixC(S, j, [86, 8, 6], 0.6 * (1 - y / len)); } }
+  return bake(S, 2);
+}
+
 // ---------------------------------------------------------------- gang masks
 // Each gang's head gear, painted from the descriptions of the real hunters.
 // 'wrap' kinds go all the way round the head (512 wide, the face in the middle
@@ -693,6 +732,7 @@ export function paintAll(low) {
   T.concrete = makeConcrete(1024);
   T.slab = makeTiles(1024);
   T.gravel = makeGravel(1024);
+  T.plaster = makePlaster(1024); T.walltile = makeWallTiles(1024);
   T.corrugated = makeCorrugated(n);
   T.dumpster = makePaintedMetal(n / 2, [34, 70, 44]);
   T.barrel = makePaintedMetal(n / 2, [70, 40, 30]);

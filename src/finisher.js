@@ -6,7 +6,7 @@
 // Desktop gets a slow orbiting camera; in VR the view fades and you watch from
 // a step to the side (nothing moves you on its own), then it fades back.
 import * as THREE from '../vendor/three.module.js';
-import { BONE } from './body.js?v=20';
+import { BONE } from './body.js?v=21';
 
 const V = THREE.Vector3;
 const INTRO = 0.4, BLOW = 0.82, LASTBLOW = 1.5, HOLD = 2.2, FADE = 0.22, REACH = 0.64;

@@ -1,19 +1,19 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=20';
-import { District, SCENES } from './district.js?v=20';
-import { spawnHunters } from './hunters.js?v=20';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=20';
-import { Blood } from './blood.js?v=20';
-import { Director } from './director.js?v=20';
-import { Sound } from './sound.js?v=20';
-import { makeHand, Person, BONE } from './body.js?v=20';
-import { VHS } from './vhs.js?v=20';
-import { Grime } from './grime.js?v=20';
-import { Cutscene } from './cutscene.js?v=20';
-import { Arms } from './arms.js?v=20';
-import { Finisher } from './finisher.js?v=20';
+import { paintAll, T } from './paint.js?v=21';
+import { District, SCENES } from './district.js?v=21';
+import { spawnHunters } from './hunters.js?v=21';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=21';
+import { Blood } from './blood.js?v=21';
+import { Director } from './director.js?v=21';
+import { Sound } from './sound.js?v=21';
+import { makeHand, Person, BONE } from './body.js?v=21';
+import { VHS } from './vhs.js?v=21';
+import { Grime } from './grime.js?v=21';
+import { Cutscene } from './cutscene.js?v=21';
+import { Arms } from './arms.js?v=21';
+import { Finisher } from './finisher.js?v=21';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -179,7 +179,7 @@ const hud = (() => {
       $('mLight').style.width = light * 100 + '%'; $('mLight').style.height = Math.min(1, light) * 100 + '%'; $('mLight').style.background = light > 0.35 ? '#ffdd66' : light > 0.15 ? '#a08a40' : '#3c4450';
       $('mNoise').style.width = noise * 100 + '%';
       $('mHp').style.width = Math.max(0, P.hp) + '%'; $('mHp').style.height = Math.max(0, P.hp) + '%'; updateWeapon(); drawStance();
-      $('show').textContent = G.director?.gate ? 'THE GATE IS OPEN — EAST WALL' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
+      $('show').textContent = G.director?.gate ? 'THE EXIT IS OPEN' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
     },
   };
 })();
