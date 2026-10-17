@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>DEAD AIR</title>
-<meta name="description" content="Carcer City. You are Josh Earnings: framed, sentenced, and sold to a snuff film ring. A VR stealth horror game for Meta Quest.">
+<title>MANHUNT</title>
+<meta name="description" content="Carcer City. You are James Earl Cash: sentenced to death, and sold to a snuff film ring. A VR stealth horror game for Meta Quest.">
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <canvas id="view" tabindex="0"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="4"/></filter></svg>
 <div id="hud" hidden>
   <div class="meters">
     <div class="m"><span>SEEN</span><i><b id="mLight"></b></i></div>
@@ -21,36 +22,76 @@
     <div class="m"><span>HEALTH</span><i><b id="mHp"></b></i></div>
   </div>
   <div id="show"></div>
+  <div id="weapon"><canvas id="wIcon" width="96" height="96"></canvas><span id="wName">BARE HANDS</span></div>
   <div class="rec"><span class="dot"></span>REC</div>
+  <canvas id="radar" width="160" height="160"></canvas>
 </div>
 <div id="caption" hidden></div>
 <div id="prompt" hidden></div>
+<div id="tip" hidden></div>
+<div id="exec" hidden><i><b></b></i><span></span></div>
 <div id="banner" hidden></div>
+<div id="pause" hidden>
+  <div class="pInner">
+    <div class="lsScene">PAUSED</div>
+    <div class="lsTitle">MANHUNT</div>
+    <nav id="pauseList">
+      <button data-a="resume" class="sel">Resume</button>
+      <button data-a="save">Save Game</button>
+      <button data-a="load">Load Game</button>
+      <button data-a="quit">Quit to Menu</button>
+    </nav>
+    <p id="pauseMsg"></p>
+  </div>
+</div>
+<div id="loadScreen" hidden>
+  <div class="lsInner">
+    <div class="lsScene">SCENE 1</div>
+    <div class="lsTitle">THE PENS</div>
+    <div class="lsTip"><b>TIP</b><span id="lsTip"></span></div>
+    <div class="lsBar"><i id="lsFill"></i></div>
+    <div class="lsLoad">LOADING&hellip;</div>
+  </div>
+</div>
+<div id="skip" hidden>PRESS ANY KEY TO SKIP</div>
 
 <div id="screen">
-  <div class="tape">
-    <div class="rec big"><span class="dot"></span>REC &nbsp;00:00:00</div>
-    <h1 class="logo">DEAD <span>AIR</span></h1>
-    <p class="sub">Carcer City &middot; Scene 1: The Pens</p>
-    <p class="lede">Josh Earnings was sentenced to die for murders he didn't commit.<br>At 11:58 p.m. somebody paid to get him out.<br>Now the cameras are rolling, and every man out there has been paid to kill him.</p>
-    <div class="actions">
+  <div class="feed">
+    <div class="camlabel">CAM 07 &middot; CARCER CITY &middot; EAST SIDE<br><span id="feedClock">02:13:44 AM</span></div>
+    <div class="rec big"><span class="dot"></span>REC</div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+  </div>
+  <div class="menu">
+    <h1 class="logo">MANHUNT</h1>
+    <p class="sub">Scene 1 &middot; The Pens</p>
+    <nav id="menuList">
+      <button id="playDesktop" class="sel">Play</button>
       <button id="enterVR">Enter VR</button>
-      <button id="playDesktop">Play on desktop</button>
-      <button id="howBtn">How to play</button>
+      <button id="howBtn">How to Play</button>
+      <button id="optBtn">Options</button>
+    </nav>
+    <div class="panel" id="slots" hidden>
+      <div class="slotHead">CHOOSE A PROFILE</div>
+      <div id="slotList"></div>
     </div>
-    <label class="mic"><input type="checkbox" id="micBox"> Use my microphone &mdash; real noise in your room can give you away</label>
     <p id="vrNote"></p>
-    <p id="loading">Building Carcer City&hellip;</p>
-    <div class="how" id="how" hidden>
-      <p><b>Stay in the dark.</b> Your SEEN meter (on your left wrist in VR) shows how lit you are. Hunters spot you much faster in light. Crouch for less noise and a smaller shape.</p>
-      <p><b>Stay quiet.</b> Running is loud. Walking is quiet. Crouched is nearly silent. Throw bottles and bricks to send hunters to go look somewhere else.</p>
-      <p><b>Quest.</b> Left stick walks (click it to sprint), right stick turns. Grip picks up whatever your hand is touching; let go while swinging to throw. Bag: reach over a hunter's head from behind with the bag, then hold grip and pull for about four seconds. Glass shard and crowbar: really stab and swing &mdash; they only hurt when they're moving fast. Crouch for real, or press B.</p>
-      <p><b>Desktop.</b> WASD move, mouse look (click to capture), Shift run, C crouch, E pick up, click to stab / swing / use the bag (hold), Q or right-click throw, G drop, F swap hands, N free camera.</p>
-      <p><b>The show.</b> The Director wants three kills. Give him that and the gate in the east wall opens. CCTV cameras report you to the hunters; a crowbar or a brick shuts them up.</p>
+    <p id="loading">Loading Carcer City&hellip;</p>
+    <div class="panel" id="opts" hidden>
+      <label><input type="checkbox" id="vhsBox"> VHS tape look (grain, scanlines)</label>
+      <label><input type="checkbox" id="thirdBox"> Third-person camera on desktop (or press V in game)</label>
+      <label><input type="checkbox" id="micBox"> Use my microphone &mdash; real noise in your room can give you away</label>
+    </div>
+    <div class="panel how" id="how" hidden>
+      <p><b>Stay in the shadows.</b> Stand perfectly still in the dark and nobody can see you, even right next to you. Your wrist (or the meters on screen) says HIDDEN when you are.</p>
+      <p><b>Listen.</b> Running is loud and shows as rings on your radar. Tap a wall, or throw a bottle or brick, to lure a Hood out of his route. Radar dots: blue = unaware, yellow = suspicious, red = hunting you.</p>
+      <p><b>Executions.</b> Get behind an unaware Hood with a weapon and a reticle appears. Hold to charge it from <span style="color:#9c9c9c">GREY</span> to <span style="color:#39c84a">GREEN</span> to <span style="color:#e2231a">RED</span>, then let go and act it out: more strikes, or a longer hold with the bag, the higher you charged. Fighting in the open gets you killed.</p>
+      <p><b>Quest.</b> Left stick walks (click to sprint), right stick turns, grip picks up and throws, <b>trigger</b> charges executions, B crouches (or really crouch). Knock on walls with your hand. Any button skips the opening tape.</p>
+      <p><b>Desktop.</b> WASD, mouse, Shift run, C crouch, E pick up, hold click to charge / click to strike, Q throw, T tap a wall, G drop, F swap hands, V third-person camera, N free camera.</p>
+      <p><b>The Director</b> wants every Hood dead before he opens the gate, and he rates you out of five stars: brutal and quick is what he pays for. Painkillers heal. CCTV cameras sell you out; smash them.</p>
     </div>
   </div>
 </div>
 
-<script type="module" src="src/main.js?v=1"></script>
+<script type="module" src="src/main.js?v=2"></script>
 </body>
 </html>
