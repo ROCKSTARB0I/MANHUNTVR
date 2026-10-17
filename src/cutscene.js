@@ -6,8 +6,8 @@
 // transparent 2D layer on top. Desktop shows it full screen; VR shows it as a
 // flat screen in a dark room. Any key, click or controller button skips.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=12';
-import { T } from './paint.js?v=12';
+import { Person, BONE as B } from './body.js?v=13';
+import { T } from './paint.js?v=13';
 
 const V = THREE.Vector3;
 const RW = 1280, RH = 720, W = 960, H = 540;
@@ -15,6 +15,21 @@ const SHOTS = [[0, 6.5, 'news'], [6.5, 12, 'newsMug'], [12, 18, 'chamber'], [18,
 const LINES = [[0.8, 'news_1'], [6.8, 'news_2'], [13.5, 'news_3'], [27.4, 'dir_intro_1'], [36, 'cash_wake'], [38, 'dir_intro_2'], [47, 'cash_reply'], [49, 'dir_intro_3']];
 const LENGTH = 62;
 const STUDIO = new V(400, 0, 0), CHAMBER = new V(500, 0, 0), DEN = new V(600, 0, 0);
+
+// a material from one of the painted surfaces (colour + normal + roughness), tinted
+function surface(t, color = 0xffffff, extra = {}) {
+  const c = (m) => { if (!m) return undefined; const k = m.clone(); k.needsUpdate = true; k.wrapS = k.wrapT = THREE.RepeatWrapping; return k; };
+  return new THREE.MeshStandardMaterial(Object.assign({ map: c(t.map), normalMap: c(t.normal), roughnessMap: c(t.rough), bumpMap: t.normal ? undefined : c(t.bump), bumpScale: 0.02, color, roughness: 1 }, extra));
+}
+// texture coordinates in metres (one texture tile = `tile` metres) so nothing stretches
+function worldBox(w, h, d, mat, tile = 3.6) {
+  const g = new THREE.BoxGeometry(w, h, d), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    if (ay > 0.5) uv.setXY(i, x / tile, z / tile); else if (ax > 0.5) uv.setXY(i, z / tile, y / tile); else uv.setXY(i, x / tile, y / tile);
+  }
+  return new THREE.Mesh(g, mat);
+}
 
 export class Cutscene {
   constructor(renderer, camera, sound, world) {
@@ -52,10 +67,10 @@ export class Cutscene {
     const bt = new THREE.CanvasTexture(bd); bt.colorSpace = THREE.SRGBColorSpace;
     const back = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), new THREE.MeshStandardMaterial({ map: bt, emissive: 0xffffff, emissiveMap: bt, emissiveIntensity: 0.35, roughness: 0.9 }));
     back.position.set(0, 2, -2.2); S.add(back);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), mat(0x1a1714, 0.5)); floor.rotation.x = -Math.PI / 2; S.add(floor);
+    const floor = worldBox(10, 0.02, 8, surface(T.slab, 0x4a443c, { roughness: 0.55 })); floor.position.y = -0.01; S.add(floor);
     // the desk
-    const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.78, 0.9), mat(0x2a1c14, 0.35, 0.2)); desk.position.set(0, 0.39, 0.55); S.add(desk);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.04, 1.0), mat(0x6a5a48, 0.2, 0.3)); top.position.set(0, 0.8, 0.55); S.add(top);
+    const desk = worldBox(2.6, 0.78, 0.9, surface(T.wood, 0x6a4a34, { roughness: 0.45 }), 1.2); desk.position.set(0, 0.39, 0.55); S.add(desk);
+    const top = worldBox(2.7, 0.04, 1.0, surface(T.wood, 0x8a6a50, { roughness: 0.25 }), 1.2); top.position.set(0, 0.8, 0.55); S.add(top);
     const front = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshBasicMaterial({ color: 0x8a1010 })); front.position.set(0, 0.45, 1.006); S.add(front);
     const papers = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.01, 0.22), mat(0xe8e4da)); papers.position.set(0.15, 0.83, 0.75); papers.rotation.y = 0.2; S.add(papers);
     // the anchor: a man in a suit, seated
@@ -67,7 +82,7 @@ export class Cutscene {
     const mon = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.05), new THREE.MeshBasicMaterial({ map: mt, toneMapped: false })); mon.position.set(1.5, 1.9, -1.4); mon.rotation.y = -0.25; S.add(mon); this.monitor = mon;
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.15, 0.05), mat(0x111111)); frame.position.set(1.5, 1.9, -1.43); frame.rotation.y = -0.25; S.add(frame);
     // studio lighting: key, fill, a warm rim from behind
-    const key = new THREE.SpotLight(0xfff0dc, 14, 12, 0.6, 0.6, 1.5); key.position.set(1.6, 3.2, 4); key.target.position.set(0, 1.2, 0); S.add(key, key.target);
+    const key = new THREE.SpotLight(0xfff0dc, 14, 12, 0.6, 0.6, 1.5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0005; key.position.set(1.6, 3.2, 4); key.target.position.set(0, 1.2, 0); S.add(key, key.target);
     const fill = new THREE.PointLight(0xffe2c4, 3, 10, 1.6); fill.position.set(-2.5, 2, 3); S.add(fill);
     const rim = new THREE.PointLight(0xffb070, 8, 6, 1.6); rim.position.set(-1, 2.6, -1.2); S.add(rim);
   }
@@ -81,11 +96,15 @@ export class Cutscene {
     for (let i = 0; i <= 256; i += 32) { t.beginPath(); t.moveTo(i, 0); t.lineTo(i, 256); t.moveTo(0, i); t.lineTo(256, i); t.stroke(); }
     for (let k = 0; k < 40; k++) { t.fillStyle = `rgba(60,50,30,${Math.random() * 0.15})`; t.fillRect(Math.random() * 256, Math.random() * 256, 30, 30); }
     const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace; tt.wrapS = tt.wrapT = THREE.RepeatWrapping; tt.repeat.set(3, 2);
-    const wall = new THREE.MeshStandardMaterial({ map: tt, roughness: 0.4 });
+    const wall = surface(T.slab, 0xc4c2a8, { roughness: 0.7 }); tt.dispose();
     const box = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); C.add(o); return o; };
-    box(6, 0.1, 6, 0, -0.05, 0, mat(0x55564f, 0.35));
-    box(6, 3, 0.1, 0, 1.5, -3, wall); box(0.1, 3, 6, -3, 1.5, 0, wall); box(0.1, 3, 6, 3, 1.5, 0, wall);
-    box(6, 0.1, 6, 0, 3.05, 0, mat(0x3a3a36));
+    const wb = (w, h, d, x, y, z, m, tile) => { const o = worldBox(w, h, d, m, tile); o.position.set(x, y, z); o.receiveShadow = true; C.add(o); return o; };
+    wb(6, 0.1, 6, 0, -0.05, 0, surface(T.concrete, 0x8a8a80, { roughness: 0.8 }));
+    wb(6, 3, 0.1, 0, 1.5, -3, wall); wb(0.1, 3, 6, -3, 1.5, 0, wall); wb(0.1, 3, 6, 3, 1.5, 0, wall);
+    // a darker painted dado band along the bottom of the walls, scuffed by trolleys
+    const dado = surface(T.concrete, 0x5a5648, { roughness: 0.6 });
+    wb(5.9, 0.9, 0.02, 0, 0.45, -2.94, dado, 1.8); wb(0.02, 0.9, 5.9, -2.94, 0.45, 0, dado, 1.8); wb(0.02, 0.9, 5.9, 2.94, 0.45, 0, dado, 1.8);
+    wb(6, 0.1, 6, 0, 3.05, 0, surface(T.concrete, 0x4a4a44));
     // witness window in the back wall, people behind the glass
     box(2.6, 1.0, 0.12, 0.8, 1.6, -2.95, mat(0x222220)).material = new THREE.MeshStandardMaterial({ color: 0x1a1c1a, roughness: 0.05, metalness: 0.6, transparent: true, opacity: 0.35 });
     for (let k = 0; k < 3; k++) {
@@ -112,17 +131,24 @@ export class Cutscene {
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), new THREE.MeshStandardMaterial({ map: sgt, roughness: 0.6 })); sign.position.set(-2.94, 2.3, 0.6); sign.rotation.y = Math.PI / 2; C.add(sign);
     // fluorescent panel
     const panel = box(1.2, 0.04, 0.4, 0, 3.0, 0, new THREE.MeshBasicMaterial({ color: 0xf4f2e8 }));
-    const lamp = new THREE.PointLight(0xf0eedc, 14, 9, 1.4); lamp.position.set(0, 2.8, 0); C.add(lamp);
+    const lamp = new THREE.SpotLight(0xf0eedc, 30, 10, 1.15, 0.7, 1.4); lamp.position.set(0, 2.9, 0.2); lamp.target.position.set(0, 0.9, 0); lamp.castShadow = true; lamp.shadow.mapSize.set(1024, 1024); lamp.shadow.bias = -0.0005; C.add(lamp, lamp.target);
+    const bounce = new THREE.PointLight(0xe8e4d0, 3, 8, 1.4); bounce.position.set(0, 2.6, 1.5); C.add(bounce);
     const low = new THREE.PointLight(0xffe0b0, 2.5, 6, 1.5); low.position.set(-2, 1.2, 2); C.add(low);
     // the gurney with arm boards
-    box(2.0, 0.08, 0.7, 0, 0.9, 0, mat(0xd8d6ce, 0.6));
-    box(0.12, 0.85, 0.12, -0.8, 0.45, 0, mat(0x8a8a86, 0.3, 0.8)); box(0.12, 0.85, 0.12, 0.8, 0.45, 0, mat(0x8a8a86, 0.3, 0.8));
-    box(0.22, 0.05, 0.8, 0.58, 0.92, 0.7, mat(0xd8d6ce)); box(0.22, 0.05, 0.8, 0.58, 0.92, -0.7, mat(0xd8d6ce));
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9a9890, roughness: 0.32, metalness: 0.85 }), vinyl = new THREE.MeshStandardMaterial({ color: 0x6a645a, roughness: 0.35, map: T.fleece.map });
+    box(2.0, 0.08, 0.7, 0, 0.9, 0, vinyl).castShadow = true;
+    box(2.06, 0.03, 0.76, 0, 0.85, 0, steel);
+    box(0.06, 0.85, 0.06, -0.8, 0.45, 0.28, steel); box(0.06, 0.85, 0.06, 0.8, 0.45, 0.28, steel); box(0.06, 0.85, 0.06, -0.8, 0.45, -0.28, steel); box(0.06, 0.85, 0.06, 0.8, 0.45, -0.28, steel);
+    box(0.22, 0.05, 0.8, 0.58, 0.92, 0.7, vinyl); box(0.22, 0.05, 0.8, 0.58, 0.92, -0.7, vinyl);
     // Cash, strapped down in an orange jumpsuit, arms out
     const cash = new Person({ mask: null, weapon: null, top: [0.62, 0.3, 0.06], legs: [0.62, 0.3, 0.06], skin: [0.55, 0.38, 0.28], bulk: 1.08, stubble: true });
     cash.root.rotation.set(-Math.PI / 2, 0, -Math.PI / 2); cash.root.position.set(-0.8, 1.06, 0); C.add(cash.root); this.cashBed = cash;
     // leather straps across shins, thighs, waist and chest, and on both wrists
-    for (const x of [-0.55, -0.1, 0.18, 0.45]) box(0.06, 0.2, 0.5, x, 1.04, 0, mat(0x2a1e16, 0.7));
+    const leather = new THREE.MeshStandardMaterial({ color: 0x2a1e16, roughness: 0.55, map: T.fleece.map });
+    for (const [x, r] of [[-0.55, 0.15], [-0.1, 0.19], [0.18, 0.22], [0.45, 0.25]]) { // bands arched over shins, thighs, waist, chest
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.055, 24, 1, true, -Math.PI / 2, Math.PI), leather); leather.side = THREE.DoubleSide; band.scale.set(1.3, 1, 1.05); band.rotation.z = Math.PI / 2; band.position.set(x, 0.94, 0); band.castShadow = true; C.add(band);
+      const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.04), new THREE.MeshStandardMaterial({ color: 0x8a8478, metalness: 0.9, roughness: 0.3 })); buckle.position.set(x, 0.94 + r * 1.3, 0.05); C.add(buckle);
+    }
     for (const z of [0.72, -0.72]) box(0.08, 0.03, 0.14, 0.58, 0.99, z, mat(0x2a1e16, 0.7));
     // IV stand, lines into both arms
     box(0.03, 1.8, 0.03, -0.3, 0.9, 1.2, mat(0x9a9a96, 0.3, 0.8));
@@ -145,7 +171,7 @@ export class Cutscene {
     const D = new THREE.Group(); D.position.copy(DEN); this.sets.add(D);
     this.feed = new THREE.WebGLRenderTarget(512, 288, { colorSpace: THREE.SRGBColorSpace });
     this.penCam = new THREE.PerspectiveCamera(58, 16 / 9, 0.05, 120);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x0c0b0a, roughness: 0.8 })); floor.rotation.x = -Math.PI / 2; D.add(floor);
+    const floor = worldBox(10, 0.02, 10, surface(T.concrete, 0x3a3630)); floor.position.y = -0.01; D.add(floor);
     const casing = new THREE.MeshStandardMaterial({ color: 0x1a1918, roughness: 0.5 });
     const statTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 96; const g = c.getContext('2d'); const img = g.createImageData(128, 96); for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 200; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; } g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     this.tvs = [];
@@ -173,14 +199,17 @@ export class Cutscene {
     this.screen.position.copy(cp).addScaledVector(f, 3); this.screen.position.y = Math.max(1.4, cp.y);
     this.screen.lookAt(cp.x, this.screen.position.y, cp.z);
     this.vr = vr;
+    // real shadows on the sets (desktop only: the Quest can't spare it)
+    this.shadowsWas = this.renderer.shadowMap.enabled; if (!vr) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     // Cash on the mattress in the real pen
-    this.cashPen = new Person({ mask: null, weapon: null, top: [0.09, 0.09, 0.1], legs: [0.14, 0.15, 0.17], skin: [0.55, 0.38, 0.28], bulk: 1.08, stubble: true });
+    this.cashPen = new Person({ mask: null, weapon: null, top: [0.14, 0.16, 0.2], legs: [0.2, 0.26, 0.38], hood: false, skin: [0.55, 0.38, 0.28], bulk: 1.08, stubble: true });
     this.world.scene.add(this.cashPen.root);
     document.getElementById('skip').hidden = false;
   }
   skip() { if (this.active) { this.sound.hush(); this.finish(); } }
   finish() {
     this.active = false; document.getElementById('skip').hidden = true;
+    this.renderer.shadowMap.enabled = !!this.shadowsWas;
     if (this.cashPen) { this.world.scene.remove(this.cashPen.root); this.cashPen = null; }
     const d = this.done; this.done = null; d && d();
   }

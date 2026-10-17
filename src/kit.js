@@ -3,10 +3,12 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=12';
+import { T } from './paint.js?v=13';
 
 const V = THREE.Vector3;
-const _a = new V(), _b = new V();
+const _a = new V(), _b = new V(), _p = new V(), _g = new V();
+// distance from p to the segment a-b
+function segPt(p, a, b) { const ab = _g.copy(b).sub(a), L2 = ab.lengthSq(); const t = L2 ? Math.max(0, Math.min(1, _b.copy(p).sub(a).dot(ab) / L2)) : 0; return _b.copy(a).addScaledVector(ab, t).distanceTo(p); }
 
 // Executions, Manhunt style: hold to charge GREY -> GREEN -> RED, release to
 // commit, then act it out. Higher levels need more (real) strikes or a longer hold.
@@ -244,12 +246,13 @@ export class Kit {
 
   update(dt) {
     const G = this.game;
+    if (G.finisher) { this.killLight.intensity = 9; return; } // the finisher has the stage
     this.startCharges();
     this.punches(dt);
     for (const hand of G.hands) {
       const it = hand.item; if (!it) continue;
       it.mesh.updateMatrixWorld(true);
-      const tip = it.tip(_a);
+      const tip = it.tip(_a); _p.copy(it.tipPrev);
       it.tipVel.copy(tip).sub(it.tipPrev).divideScalar(Math.max(dt, 1e-3));
       // smooth so one jittery frame doesn't count as a swing
       it.tipSpeed = (it.tipSpeed || 0) * 0.5 + it.tipVel.length() * 0.5;
@@ -273,8 +276,17 @@ export class Kit {
         if (!h.alive || h.pos.distanceTo(tip) > 2.2) continue;
         for (const part of h.parts()) {
           // desktop: the swing lands where you are looking (a short ray from the eye)
-          const d = hand.desktop ? segDist(part.p, G.player.head, G.lookDir, it.kind === 'crowbar' ? 1.6 : 1.25) : tip.distanceTo(part.p);
-          if (d > part.r + (hand.desktop ? 0.07 : 0.05)) continue;
+          // VR: sweep the weapon between frames (last tip -> this tip) and test its whole length (grip -> tip),
+          // so a fast swing can't pass straight through him; the man you're holding is easier to connect with
+          let d;
+          if (hand.desktop) d = segDist(part.p, G.player.head, G.lookDir, it.kind === 'crowbar' ? 1.6 : 1.25);
+          else {
+            const grip = it.mesh.getWorldPosition(new V()), sweep = segPt(part.p, _p, tip), shaft = segPt(part.p, grip, tip);
+            d = Math.min(sweep, shaft);
+            if (it.tipVel.dot(_b.copy(part.p).sub(_p)) < 0 && d > part.r * 0.6) continue; // moving away from him: not a hit
+          }
+          const held = this.exec && this.exec.h === h;
+          if (d > part.r + (hand.desktop ? 0.07 : held ? 0.13 : 0.06)) continue;
           this.hit(hand, it, h, part, tip.clone());
           it.hitCool = hand.desktop ? 0.4 : it.kind === 'shard' ? 0.28 : 0.45; break;
         }
@@ -500,6 +512,12 @@ export class Kit {
     if (it.kind === 'bottle' && !last) { const hd = it.hand; this.remove(it); const s = this.spawn('shard', at); this.grab(hd, s); E.it = s; }
     if (!last) { h.body.anim.stagger = 1; if (Math.random() < 0.6) h.say('hurt'); return; }
     this.exec = null;
+    // the hits are in: cut to Cash finishing the job (finisher.js), which calls finishKill at the end
+    if (G.startFinisher) { G.startFinisher({ kit: this, h, hand, it, level: E.level, at: at.clone(), dir: dir.clone() }); return; }
+    this.finishKill(hand, it, h, E.level, at, dir);
+  }
+  finishKill(hand, it, h, level, at, dir) {
+    const G = this.game, E = { level };
     h.kill(dir.clone().multiplyScalar(2.2 + E.level * 1.4), at, it.kind);
     G.blood.spray(at, dir, 60 + E.level * 50, 1.5 + E.level * 0.4);
     if (E.level === 2) {

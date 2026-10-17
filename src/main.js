@@ -1,18 +1,19 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=12';
-import { District, SCENES } from './district.js?v=12';
-import { spawnHunters } from './hunters.js?v=12';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=12';
-import { Blood } from './blood.js?v=12';
-import { Director } from './director.js?v=12';
-import { Sound } from './sound.js?v=12';
-import { makeHand, Person, BONE } from './body.js?v=12';
-import { VHS } from './vhs.js?v=12';
-import { Grime } from './grime.js?v=12';
-import { Cutscene } from './cutscene.js?v=12';
-import { Arms } from './arms.js?v=12';
+import { paintAll, T } from './paint.js?v=13';
+import { District, SCENES } from './district.js?v=13';
+import { spawnHunters } from './hunters.js?v=13';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=13';
+import { Blood } from './blood.js?v=13';
+import { Director } from './director.js?v=13';
+import { Sound } from './sound.js?v=13';
+import { makeHand, Person, BONE } from './body.js?v=13';
+import { VHS } from './vhs.js?v=13';
+import { Grime } from './grime.js?v=13';
+import { Cutscene } from './cutscene.js?v=13';
+import { Arms } from './arms.js?v=13';
+import { Finisher } from './finisher.js?v=13';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -72,7 +73,7 @@ const P = G.player = {
   pos: world.start.clone(), yaw: world.startYaw, head: new V(), chest: new V(), hp: 100, alive: true,
   crouch: false, crouchKey: false, light: 0, moveVis: 0, moving: false, speed: 0, stride: 0, hurtT: -99, noiseLvl: 0, standH: 1.7,
   hurt(n, by) {
-    if (!this.alive) return;
+    if (!this.alive || G.finisher) return; // nobody touches him mid-finisher
     this.hp -= n; this.hurtT = G.time; sound.hurt(); hud.flash('hurt'); vhs.hot = Math.max(vhs.hot, 0.8);
     for (const h of G.hands) h.haptic?.(1, 200);
     if (Math.random() < 0.5) sound.say('cash_hurt');
@@ -83,7 +84,7 @@ const P = G.player = {
 dolly.position.copy(P.pos); dolly.rotation.y = P.yaw;
 
 // Cash's own body, seen in third person on desktop
-const cashBody = new Person({ mask: null, weapon: null, top: [0.09, 0.09, 0.1], legs: [0.14, 0.15, 0.17], skin: [0.55, 0.38, 0.28], bulk: 1.08, stubble: true });
+const cashBody = new Person({ mask: null, weapon: null, top: [0.14, 0.16, 0.2], legs: [0.2, 0.26, 0.38], hood: false, dirt: 0.5, skin: [0.55, 0.38, 0.28], bulk: 1.08, stubble: true });
 cashBody.root.visible = false; scene.add(cashBody.root);
 let eyeY = 1.68;
 
@@ -117,6 +118,8 @@ function useDesktopHands() { G.hands = dHands; dHands.forEach((h) => camera.add(
 function useVRHands() { G.hands = vHands; dHands.forEach((h) => { if (h.item) G.kit.drop(h, new V()); camera.remove(h.obj); }); vHands.forEach((h) => { h.obj.visible = true; }); }
 useDesktopHands();
 const arms = new Arms(scene); G.arms = arms;
+// execution finishers: the cut to Cash beating the man to death (finisher.js)
+G.startFinisher = (o) => { G.finisher = new Finisher(G, o, { cashBody, camera, dolly, renderer, P }); };
 
 // ------------------------------------------------------------- HUD
 const hud = (() => {
@@ -492,7 +495,7 @@ renderer.setAnimationLoop(() => {
       if (keys.ArrowLeft) P.yaw += dt * 2; if (keys.ArrowRight) P.yaw -= dt * 2;
       run = keys.ShiftLeft || keys.ShiftRight;
     }
-    if (!P.alive || G.state !== 'play' || G.kit.exec || G.kit.struggle) { mx = mz = 0; }
+    if (!P.alive || G.state !== 'play' || G.kit.exec || G.kit.struggle || G.finisher) { mx = mz = 0; }
     // crouch: desktop key / Ctrl, VR physical or B
     if (xr) { const hy = camera.position.y; P.standH = Math.max(P.standH * 0.9995, hy); P.crouch = vrCrouch || hy < P.standH * 0.78; }
     else P.crouch = P.crouchKey || keys.ControlLeft;
@@ -564,7 +567,8 @@ renderer.setAnimationLoop(() => {
     if (P.alive && G.time - P.hurtT > 6) P.hp = Math.min(100, P.hp + dt * 3);
 
     // -------- Cash's body (third person)
-    if (!xr && S.third) {
+    if (G.finisher) G.finisher.update(dt);
+    else if (!xr && S.third) {
       const B = cashBody; B.root.visible = true;
       B.root.position.set(P.pos.x, 0, P.pos.z); B.root.rotation.y = P.yaw + Math.PI;
       B.anim.speed = len > 0.01 && P.alive ? speed : 0; B.anim.crouch += ((P.crouch ? 1 : 0) - B.anim.crouch) * Math.min(1, dt * 8);
@@ -582,7 +586,7 @@ renderer.setAnimationLoop(() => {
       if (xr) G.kit.handInput(h);
       if (xr && !h.item) h.knockable = true;
       h.model.curl(h.item ? 0.92 : xr ? Math.min(1, 0.26 + h.trigger * 0.45 + (h.grip ? 0.38 : 0)) : 0.62, h.item ? 0.7 : 0.4);
-      h.model.group.visible = !(h.item?.kind === 'bag' && false);
+      h.model.group.visible = !G.finisher && (xr || !S.third); // hidden in third person and during a finisher
     }
     G.kit.update(dt);
     if (xr) vrKnocks();
@@ -635,6 +639,7 @@ renderer.setAnimationLoop(() => {
   if ((G.state === 'cut' || G.state === 'menu' || G.state === 'loading') && sound.score) sound.score.set(G.state === 'menu' ? 'silent' : G.state === 'loading' ? 'hiding' : 'theme');
   if (G.state === 'loading') { loadingTick(dt); renderer.render(renderer.xr.isPresenting ? loadRoom : scene, camera); return; }
   if (G.state === 'cut') { cut.update(dt); if (renderer.xr.isPresenting) vrSkip(); cut.render(); return; }
+  if (G.cineCam && !renderer.xr.isPresenting) { camera.position.copy(G.cineCam.p).sub(dolly.position); camera.lookAt(G.cineCam.look); camera.updateMatrixWorld(true); }
   arms.update(camera, G.hands); // join the hands to Cash's shoulders
   vhs.render(scene, camera);
 });
