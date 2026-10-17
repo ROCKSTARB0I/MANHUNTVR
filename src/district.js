@@ -4,7 +4,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=8';
+import { T, seeded } from './paint.js?v=10';
 
 const V = THREE.Vector3;
 const CELL = 0.5;
@@ -128,7 +128,7 @@ export class District {
   }
 
   prop(kind, x, z, ry = 0) {
-    const R = this.R;
+    const R = this.R; (this.props || (this.props = [])).push({ kind, x, z });
     if (kind === 'dumpster') {
       const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
       const m = this.mat('dumpster', { map: rep(T.dumpster.map, 1, 1), roughness: 0.75, metalness: 0.35 });

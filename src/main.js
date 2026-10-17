@@ -1,16 +1,17 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=8';
-import { District, SCENES } from './district.js?v=8';
-import { spawnHunters } from './hunters.js?v=8';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=8';
-import { Blood } from './blood.js?v=8';
-import { Director } from './director.js?v=8';
-import { Sound } from './sound.js?v=8';
-import { makeHand, Person, BONE } from './body.js?v=8';
-import { VHS } from './vhs.js?v=8';
-import { Cutscene } from './cutscene.js?v=8';
+import { paintAll, T } from './paint.js?v=10';
+import { District, SCENES } from './district.js?v=10';
+import { spawnHunters } from './hunters.js?v=10';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=10';
+import { Blood } from './blood.js?v=10';
+import { Director } from './director.js?v=10';
+import { Sound } from './sound.js?v=10';
+import { makeHand, Person, BONE } from './body.js?v=10';
+import { VHS } from './vhs.js?v=10';
+import { Grime } from './grime.js?v=10';
+import { Cutscene } from './cutscene.js?v=10';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -54,7 +55,7 @@ const G = {
     for (const h of G.hunters) if (h !== from) h.hear({ p: p.clone(), r, kind });
     if (kind === 'player' && r > 9) G.director?.event('noise');
   },
-  onKill(h, cause) { G.director.onKill(h, cause); hud.flash('kill'); },
+  onKill(h, cause) { G.grime?.onKill(h); G.director.onKill(h, cause); hud.flash('kill'); },
   openPen,
 };
 G.vhs = vhs; G.cut = cut; G.camera = camera;
@@ -258,6 +259,7 @@ function populate() {
   G.kit = new Kit(G);
   G.hunters = spawnHunters(G);
   G.director = new Director(G);
+  G.grime?.dispose(); G.grime = new Grime(G);
   if (rabbit) { scene.remove(rabbit.root); rabbit = null; }
   if (world.def.rabbit) rabbit = makeRabbit();
 }
@@ -344,8 +346,10 @@ function goScene(idx) {
   // (Stealth still runs on the baked lamp grid, so shadows hide you exactly as before.)
   const later = idx > 0;
   scene.fog.density = (SCENES[idx].fog || 0.042) * (later ? 0.7 : 1);
-  hemi.intensity = (SCENES[idx].amb || 0.35) * (later ? 1.9 : 1);
-  moon.intensity = later ? 0.42 : 0.2;
+  hemi.intensity = later ? 1.5 : (SCENES[idx].amb || 0.35);
+  hemi.color.set(later ? 0x5a554c : 0x2a2824); hemi.groundColor.set(later ? 0x1e1a15 : 0x0b0907);
+  scene.fog.color.set(later ? 0x16130f : 0x070706); if (scene.background?.isColor) scene.background.set(later ? 0x100e0b : 0x040404);
+  moon.intensity = later ? 0.8 : 0.2;
   renderer.toneMappingExposure = 1.5 * S.exposure * (later ? 1.25 : 1);
   populate();
   P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
@@ -585,7 +589,7 @@ renderer.setAnimationLoop(() => {
     world.update(G.time, dt);
     for (const h of G.hunters) h.update(dt, G.time);
     G.blood.update(dt);
-    G.director.update(dt); rabbitTick(dt);
+    G.director.update(dt); rabbitTick(dt); G.grime?.update(dt, G.time);
     // tension score: how hunted are you?
     let hunted = 0; for (const h of G.hunters) if (h.alive) hunted = Math.max(hunted, h.aware() ? 1 : h.susp * 0.7);
     sound.tension(hunted); sound.tick(dt);
@@ -606,7 +610,7 @@ renderer.setAnimationLoop(() => {
   if (G.state === 'menu' && !xr) {
     G.time += dt; P.hidden = true; P.pos.set(-31, 0, 22);
     for (const h of dHands) h.obj.visible = false;
-    world.update(G.time, dt); for (const h of G.hunters) h.update(dt, G.time);
+    world.update(G.time, dt); for (const h of G.hunters) h.update(dt, G.time); G.grime?.update(dt, G.time);
     const c = world.cams[1];
     dolly.position.set(c.p.x, 0, c.p.z + 0.4); camera.position.set(0, c.p.y - 0.2, 0);
     camera.rotation.set(-0.32, c.yaw + Math.PI + Math.sin(G.time * 0.12) * 0.55, 0, 'YXZ');

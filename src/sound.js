@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=8';
-import { Score } from './score.js?v=8';
+import { LINE, VOICES } from './lines.js?v=10';
+import { Score } from './score.js?v=10';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -199,6 +199,33 @@ export class Sound {
     if (!this.ctx) return; this.samples = this.samples || {};
     if (!this.samples[url]) this.samples[url] = fetch(url).then((r) => r.arrayBuffer()).then((b) => this.ctx.decodeAudioData(b)).catch(() => null);
     this.samples[url].then((buf) => { if (!buf) return; const s = this.src(buf), g = this.ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(this.sfx); s.start(); });
+  }
+  // flies: a thin, wavering buzz that follows the nearest swarm
+  buzzLoop() {
+    const C = this.ctx, o = C.createOscillator(), o2 = C.createOscillator(), g = C.createGain(), bp = C.createBiquadFilter(), pn = C.createPanner();
+    o.type = 'sawtooth'; o.frequency.value = 205; o2.type = 'sawtooth'; o2.frequency.value = 211; bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 2;
+    const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 7; lg.gain.value = 30; lfo.connect(lg); lg.connect(o.frequency); lfo.start();
+    pn.panningModel = 'HRTF'; pn.refDistance = 0.8; pn.rolloffFactor = 1.6; g.gain.value = 0;
+    o.connect(bp); o2.connect(bp); bp.connect(g); g.connect(pn); pn.connect(this.sfx); o.start(); o2.start();
+    let dead = false;
+    return (p, level, stop) => { if (dead) return; if (stop) { dead = true; g.gain.setTargetAtTime(0, this.now(), 0.2); return; } if (pn.positionX) { pn.positionX.value = p.x; pn.positionY.value = p.y; pn.positionZ.value = p.z; } g.gain.setTargetAtTime(level * 0.05 * (0.7 + Math.random() * 0.3), this.now(), 0.08); };
+  }
+  // fluorescent tubes: a 100 Hz mains hum with a crackle now and then
+  humLoop() {
+    const C = this.ctx, o = C.createOscillator(), g = C.createGain(), lp = C.createBiquadFilter();
+    o.type = 'square'; o.frequency.value = 100; lp.type = 'lowpass'; lp.frequency.value = 400; g.gain.value = 0.006;
+    o.connect(lp); lp.connect(g); g.connect(this.amb); o.start();
+    return (stop) => { if (stop) g.gain.setTargetAtTime(0, this.now(), 0.2); };
+  }
+  drip(p) { const o = this.at(p); const f = 900 + Math.random() * 900; this.tone(o, { f, f2: f * 2.2, dur: 0.06, type: 'sine', gain: 0.12 }); this.burst(o, { dur: 0.02, f: 3000, q: 4, gain: 0.04, t: 0.01 }); }
+  squeak(p) { const o = this.at(p); for (let k = 0; k < 2 + Math.random() * 3; k++) this.tone(o, { f: 3200 + Math.random() * 1500, f2: 2600, dur: 0.05 + Math.random() * 0.05, type: 'sine', gain: 0.05, t: k * 0.09 }); this.burst(o, { dur: 0.2, f: 5000, q: 2, gain: 0.02, t: 0.05 }); }
+  scream() { // someone, far off, somewhere in the building
+    const C = this.ctx, o = C.createOscillator(), g = C.createGain(), bp = C.createBiquadFilter(), lp = C.createBiquadFilter(), t0 = this.now();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(380, t0); o.frequency.linearRampToValueAtTime(620, t0 + 0.5); o.frequency.linearRampToValueAtTime(300, t0 + 1.8);
+    const vib = C.createOscillator(), vg = C.createGain(); vib.frequency.value = 6; vg.gain.value = 20; vib.connect(vg); vg.connect(o.frequency);
+    bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 3; lp.type = 'lowpass'; lp.frequency.value = 1400;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.03, t0 + 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.9);
+    o.connect(bp); bp.connect(lp); lp.connect(g); g.connect(this.amb); o.start(t0); vib.start(t0); o.stop(t0 + 2); vib.stop(t0 + 2);
   }
   radio() { this.burst(this.sfx, { dur: 0.06, f: 2500, q: 0.6, gain: 0.12 }); this.burst(this.sfx, { dur: 0.35, f: 1800, q: 1, gain: 0.025, t: 0.05 }); }
 

@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=8';
+import { T } from './paint.js?v=10';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V();
