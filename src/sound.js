@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=21';
-import { Score } from './score.js?v=21';
+import { LINE, VOICES } from './lines.js?v=22';
+import { Score } from './score.js?v=22';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }

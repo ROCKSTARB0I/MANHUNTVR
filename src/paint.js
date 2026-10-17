@@ -543,6 +543,35 @@ function makeWallTiles(n) {
   return bake(S, 2);
 }
 
+// White Trash's maze walls: crushed cars stacked in slabs (faded paint, rust, glass, wheel
+// arches), some of them under torn camo tarps. Canvas bottom = ground; tile 3.6 m.
+function makeScrap(n) {
+  const [c, g] = cnv(n), r = seeded(71);
+  g.fillStyle = '#16140f'; g.fillRect(0, 0, n, n);
+  const paints = ['#7a2a20', '#2a3a5a', '#3a4a30', '#8a8478', '#8a7a2a', '#4a3a2a', '#5a2a2a', '#6a6a70', '#2a2a2a'];
+  let y = n;
+  while (y > 0) {
+    const h = (34 + r() * 60) * n / 1024; let x = -r() * 200;
+    while (x < n) {
+      const w = (150 + r() * 260) * n / 1024, col = paints[(r() * paints.length) | 0];
+      g.fillStyle = col; g.beginPath(); g.moveTo(x + 4, y - 3); g.lineTo(x + w - 6, y - 3 - r() * 6); g.lineTo(x + w - 2, y - h + 4); g.lineTo(x + 8, y - h + 2 + r() * 6); g.fill();
+      g.fillStyle = 'rgba(10,10,12,0.75)'; g.fillRect(x + w * (0.2 + r() * 0.4), y - h * 0.75, w * 0.18, h * 0.3); // a squashed window
+      g.fillStyle = '#0c0b09'; g.beginPath(); g.arc(x + w * 0.2, y - 2, h * 0.32, Math.PI, 0); g.fill(); // wheel arch
+      for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(${100 + r() * 50},${40 + r() * 20},${15},${0.3 + r() * 0.4})`; g.fillRect(x + r() * w, y - h + r() * h, 4 + r() * 30, 2 + r() * 8); } // rust
+      g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 2; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(x + r() * w, y - r() * h); g.lineTo(x + r() * w, y - r() * h); g.stroke(); } // creases
+      x += w + 2 + r() * 8;
+    }
+    y -= h + 2 + r() * 5;
+  }
+  // camo tarp thrown over the top half of the stack in places
+  for (let k = 0; k < 3; k++) { const x0 = r() * n, w = n * (0.3 + r() * 0.3), y1 = n * (0.25 + r() * 0.35);
+    g.save(); g.beginPath(); g.moveTo(x0, 0); for (let x = 0; x <= w; x += 12) g.lineTo(x0 + x, y1 + Math.sin(x * 0.05 + k) * 20 + r() * 14); g.lineTo(x0 + w, 0); g.closePath(); g.clip();
+    g.fillStyle = '#3a4228'; g.fillRect(0, 0, n, n); for (let b = 0; b < 160; b++) { g.fillStyle = ['#262c1a', '#4e4a30', '#1a1c14', '#5a5a3c'][b % 4]; g.beginPath(); g.ellipse(x0 + r() * w, r() * y1 * 1.1, 10 + r() * 30, 5 + r() * 14, r() * 3, 0, 7); g.fill(); }
+    g.restore(); }
+  const a = field(n, 24, 3, 72); pixels(g, n, n, (x, yy, i, p) => { const v = 0.75 + a[i] * 0.4; p[0] = clamp(p[0] * v); p[1] = clamp(p[1] * v); p[2] = clamp(p[2] * v); });
+  return { map: tex(c), bump: bumpFrom(c, n) };
+}
+
 // ---------------------------------------------------------------- gang masks
 // Each gang's head gear, painted from the descriptions of the real hunters.
 // 'wrap' kinds go all the way round the head (512 wide, the face in the middle
@@ -732,7 +761,7 @@ export function paintAll(low) {
   T.concrete = makeConcrete(1024);
   T.slab = makeTiles(1024);
   T.gravel = makeGravel(1024);
-  T.plaster = makePlaster(1024); T.walltile = makeWallTiles(1024);
+  T.scrap = makeScrap(1024); T.plaster = makePlaster(1024); T.walltile = makeWallTiles(1024);
   T.corrugated = makeCorrugated(n);
   T.dumpster = makePaintedMetal(n / 2, [34, 70, 44]);
   T.barrel = makePaintedMetal(n / 2, [70, 40, 30]);

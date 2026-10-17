@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=21';
-import { buildPlan } from './planlevel.js?v=21';
+import { T, seeded } from './paint.js?v=22';
+import { buildPlan } from './planlevel.js?v=22';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -623,6 +623,7 @@ export class District {
         wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.tenement ? { map: rep(T.tenement.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenement.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: rep(T.brick.normal, 1, 1), roughness: 0.95 } : S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
         building: this.mat('pbld' + this.idx, brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
         ceil: this.mat('pceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }),
+        scrap: this.mat('pscrap', { map: rep(T.scrap.map, 1, 1), bumpMap: rep(T.scrap.bump, 1, 1), bumpScale: 0.05, roughness: 0.75, metalness: 0.25, color: 0xb0aca4 }),
         plaster: this.mat('pplaster', surf(T.plaster, 0xc8c0b0)), tiles: this.mat('ptiles', surf(T.walltile, 0xd0ccc0, { roughnessMap: undefined, roughness: 0.4 })),
         ifloor: this.mat('pifloor', surf(T.concrete, 0x7a7266)), tfloor: this.mat('ptfloor', surf(T.slab, 0x9a9488, { roughness: 0.5 })),
       };

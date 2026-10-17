@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=21';
+import { T } from './paint.js?v=22';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -67,6 +67,33 @@ export function makeKit(D, { X, Z, Hc, m }) {
     // a bare bulb hanging indoors
     bulb: (i, j, o = {}) => D.lamp(wx(i), wz(j), { h: 3.0, r: 7, i: 0.8, arm: 'none', col: 0xffe2a0, ...o }),
     tree: (i, j, size = 3) => D.tree(wx(i), wz(j), size),
+    // White Trash: the Skinz' junkyard
+    quonset: (i, j, ry, len = 12, r = 4) => { const g = new THREE.Group(), cm = mat('quonset', { map: T.corrugated.map, color: 0x6a7a52, roughness: 0.7, metalness: 0.4, side: THREE.DoubleSide });
+      const shell = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 24, 1, true, -Math.PI / 2, Math.PI), cm); shell.rotation.z = Math.PI / 2; shell.rotation.y = 0; g.add(shell);
+      const endM = mat('quonsetEnd', { color: 0x3a3a34, roughness: 0.8, side: THREE.DoubleSide });
+      for (const s2 of [1, -1]) { const e = new THREE.Mesh(new THREE.CircleGeometry(r, 24, 0, Math.PI), endM); e.position.x = s2 * len / 2; e.rotation.y = s2 * Math.PI / 2; g.add(e); }
+      const door = new THREE.Mesh(box(0.05, 2.2, 1.6), mat('qdoor', { color: 0x1e2018, roughness: 0.6, metalness: 0.5 })); door.position.set(len / 2 + 0.03, 1.1, 0); g.add(door);
+      return place(g, i, j, ry, len, r * 2, r); },
+    crane: (i, j, ry) => { const g = new THREE.Group(), y = mat('craneY', { color: 0xc8981a, roughness: 0.55, metalness: 0.3 }), dk = mat('craneD', { color: 0x1a1a18, roughness: 0.7 });
+      const base = new THREE.Mesh(box(2.4, 1.2, 3.2), y); base.position.y = 0.9; g.add(base); for (const s2 of [1, -1]) { const t = new THREE.Mesh(box(0.6, 0.6, 3.6), dk); t.position.set(s2 * 1.2, 0.3, 0); g.add(t); }
+      const cab = new THREE.Mesh(box(1.4, 1.4, 1.4), y); cab.position.set(-0.4, 2.2, 0.6); g.add(cab); const gl = new THREE.Mesh(box(1.42, 0.6, 1.2), mat('glass', { color: 0x0a0d10, roughness: 0.08, metalness: 0.85 })); gl.position.set(-0.4, 2.5, 0.65); g.add(gl);
+      const boom = new THREE.Mesh(box(0.4, 0.4, 9), y); boom.position.set(0.6, 5.6, -2.6); boom.rotation.x = 0.85; g.add(boom);
+      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 6, 4), dk); cable.position.set(0.6, 6.4, -6.0); g.add(cable); const hook = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.08, 6, 10, 4), dk); hook.position.set(0.6, 3.3, -6.0); g.add(hook);
+      return place(g, i, j, ry, 3, 3.6, 3); },
+    trailer: (i, j, ry, len = 9) => { const g = new THREE.Group(), w = mat('trailer', { map: T.van.map, color: 0x9a968a, roughness: 0.6, metalness: 0.4 });
+      const b = new THREE.Mesh(box(2.5, 2.5, len), w); b.position.y = 1.55; g.add(b); for (const s2 of [1, -1]) { const st = new THREE.Mesh(box(2.52, 0.12, len), mat('trailerStripe', { color: 0x6a2018 })); st.position.y = 1.0 + (s2 > 0 ? 1.4 : 0); g.add(st); }
+      const win = new THREE.Mesh(box(2.54, 0.5, 0.7), mat('trailerWin', { color: 0xc8c070, emissive: 0x8a7a30, emissiveIntensity: 0.6 })); win.position.set(0, 2.1, len * 0.3); g.add(win); // the toilet window, lit
+      const door = new THREE.Mesh(box(2.54, 1.9, 0.8), mat('trailerDoor', { color: 0x4a4a44 })); door.position.set(0, 1.25, -len * 0.15); g.add(door);
+      for (const z of [-len * 0.3, len * 0.3]) for (const s2 of [1, -1]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12), rubber()); t.rotation.z = Math.PI / 2; t.position.set(s2 * 1.1, 0.4, z); g.add(t); }
+      return place(g, i, j, ry, 2.6, len, 2.8); },
+    guardhouse: (i, j, ry) => { const g = new THREE.Group(), c = mat('ghouse', { map: T.concrete.map, color: 0x8a8678, roughness: 0.9 });
+      const b = new THREE.Mesh(box(2.6, 2.6, 2.6), c); b.position.y = 1.3; g.add(b); const roof = new THREE.Mesh(box(3, 0.2, 3), mat('ghroof', { color: 0x2a2a28 })); roof.position.y = 2.7; g.add(roof);
+      const win = new THREE.Mesh(box(1.4, 0.7, 0.05), mat('ghwin', { color: 0xd8d090, emissive: 0xb8a850, emissiveIntensity: 0.8 })); win.position.set(0, 1.6, 1.31); g.add(win);
+      const sw = new THREE.Mesh(box(0.25, 0.35, 0.08), mat('switch', { color: 0x8a1a10, emissive: 0x6a0a04, emissiveIntensity: 0.6 })); sw.position.set(0.9, 1.3, 1.34); g.add(sw);
+      return place(g, i, j, ry, 2.6, 2.6, 2.7); },
+    tank: (i, j, ry) => { const g = new THREE.Group(), m2 = mat('tank', { color: 0x4a6a5a, roughness: 0.5, metalness: 0.4 }); const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 2.2, 6, 14), m2); t.rotation.z = Math.PI / 2; t.position.y = 1.2; g.add(t); for (const x of [-0.9, 0.9]) { const l = new THREE.Mesh(box(0.2, 0.5, 1.2), mat('tankleg', { color: 0x2a2a28 })); l.position.set(x, 0.25, 0); g.add(l); } return place(g, i, j, ry, 3.8, 1.7, 2); },
+    tyres: (i, j, n = 5) => { const g = new THREE.Group(); for (let k = 0; k < n; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.14, 8, 16), rubber()); t.rotation.x = Math.PI / 2; t.position.set((Math.random() - 0.5) * 0.12, 0.14 + k * 0.27, (Math.random() - 0.5) * 0.12); g.add(t); } return place(g, i, j, Math.random() * 6, 1, 1, n * 0.27); },
+    drums: (i, j, n = 4) => { for (let k = 0; k < n; k++) D.prop('barrel', wx(i + (k % 2) * 1.3), wz(j + Math.floor(k / 2) * 1.3), Math.random() * 6); },
     // restroom: a row of stalls with half-open doors, and sinks on the wall opposite
     stalls: (i, j, ry, n = 3) => { const g = new THREE.Group(), pm = mat('stall', { color: 0x6a6448, roughness: 0.55, metalness: 0.2 }), wc = mat('porcelain', { color: 0xc8c2b0, roughness: 0.25 });
       for (let k = 0; k <= n; k++) { const p = new THREE.Mesh(box(0.05, 2.0, 1.5), pm); p.position.set(k * 0.95 - n * 0.475, 1.15, 0.75); g.add(p); }

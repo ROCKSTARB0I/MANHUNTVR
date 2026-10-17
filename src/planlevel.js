@@ -6,9 +6,9 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=21';
-import { PLANS } from './plans.js?v=21';
-import { SETS } from './sets.js?v=21';
+import { T, seeded } from './paint.js?v=22';
+import { PLANS } from './plans.js?v=22';
+import { SETS } from './sets.js?v=22';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -64,7 +64,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=21';
+import { makeKit } from './setkit.js?v=22';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
@@ -189,6 +189,7 @@ export function buildPlan(D, matFor) {
     const bh = 0.9 + R() * 1.4;
     const bb = Hc(i + w / 2, j + h / 2), tall = (SET.tall || []).find((t) => i >= t.x0 && i < t.x1 && j >= t.y0 && j < t.y1);
     if (tall) { B('building').box(X(i), X(i + w), lowest, bb + tall.h, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), bb + tall.h); continue; }
+    if (SET.blockH) { const sh = SET.blockH[0] + R() * (SET.blockH[1] - SET.blockH[0]); B(SET.blockMat || 'block').box(X(i), X(i + w), bb, bb + sh, Z(j), Z(j + h), 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), bb + sh); continue; }
     B('block').box(X(i), X(i + w), bb, bb + bh, Z(j), Z(j + h), 1.8); solid(X(i), X(i + w), Z(j), Z(j + h), bb + bh);
   }
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 't')) { if (w * h < 3) continue; D.tree?.(X(i + w / 2), Z(j + h / 2), Math.sqrt(w * h) * m); }
