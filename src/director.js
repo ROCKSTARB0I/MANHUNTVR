@@ -28,7 +28,7 @@ export class Director {
   intro() {
     const S = this.game.sound, n = this.game.world.idx + 1;
     if (n === 1) { setTimeout(() => S.say('dir_intro_4'), 800); this.penT = setTimeout(() => { this.game.openPen(); S.say('dir_gate_open'); }, 9000); return; }
-    setTimeout(() => { S.say(`dir_s${n}_1`); S.say(`dir_s${n}_2`); }, 800);
+    const id = this.game.world.def.id; setTimeout(() => { S.say(`dir_${id}_1`); S.say(`dir_${id}_2`); }, 800);
     this.penT = setTimeout(() => this.game.openPen(), 4000);
   }
 

@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=5';
+import { T } from './paint.js?v=6';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V();
@@ -26,6 +26,7 @@ const DEF = {
   bottle: { tip: [0, 0, -0.26], speed: 2.4, rest: 0.035, throwable: true },
   brick: { tip: [0, 0, -0.08], speed: 2.4, rest: 0.035, throwable: true },
   pills: { tip: [0, 0, 0], speed: 99, rest: 0.05, throwable: false },
+  rifle: { tip: [0, 0.03, -0.62], speed: 3.0, rest: 0.04, throwable: true },
 };
 
 function makeMesh(kind) {
@@ -57,6 +58,13 @@ function makeMesh(kind) {
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.02, 12), new THREE.MeshStandardMaterial({ color: 0xf0f0ea, roughness: 0.6 })); cap.position.y = 0.045;
     const lab = new THREE.Mesh(new THREE.CylinderGeometry(0.0225, 0.0225, 0.035, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.9 }));
     g.add(b, cap, lab);
+  } else if (kind === 'rifle') { // held by the grip, barrel forward along -Z
+    const dark = new THREE.MeshStandardMaterial({ color: 0x141414, metalness: 0.6, roughness: 0.4 });
+    const recv = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.4), dark); recv.position.set(0, 0.05, -0.1); g.add(recv);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.3, 8), dark); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.07, -0.45); g.add(barrel);
+    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.13, 0.055), dark); mag.position.set(0, -0.03, -0.18); mag.rotation.x = -0.2; g.add(mag);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.22), dark); stock.position.set(0, 0.03, 0.2); g.add(stock);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.1, 0.035), dark); grip.position.set(0, -0.01, 0); grip.rotation.x = 0.25; g.add(grip);
   } else if (kind === 'brick') {
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.065, 0.2), new THREE.MeshStandardMaterial({ color: 0x7a3a2a, roughness: 1, map: T.concrete.map }));
     m.position.z = -0.06; g.add(m);
@@ -73,7 +81,7 @@ class Item {
     this.mesh.position.copy(pos); this.restPose();
     this.glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, color: 0xfff0d0, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.glint.scale.setScalar(0.16);
-    this.tipPrev = new V(); this.tipVel = new V(); this.hitCool = 0;
+    this.tipPrev = new V(); this.tipVel = new V(); this.hitCool = 0; this.ammo = kind === 'rifle' ? 12 + Math.floor(Math.random() * 8) : 0;
   }
   restPose() { this.mesh.rotation.set(this.kind === 'bag' || this.kind === 'pills' ? 0 : -Math.PI / 2 + 0.05, Math.random() * 6.28, 0, 'YXZ'); if (this.kind === 'bag') this.mesh.scale.set(1, 0.4, 1); this.mesh.position.y = this.def.rest; }
   tip(out) { return this.mesh.localToWorld(out.set(...this.def.tip)); }
@@ -354,7 +362,7 @@ export class Kit {
   // ------------------------------------------------------------ executions
   // a hunter Cash could execute with the thing in this hand right now
   candidate(hand) {
-    const G = this.game, it = hand.item; if (!it || this.exec || this.struggle) return null;
+    const G = this.game, it = hand.item; if (!it || it.kind === 'rifle' || this.exec || this.struggle) return null;
     let best = null, bd = hand.desktop ? 1.7 : 2.4; // VR: lock on from further away; he's pulled in when you commit
     for (const h of G.hunters) {
       if (!h.alive || h.boss || h.aware() || h.state === 'bagged' || h.state === 'executed') continue;
@@ -364,10 +372,32 @@ export class Kit {
     return best;
   }
   held(hand) { return hand.desktop ? hand.useHeld : hand.trigger > 0.6; }
+  // the rifle: VR fires where the barrel points, desktop where you look
+  fire(hand) {
+    const G = this.game, it = hand.item; if (!it || it.kind !== 'rifle') return;
+    if (it.ammo <= 0) { G.sound.click(); return; }
+    it.ammo--; it.mesh.updateMatrixWorld(true);
+    const from = hand.desktop ? G.player.head.clone() : it.mesh.localToWorld(new V(0, 0.07, -0.6));
+    const dir = hand.desktop ? G.lookDir.clone() : new V(0, 0, -1).transformDirection(it.mesh.matrixWorld);
+    G.sound.bang(from); G.flash(from); G.vhs.hot = Math.max(G.vhs.hot, 0.3); hand.haptic?.(1, 60); G.noise(G.player.pos, 25, 'player');
+    let best = null, bt = 60;
+    for (const h of G.hunters) {
+      if (!h.alive) continue;
+      for (const part of h.parts()) {
+        const t = _b.copy(part.p).sub(from).dot(dir); if (t < 0 || t > bt) continue;
+        if (_a.copy(from).addScaledVector(dir, t).distanceTo(part.p) < part.r) { bt = t; best = { h, part }; }
+      }
+    }
+    if (best && G.world.clear(from, best.part.p)) {
+      const at = best.part.p.clone(); best.h.damage(best.part.name === 'head' ? 120 : 45, best.part.name, dir, at, 'rifle');
+      G.blood.spray(at, dir, 30, 1.2);
+    }
+  }
   startCharges() {
     if (this.charge || this.exec || this.struggle) return;
     for (const hand of this.game.hands) {
       const h = this.held(hand);
+      if (hand.item?.kind === 'rifle') { if (h && !hand.latch) { this.fire(hand); hand.latch = true; } if (!h) hand.latch = false; continue; }
       if (h && !hand.latch && hand.item) { const c = this.candidate(hand); if (c) { this.charge = { h: c, hand, t: 0, lvl: -1 }; hand.latch = true; return; } }
       if (!h) hand.latch = false;
     }

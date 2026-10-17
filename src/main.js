@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=5';
-import { District, SCENES } from './district.js?v=5';
-import { spawnHunters } from './hunters.js?v=5';
-import { Kit, LEVELS } from './kit.js?v=5';
-import { Blood } from './blood.js?v=5';
-import { Director } from './director.js?v=5';
-import { Sound } from './sound.js?v=5';
-import { makeHand, Person, BONE } from './body.js?v=5';
-import { VHS } from './vhs.js?v=5';
-import { Cutscene } from './cutscene.js?v=5';
+import { paintAll, T } from './paint.js?v=6';
+import { District, SCENES } from './district.js?v=6';
+import { spawnHunters } from './hunters.js?v=6';
+import { Kit, LEVELS } from './kit.js?v=6';
+import { Blood } from './blood.js?v=6';
+import { Director } from './director.js?v=6';
+import { Sound } from './sound.js?v=6';
+import { makeHand, Person, BONE } from './body.js?v=6';
+import { VHS } from './vhs.js?v=6';
+import { Cutscene } from './cutscene.js?v=6';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -57,7 +57,9 @@ const G = {
   onKill(h, cause) { G.director.onKill(h, cause); hud.flash('kill'); },
   openPen,
 };
-G.vhs = vhs; G.cut = cut; G.camera = camera; G.goScene = (i) => goScene(i); window.manhunt = G; // for debugging from the console
+G.vhs = vhs; G.cut = cut; G.camera = camera;
+const flashLight = new THREE.PointLight(0xffd090, 0, 9, 1.6); scene.add(flashLight); let flashT = 0;
+G.flash = (p) => { flashLight.position.copy(p); flashLight.intensity = 30; flashT = 0.06; }; G.goScene = (i) => goScene(i); window.manhunt = G; // for debugging from the console
 
 // the start door belongs to the scene; the Director opens it
 function closePen() { world.closeStart(); }
@@ -177,13 +179,14 @@ const hud = (() => {
 })();
 sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound;
 // ------------------------------------------------------------- weapon icon
-const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK' };
+const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE' };
 function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
   g.save(); g.translate(x, y); g.scale(s, s); g.lineCap = 'round'; g.lineJoin = 'round';
   if (kind === 'crowbar') { g.strokeStyle = '#8a1c14'; g.lineWidth = 9; g.beginPath(); g.moveTo(18, 82); g.lineTo(70, 22); g.quadraticCurveTo(80, 10, 88, 22); g.stroke(); g.strokeStyle = '#333'; g.lineWidth = 5; g.beginPath(); g.moveTo(12, 88); g.lineTo(22, 78); g.stroke(); }
   else if (kind === 'shard') { g.fillStyle = 'rgba(190,220,210,0.9)'; g.beginPath(); g.moveTo(30, 86); g.lineTo(44, 82); g.lineTo(70, 12); g.lineTo(52, 40); g.closePath(); g.fill(); g.fillStyle = '#5a4a3a'; g.fillRect(26, 78, 20, 14); }
   else if (kind === 'bag') { g.fillStyle = '#e4e2da'; g.beginPath(); g.moveTo(24, 36); g.quadraticCurveTo(14, 86, 48, 88); g.quadraticCurveTo(82, 86, 72, 36); g.closePath(); g.fill(); g.strokeStyle = '#e4e2da'; g.lineWidth = 5; g.beginPath(); g.arc(36, 32, 10, Math.PI, 0); g.arc(60, 32, 10, Math.PI, 0); g.stroke(); }
   else if (kind === 'bottle') { g.fillStyle = '#2f6a2c'; g.beginPath(); g.moveTo(42, 10); g.lineTo(54, 10); g.lineTo(54, 30); g.quadraticCurveTo(68, 38, 68, 52); g.lineTo(68, 88); g.lineTo(28, 88); g.lineTo(28, 52); g.quadraticCurveTo(28, 38, 42, 30); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(34, 50, 5, 30); }
+  else if (kind === 'rifle') { g.fillStyle = '#1a1a1a'; g.fillRect(10, 42, 70, 12); g.fillRect(70, 46, 22, 5); g.fillRect(36, 54, 10, 22); g.fillRect(10, 50, 14, 16); }
   else if (kind === 'brick') { g.fillStyle = '#8a3a26'; g.beginPath(); g.moveTo(14, 46); g.lineTo(62, 34); g.lineTo(86, 44); g.lineTo(86, 64); g.lineTo(38, 78); g.lineTo(14, 66); g.closePath(); g.fill(); g.fillStyle = '#a24a30'; g.beginPath(); g.moveTo(14, 46); g.lineTo(62, 34); g.lineTo(86, 44); g.lineTo(38, 56); g.closePath(); g.fill(); }
   else { g.fillStyle = '#b08068'; g.beginPath(); g.ellipse(48, 54, 26, 22, 0, 0, 7); g.fill(); g.strokeStyle = '#7a5040'; g.lineWidth = 3; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(30 + k * 12, 36); g.lineTo(30 + k * 12, 50); g.stroke(); } }
   g.restore();
@@ -191,9 +194,9 @@ function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
 let shownWeapon = '?';
 function updateWeapon() {
   const it = G.hands[0]?.item || G.hands[1]?.item, kind = it ? it.kind : null;
-  if (kind === shownWeapon) return; shownWeapon = kind;
+  const key = kind === 'rifle' ? 'rifle' + it.ammo : kind; if (key === shownWeapon) return; shownWeapon = key;
   const g = $('wIcon').getContext('2d'); g.clearRect(0, 0, 96, 96); drawWeapon(g, kind);
-  $('wName').textContent = kind ? WNAMES[kind] : 'BARE HANDS';
+  $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
 }
 function who(L) { return L.who === 'DIRECTOR' ? 'THE DIRECTOR' : L.who === 'CASH' ? 'CASH' : L.who === 'NEWS' ? 'CHANNEL 6' : 'HOOD'; }
 function meter(g, x, y, label, v, col, w = 310) {
@@ -229,11 +232,33 @@ function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcT
 function wrap(g, s, x, y, w, lh) { const words = s.split(' '); let line = ''; for (const wd of words) { const t = line ? line + ' ' + wd : wd; if (g.measureText(t).width > w) { g.fillText(line, x, y); y += lh; line = wd; } else line = t; } g.fillText(line, x, y); }
 
 // -------------------------------------------------------------- scene flow
+// Kill the Rabbit: a man in a dirty rabbit suit who leads you out once the yard is clear
+let rabbit = null;
+function makeRabbit() {
+  const r = new Person({ mask: null, weapon: null, top: [0.82, 0.8, 0.76], legs: [0.8, 0.78, 0.74], skin: [0.6, 0.44, 0.34], hood: false });
+  const fur = new THREE.MeshStandardMaterial({ color: 0xd8d4cc, roughness: 1 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), fur); head.position.set(0, 0.11, 0.01); r.bones[BONE.head].add(head);
+  for (const s of [1, -1]) { const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.24, 4, 8), fur); ear.position.set(0.06 * s, 0.38, -0.01); ear.rotation.z = -0.15 * s; r.bones[BONE.head].add(ear); }
+  const eyeM = new THREE.MeshBasicMaterial({ color: 0x080808 }); for (const s of [1, -1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), eyeM); e.position.set(0.05 * s, 0.14, 0.14); r.bones[BONE.head].add(e); }
+  r.root.position.set(world.B.x1 - 6, 0, world.B.z0 + 6); scene.add(r.root); r.leaving = false; return r;
+}
+function rabbitTick(dt) {
+  if (!rabbit) return;
+  const g = world.gate.position, target = rabbit.leaving ? new V(g.x + 3, 0, g.z) : rabbit.root.position.clone().setY(0);
+  const d = target.clone().sub(rabbit.root.position); d.y = 0;
+  rabbit.anim.speed = rabbit.leaving && d.length() > 0.3 ? 1.6 : 0;
+  if (rabbit.anim.speed) { d.normalize(); rabbit.root.position.addScaledVector(d, 1.6 * dt); rabbit.root.rotation.y = Math.atan2(d.x, d.z); }
+  else rabbit.root.lookAt(P.pos.x, 0, P.pos.z);
+  rabbit.animate(dt, G.time);
+  if (world.gateOpen && !rabbit.leaving) rabbit.leaving = true;
+}
 function populate() {
   G.blood = G.blood || new Blood(scene, world);
   G.kit = new Kit(G);
   G.hunters = spawnHunters(G);
   G.director = new Director(G);
+  if (rabbit) { scene.remove(rabbit.root); rabbit = null; }
+  if (world.def.rabbit) rabbit = makeRabbit();
 }
 function teardown() {
   for (const h of G.hunters) { scene.remove(h.body.root); h.saw?.(null, 0, true); }
@@ -546,7 +571,7 @@ renderer.setAnimationLoop(() => {
     world.update(G.time, dt);
     for (const h of G.hunters) h.update(dt, G.time);
     G.blood.update(dt);
-    G.director.update(dt);
+    G.director.update(dt); rabbitTick(dt);
     // tension score: how hunted are you?
     let hunted = 0; for (const h of G.hunters) if (h.alive) hunted = Math.max(hunted, h.aware() ? 1 : h.susp * 0.7);
     sound.tension(hunted); sound.tick(dt);
@@ -584,6 +609,7 @@ renderer.setAnimationLoop(() => {
   // ears
   if (sound.ctx) { camera.getWorldPosition(eyeTmp); const q = camera.getWorldQuaternion(new THREE.Quaternion()); sound.ear(eyeTmp, new V(0, 0, -1).applyQuaternion(q), new V(0, 1, 0).applyQuaternion(q)); }
   hud.update(dt);
+  if (flashT > 0) { flashT -= dt; if (flashT <= 0) flashLight.intensity = 0; }
   vhs.update(dt);
   if ((G.state === 'cut' || G.state === 'menu' || G.state === 'loading') && sound.score) sound.score.set(G.state === 'menu' ? 'silent' : G.state === 'loading' ? 'hiding' : 'theme');
   if (G.state === 'loading') { loadingTick(dt); renderer.render(renderer.xr.isPresenting ? loadRoom : scene, camera); return; }
@@ -705,7 +731,7 @@ const TUTOR = [
   ['spotted', () => G.hunters.some((h) => h.alive && h.aware()), 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', () => !G.hunters.some((h) => h.alive && h.aware())],
   ['pills', () => P.hp < 60, 'Find <b>painkillers</b> (orange bottles) to heal.', 'Find <b>painkillers</b> (orange bottles) to heal.', () => G.tookPills || P.hp >= 60],
   ['cams', () => G.director.cams.some((c) => c.see > 0.4), '<b>CCTV</b> reports you to the hunters. Smash cameras with a crowbar or a brick.', '<b>CCTV</b> reports you to the hunters. Smash cameras with a crowbar or a brick.', () => G.director.cams.some((c) => !c.alive)],
-  ['piggsy', () => world.def.id === 'attic' && G.time > 6, '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', () => world.weak && world.weak.some((w) => w.broken)],
+  ['piggsy', () => world.def.id === 'deliverance' && G.time > 6, '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', () => world.weak && world.weak.some((w) => w.broken)],
   ['pause', () => G.time > 40, 'Press <b>`</b> to pause, save or load.', 'Press <b>Y</b> to pause, save or load.', () => G.pausedOnce],
 ];
 const tutorDone = new Set(); let tutorT = 0, tutorCur = null;
@@ -733,6 +759,7 @@ function tutor(dt) {
     let already = false; try { already = done && !!done(); } catch (e) {}
     if (already) continue; // you've already worked it out
     tutorCur = { id, done }; tutorT = 0;
+    sound.sample('sfx/hint.wav', 0.9); // Nathan's notification sound
     const html = xr ? vr : desk;
     $('tip').innerHTML = html; $('tip').hidden = xr;
     if (xr) {

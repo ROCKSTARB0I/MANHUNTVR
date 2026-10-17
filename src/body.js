@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=5';
-import { T } from './paint.js?v=5';
+import { Loft, ring, blend } from './loft.js?v=6';
+import { T } from './paint.js?v=6';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -162,6 +162,12 @@ export class Person {
       const mk = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 12, Math.PI * 0.04, Math.PI * 0.92, Math.PI * 0.12, Math.PI * 0.68), new THREE.MeshStandardMaterial({ map: T.mask[o.mask], transparent: o.mask === 'hockey', alphaTest: 0.5, roughness: o.mask === 'hockey' ? 0.4 : 0.9, side: THREE.DoubleSide }));
       mk.rotation.y = 0; mk.scale.set(0.98, 1.12, 1.02); mk.position.set(0, 0.11, 0.014);
       if (o.mask === 'knit') { mk.geometry = new THREE.SphereGeometry(0.108, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.82); mk.material.transparent = false; }
+      if (o.mask === 'swat') { // ballistic helmet and a dark visor over the balaclava
+        mk.geometry = new THREE.SphereGeometry(0.106, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.85); mk.material.transparent = false;
+        const helm = new THREE.Mesh(new THREE.SphereGeometry(0.128, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), new THREE.MeshStandardMaterial({ color: 0x1a1c1a, roughness: 0.5, metalness: 0.2 }));
+        helm.position.set(0, 0.13, 0); helm.scale.set(1, 0.9, 1.08); this.bones[B.head].add(helm);
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.02), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.05, metalness: 0.9 })); visor.position.set(0, 0.12, 0.112); this.bones[B.head].add(visor);
+      }
       if (o.mask === 'pig') {
         mk.geometry = new THREE.SphereGeometry(0.13, 20, 14); mk.material.transparent = false; mk.scale.set(1.05, 1.05, 1.15); mk.position.set(0, 0.11, 0.02);
         const pink = new THREE.MeshStandardMaterial({ color: 0xb0786a, roughness: 0.6 });
@@ -417,6 +423,13 @@ function makeHunterWeapon(kind) {
     const bl = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.05, 0.48), new THREE.MeshStandardMaterial({ color: 0x8a8d90, metalness: 0.95, roughness: 0.3 }));
     bl.position.z = 0.32; g.add(bl);
     const h = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.035, 0.13), new THREE.MeshStandardMaterial({ color: 0x111111 })); h.position.z = 0.04; g.add(h);
+  } else if (kind === 'rifle') {
+    const dark = new THREE.MeshStandardMaterial({ color: 0x141414, metalness: 0.6, roughness: 0.4 });
+    const recv = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.42), dark); recv.position.z = 0.12; g.add(recv);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.32, 8), dark); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.02, 0.48); g.add(barrel);
+    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.06), dark); mag.position.set(0, -0.09, 0.18); mag.rotation.x = 0.2; g.add(mag);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.2), dark); stock.position.set(0, -0.02, -0.18); g.add(stock);
+    g.userData.muzzle = new V(0, 0.02, 0.66);
   } else if (kind === 'chainsaw') {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.32), new THREE.MeshStandardMaterial({ color: 0xa8740c, roughness: 0.5, metalness: 0.3 })); body.position.z = 0.05; g.add(body);
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.62), new THREE.MeshStandardMaterial({ color: 0x8a8d90, metalness: 0.9, roughness: 0.35 })); bar.position.z = 0.5; g.add(bar);
@@ -426,7 +439,7 @@ function makeHunterWeapon(kind) {
     m.rotation.x = Math.PI / 2; m.position.z = 0.25; g.add(m);
   }
   // point the weapon along the hand (bone points down -Y); the chainsaw is carried out in front
-  g.rotation.x = kind === 'chainsaw' ? -0.35 : -Math.PI / 2 + 0.3;
+  g.rotation.x = kind === 'chainsaw' || kind === 'rifle' ? -0.35 : -Math.PI / 2 + 0.3;
   return g;
 }
 

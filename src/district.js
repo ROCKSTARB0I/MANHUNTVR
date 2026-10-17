@@ -4,7 +4,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=5';
+import { T, seeded } from './paint.js?v=6';
 
 const V = THREE.Vector3;
 const CELL = 0.5;
@@ -25,6 +25,12 @@ export class District {
     this[this.def.build]();
     this.bakeLight();
     this.bakeWalk();
+    if (this.pending) { // place patrols and loot only in places reachable from the start room
+      const sb = this.startBox && this.boxes.indexOf(this.startBox); if (sb >= 0) { this.boxes.splice(sb, 1); this.bakeWalk(); }
+      this.reach = this.flood(); const { seed, hunters } = this.pending;
+      this.autoLoot(seed, 11); this.autoRoutes(seed + 7, hunters);
+      if (sb >= 0) { this.boxes.push(this.startBox); this.bakeWalk(); }
+    }
   }
 
   mat(key, opts) {
@@ -534,6 +540,283 @@ export class District {
     this.routes.push([[-6, 0], [6, 0], [12, 4], [12, -4], [0, -6], [-8, 4]]);
   }
 
+  // ================================================== shared bits for new scenes
+  perimeter(h, mat, gateSide = 'e', gw = 6) { // four walls with a gap where the exit gate goes
+    const B = this.B;
+    this.box(B.x0 - 1, B.x0, B.z0, B.z1, 0, h, mat);
+    if (gateSide === 'e') { this.box(B.x1, B.x1 + 1, B.z0, -gw / 2, 0, h, mat); this.box(B.x1, B.x1 + 1, gw / 2, B.z1, 0, h, mat); } else this.box(B.x1, B.x1 + 1, B.z0, B.z1, 0, h, mat);
+    this.box(B.x0, B.x1, B.z1, B.z1 + 1, 0, h, mat);
+    if (gateSide === 'n') { this.box(B.x0, -gw / 2, B.z0 - 1, B.z0, 0, h, mat); this.box(gw / 2, B.x1, B.z0 - 1, B.z0, 0, h, mat); } else this.box(B.x0, B.x1, B.z0 - 1, B.z0, 0, h, mat);
+    if (gateSide === 'e') this.makeGate(B.x1 + 0.5, 0, true, gw, -1); else this.makeGate(0, B.z0 - 0.5, false, gw, -1);
+  }
+  ground(t, rx, ry, extra = {}) { const m = this.texMat('g' + this.idx, t, rx, ry, extra); const f = new THREE.Mesh(new THREE.PlaneGeometry(this.B.x1 - this.B.x0, this.B.z1 - this.B.z0), m); f.rotation.x = -Math.PI / 2; f.receiveShadow = true; this.root.add(f); return f; }
+  ceiling(h, col = 0x1c1b19) { const c = new THREE.Mesh(new THREE.PlaneGeometry(this.B.x1 - this.B.x0, this.B.z1 - this.B.z0), this.mat('ceil' + this.idx, { color: col, roughness: 1, side: THREE.DoubleSide })); c.rotation.x = Math.PI / 2; c.position.y = h; this.root.add(c); }
+  // a small lock-up the scene starts in: three walls and the start door on the fourth
+  startRoom(x, z, w = 4, d = 3, mat, doorSide = 'e') {
+    const h = 2.8;
+    this.box(x - 0.2, x, z, z + d, 0, h, mat); this.box(x, x + w, z - 0.2, z, 0, h, mat); this.box(x, x + w, z + d, z + d + 0.2, 0, h, mat);
+    this.box(x, x + w, z - 0.2, z + d + 0.2, h, h + 0.15, mat, { solid: false });
+    this.makeStartDoor(x + w, z, true, d);
+    this.start.set(x + w * 0.4, 0, z + d / 2); this.startYaw = -Math.PI / 2;
+  }
+  scatter(R, kinds, n, zone) { for (let k = 0; k < n; k++) { const x = zone.x0 + R() * (zone.x1 - zone.x0), z = zone.z0 + R() * (zone.z1 - zone.z0); const [ci, cj] = this.cellOf(x, z); this.prop(kinds[k % kinds.length], x, z, R() * 6); } }
+  loot(list) { for (const [k, x, z] of list) this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) }); }
+  // standard weapon/painkiller spread across the map, avoiding solid boxes
+  autoLoot(seed, n = 10) {
+    const R = seeded(seed), kinds = ['bag', 'shard', 'bottle', 'brick', 'crowbar', 'bottle', 'brick', 'shard', 'bag', 'pills', 'pills', 'pills'];
+    const B = this.B; let made = 0, tries = 0;
+    while (made < n && tries++ < 400) {
+      const x = B.x0 + 2 + R() * (B.x1 - B.x0 - 4), z = B.z0 + 2 + R() * (B.z1 - B.z0 - 4);
+      if ((this.reach && !this.reach(x, z)) || this.boxes.some((q) => x > q.x0 - 0.4 && x < q.x1 + 0.4 && z > q.z0 - 0.4 && z < q.z1 + 0.4)) continue;
+      const k = kinds[made % kinds.length]; this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) }); made++;
+    }
+  }
+  // cells reachable on foot from the start (start door open)
+  flood() {
+    const nx = this.lnx, seen = new Uint8Array(nx * this.lnz), [si, sj] = this.nearestWalk(...this.cellOf(this.start.x, this.start.z)), q = [[si, sj]]; seen[sj * nx + si] = 1;
+    while (q.length) { const [i, j] = q.pop(); for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) if (this.walkable(a, b) && !seen[b * nx + a]) { seen[b * nx + a] = 1; q.push([a, b]); } }
+    return (x, z) => { const [i, j] = this.cellOf(x, z); return i >= 0 && j >= 0 && i < nx && j < this.lnz && seen[j * nx + i] === 1; };
+  }
+  // patrol loops through open ground
+  autoRoutes(seed, n) {
+    const R = seeded(seed), B = this.B, free = (x, z) => (!this.reach || this.reach(x, z)) && !this.boxes.some((q) => q.y1 > 0.35 && x > q.x0 - 0.6 && x < q.x1 + 0.6 && z > q.z0 - 0.6 && z < q.z1 + 0.6);
+    for (let r = 0; r < n; r++) {
+      let c = null; for (let t = 0; t < 200 && !c; t++) { const x = B.x0 + 4 + R() * (B.x1 - B.x0 - 8), z = B.z0 + 4 + R() * (B.z1 - B.z0 - 8); if (free(x, z) && Math.hypot(x - this.start.x, z - this.start.z) > 14) c = [x, z]; }
+      if (!c) continue; const pts = [c];
+      for (let k = 0; k < 3; k++) { for (let t = 0; t < 60; t++) { const a = R() * 6.28, d = 4 + R() * 8, x = c[0] + Math.cos(a) * d, z = c[1] + Math.sin(a) * d; if (x > B.x0 + 2 && x < B.x1 - 2 && z > B.z0 + 2 && z < B.z1 - 2 && free(x, z)) { pts.push([x, z]); break; } } }
+      this.routes.push(pts);
+    }
+  }
+  // CCTV on the walls: n cameras along the perimeter looking inward
+  autoCams(seed, n, h = 4.5) {
+    const R = seeded(seed), B = this.B;
+    for (let k = 0; k < n; k++) {
+      const side = k % 4, t = 0.2 + R() * 0.6;
+      const p = side === 0 ? new V(B.x0 + 0.5, h, B.z0 + t * (B.z1 - B.z0)) : side === 1 ? new V(B.x0 + t * (B.x1 - B.x0), h, B.z1 - 0.5) : side === 2 ? new V(B.x0 + t * (B.x1 - B.x0), h, B.z0 + 0.5) : new V(B.x1 - 0.5, h, B.z0 + t * (B.z1 - B.z0));
+      const yaw = side === 0 ? Math.PI / 2 : side === 1 ? Math.PI : side === 2 ? 0 : -Math.PI / 2;
+      this.cams.push({ p, yaw, sweep: 0.6 + R() * 0.4 });
+    }
+  }
+  finish(seed, hunters, cams = 3) { this.pending = { seed, hunters }; this.autoCams(seed + 3, cams); }
+
+  // ================================================================ streets
+  // tenement blocks on a grid of alleys; variants for alleys, slums, back streets
+  buildStreets() {
+    const B = this.B, v = this.def.variant || 'alleys', R = seeded(100 + this.idx);
+    this.ground(T.asphalt, 20, 14, { roughness: 0.85 });
+    const wallM = this.mat('wall', { map: rep(T.brick.map, 1, 1), bumpMap: rep(T.brick.bump, 1, 1), bumpScale: 0.04, roughness: 0.95, color: 0x8a8580 });
+    this.perimeter(7, wallM);
+    // blocks: a grid with gaps of varying width for streets and alleys
+    const xs = [B.x0 + 6, -14, 2, 18], zs = [B.z0 + 5, -4, 9];
+    for (const x of xs) for (const z of zs) {
+      if (R() < 0.18) continue; // an empty lot
+      const w = 8 + R() * 4, d = 5 + R() * 3, h = 7 + Math.floor(R() * 3) * 3.6;
+      if (x + w > B.x1 - 3 || z + d > B.z1 - 2) continue;
+      this.building(x, x + w, z, z + d, h, R() < 0.5 ? 's' : 'n');
+      if (R() < 0.6) this.prop(R() < 0.5 ? 'dumpster' : 'trash', x + w + 1.2, z + d * R(), Math.PI / 2);
+    }
+    if (v === 'slums') { for (let k = 0; k < 6; k++) this.fence(-30 + k * 10, B.z1 - 6, -26 + k * 10, B.z1 - 6); for (let k = 0; k < 4; k++) this.prop('mattress', -20 + k * 12, B.z1 - 3, R()); }
+    if (v === 'traffic') { for (let k = 0; k < 9; k++) this.prop(R() < 0.25 ? 'van' : 'car', B.x0 + 8 + R() * (B.x1 - B.x0 - 16), B.z0 + 4 + R() * (B.z1 - B.z0 - 8), R() * 6); }
+    for (let k = 0; k < 8; k++) this.graffiti(B.x0 + 0.06, 2.4, B.z0 + 4 + k * 5, Math.PI / 2, 3, k);
+    this.fire(-6, 1); this.fire(20, -10);
+    for (const [x, z, i] of [[-24, 2, 1.0], [-6, -10, 0.9], [10, 4, 1.0], [26, 12, 0.0]]) this.lamp(x, z, { i, real: i > 0, flicker: R() < 0.4 ? 1 : 0 });
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, B.z1 - 6, 4, 3, wallM);
+    this.finish(200 + this.idx, this.def.hunters || 6);
+  }
+
+  // =============================================================== railyard
+  buildRailyard() {
+    const B = this.B, R = seeded(300 + this.idx);
+    this.ground(T.gravel, 22, 14, { roughness: 1, color: 0x8a8070 });
+    const corr = this.mat('corr', { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 });
+    this.perimeter(4, corr);
+    const rail = this.mat('rail', { color: 0x5a524a, metalness: 0.8, roughness: 0.5 }), sleeper = this.mat('sleeper', { color: 0x3a2c20, roughness: 1 });
+    for (const z of [-12, -4, 4, 12]) {
+      for (const dz of [-0.72, 0.72]) { const r = new THREE.Mesh(new THREE.BoxGeometry(B.x1 - B.x0, 0.12, 0.08), rail); r.position.set(0, 0.06, z + dz); this.root.add(r); }
+      for (let x = B.x0; x < B.x1; x += 0.8) { const sl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.06, 2.2), sleeper); sl.position.set(x, 0.02, z); this.root.add(sl); }
+      // boxcars parked along the track, gaps between them to slip through
+      let x = B.x0 + 4 + R() * 6;
+      while (x < B.x1 - 14) {
+        const len = 10 + R() * 4, col = [0x5a2a1c, 0x3a3a2a, 0x4a3018, 0x2a2a2a][Math.floor(R() * 4)];
+        if (R() < 0.75) { this.box(x, x + len, z - 1.4, z + 1.4, 0.4, 3.6, this.mat('boxcar' + col, { map: rep(T.corrugated.map, 1, 1), color: col, metalness: 0.4, roughness: 0.7 })); this.box(x + 1, x + len - 1, z - 1.2, z + 1.2, 0, 0.4, rail, { solid: false }); }
+        x += len + 3 + R() * 5;
+      }
+    }
+    // a signal box and a platform
+    this.box(B.x0 + 14, B.x0 + 20, B.z1 - 6, B.z1 - 1, 0, 3.4, this.mat('wall', {}));
+    this.box(-10, 20, B.z0 + 1, B.z0 + 3.5, 0, 1.0, this.mat('platform', { color: 0x6a665e, roughness: 0.9 }));
+    this.fire(-20, 8); this.fire(14, -8);
+    for (const [x, z, i] of [[-16, -8, 1.0], [6, 0, 0.0], [24, 8, 1.0], [-4, 16, 0.8]]) this.lamp(x, z, { i, real: i > 0, flicker: R() < 0.3 ? 1 : 0, h: 7, r: 13 });
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, B.z1 - 5, 3, 3, corr);
+    this.finish(400 + this.idx, this.def.hunters || 6);
+  }
+
+  // ==================================================================== zoo
+  buildZoo() {
+    const B = this.B, R = seeded(500 + this.idx), indoor = this.def.variant === 'house';
+    this.ground(indoor ? T.slab : T.concrete, 20, 14, { roughness: 0.9, color: indoor ? 0x8a8a7a : 0x7a7a6a });
+    const wallM = this.mat('zoowall', { map: rep(T.brick.map, 1, 1), color: 0x9a8a70, roughness: 0.95 });
+    this.perimeter(indoor ? 5 : 4, wallM);
+    if (indoor) this.ceiling(5, 0x14140f);
+    const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
+    // enclosures: low walls with bar fronts (you see through them, you don't walk through)
+    const pens = indoor ? [[-26, -14], [-12, -14], [2, -14], [16, -14], [-26, 6], [-12, 6], [2, 6], [16, 6]] : [[-28, -16], [-10, -16], [8, -16], [-28, 6], [-10, 6], [8, 6], [22, -4]];
+    for (const [x, z] of pens) {
+      const w = indoor ? 10 : 12, d = indoor ? 7 : 9;
+      if (x + w > B.x1 - 2) continue;
+      this.box(x, x + w, z, z + 0.3, 0, 1.0, wallM); this.box(x, x + 0.3, z, z + d, 0, 3, wallM); this.box(x + w - 0.3, x + w, z, z + d, 0, 3, wallM); this.box(x, x + w / 2 - 1, z + d - 0.3, z + d, 0, 3, wallM); this.box(x + w / 2 + 1, x + w, z + d - 0.3, z + d, 0, 3, wallM); // keeper's door
+      this.box(x + 0.3, x + w - 0.3, z, z + 0.3, 1.0, 3.2, bars, { see: false });
+      for (let bx = x + 0.6; bx < x + w - 0.3; bx += 0.3) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.2, 5), bars); b.position.set(bx, 2.1, z + 0.15); this.root.add(b); }
+      // the occupants are long gone: straw, bones, a trough
+      this.prop('mattress', x + w / 2, z + d / 2, R()); this.prop('trash', x + 2, z + d - 2);
+    }
+    if (!indoor) { for (let k = 0; k < 10; k++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 4, 6), this.mat('trunk', { color: 0x3a2a1c, roughness: 1 })); const x = B.x0 + 4 + R() * (B.x1 - B.x0 - 8), z = -1 + (R() - 0.5) * 6; t.position.set(x, 2, z); this.root.add(t); const crown = new THREE.Mesh(new THREE.SphereGeometry(1.6, 8, 6), this.mat('leaves', { color: 0x1e2a16, roughness: 1 })); crown.position.set(x, 4.4, z); this.root.add(crown); this.boxes.push({ x0: x - 0.3, x1: x + 0.3, z0: z - 0.3, z1: z + 0.3, y0: 0, y1: 4, see: true }); } }
+    this.fire(-4, -2);
+    for (const [x, z, i] of [[-20, -2, 0.9], [0, 3, 1.0], [20, -2, 0.0], [12, 16, 0.8]]) this.lamp(x, z, { i, real: i > 0, flicker: R() < 0.4 ? 1 : 0, arm: indoor ? 'none' : 'pole', h: indoor ? 4.6 : 5.2 });
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, wallM);
+    this.finish(600 + this.idx, this.def.hunters || 7);
+  }
+
+  // ============================================================== graveyard
+  buildGraveyard() {
+    const B = this.B, R = seeded(700 + this.idx);
+    this.ground(T.gravel, 20, 14, { roughness: 1, color: 0x5a6048 });
+    const stone = this.mat('stone', { map: rep(T.concrete.map, 1, 1), color: 0x7a7a72, roughness: 1 });
+    this.perimeter(3.2, stone);
+    // rows of headstones (low: cover when crouched), a few big crypts and statues
+    for (let z = B.z0 + 4; z < B.z1 - 4; z += 3.2) for (let x = B.x0 + 6; x < B.x1 - 6; x += 2.4) {
+      if (Math.abs(z) < 2.5 || R() < 0.25) continue;
+      const h = 0.7 + R() * 0.7; this.box(x - 0.35, x + 0.35, z - 0.1, z + 0.1, 0, h, stone);
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 10, 1, false, 0, Math.PI), stone); t.rotation.x = Math.PI / 2; t.rotation.z = Math.PI / 2; t.position.set(x, h, z); this.root.add(t);
+    }
+    for (const [x, z] of [[-24, -12], [-6, 12], [12, -14], [24, 10]]) { this.box(x - 2.5, x + 2.5, z - 2, z + 2, 0, 3.2, stone); const roof = new THREE.Mesh(new THREE.ConeGeometry(3.6, 1.4, 4), stone); roof.rotation.y = Math.PI / 4; roof.position.set(x, 3.9, z); this.root.add(roof); }
+    for (let k = 0; k < 8; k++) { const x = B.x0 + 4 + R() * (B.x1 - B.x0 - 8), z = (R() - 0.5) * 3; const t = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 5, 5), this.mat('deadtree', { color: 0x2a221a })); t.position.set(x, 2.5, z + (R() < 0.5 ? 6 : -6)); this.root.add(t); }
+    this.fire(0, 0);
+    for (const [x, z, i] of [[-16, 0, 0.7], [16, 0, 0.8]]) this.lamp(x, z, { i, flicker: 1 });
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, stone);
+    this.finish(800 + this.idx, this.def.hunters || 7);
+  }
+
+  // ================================================================ prison
+  buildPrison() {
+    const B = this.B, R = seeded(900 + this.idx), yard = this.def.variant === 'yard';
+    this.ground(yard ? T.asphalt : T.slab, 20, 14, { color: yard ? 0x8a8a84 : 0x9a9a90, roughness: 0.7 });
+    const wallM = this.mat('pwall', { map: rep(T.concrete.map, 1, 1), color: 0x9a9890, roughness: 0.9 });
+    this.perimeter(yard ? 6 : 4, wallM);
+    if (!yard) {
+      this.ceiling(4, 0x22221e);
+      // tiers of cells on both sides of a long hall, bars for fronts
+      const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
+      for (const side of [-1, 1]) for (let x = B.x0 + 2; x < B.x1 - 6; x += 3.5) {
+        const zf = 4 * side, zb = (B.z1 - 1) * side;
+        this.box(x, x + 0.2, Math.min(zf, zb), Math.max(zf, zb), 0, 4, wallM);
+        const zz = side > 0 ? [zf, zf + 0.15] : [zf - 0.15, zf];
+        if (R() < 0.7) this.box(x + 0.2, x + 3.5, zz[0], zz[1], 0, 3, bars, { see: false }); else { this.box(x + 0.2, x + 1.2, zz[0], zz[1], 0, 3, bars, { see: false }); this.box(x + 2.4, x + 3.5, zz[0], zz[1], 0, 3, bars, { see: false }); }
+        for (let bx = x + 0.4; bx < x + 3.5; bx += 0.25) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 3, 5), bars); b.position.set(bx, 1.5, zf); this.root.add(b); }
+        this.prop('mattress', x + 1.7, zf + 2.4 * side, 0);
+      }
+      for (const [x, i] of [[-20, 0.7], [-4, 0.0], [12, 0.7]]) this.lamp(x, 0, { h: 3.6, r: 7, i, real: i > 0, arm: 'none', col: 0xf0ecd8, flicker: R() < 0.5 ? 1 : 0 });
+    } else {
+      // the exercise yard: fences, bleachers, a guard tower with a searchlight
+      this.fence(-20, -6, -20, 10); this.fence(0, -14, 0, 4); this.fence(16, -6, 16, 14);
+      this.box(-12, -4, 10, 13, 0, 1.2, this.mat('bleach', { color: 0x5a5a54, metalness: 0.5 }));
+      this.box(22, 26, -16, -12, 0, 7, wallM);
+      this.lamp(24, -14, { h: 8, r: 16, i: 1.3, col: 0xf8f8f0, arm: 'none', flicker: 3 });
+      this.lamp(-24, 6, { h: 6, r: 10, i: 0.8 }); this.lamp(6, 12, { h: 6, r: 10, i: 0.0, real: false }); this.fire(-8, -8);
+    }
+    this.lamp(B.x1 - 2, 3, { h: 3.6, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, wallM);
+    this.finish(1000 + this.idx, this.def.hunters || 7);
+  }
+
+  // ========================================================= offices / studio
+  buildOffices() {
+    const B = this.B, R = seeded(1100 + this.idx);
+    this.ground(T.slab, 20, 14, { color: 0x6a645a, roughness: 0.6 });
+    this.ceiling(3.4, 0x2a2824);
+    const wallM = this.mat('owall', { color: 0x8a8478, roughness: 0.9 }), desk = this.mat('desk', { color: 0x4a3a2a, roughness: 0.6 });
+    this.perimeter(3.4, wallM);
+    // a grid of offices off corridors; cubicles in the open-plan bits; a broadcast studio
+    for (let x = B.x0 + 4; x < B.x1 - 8; x += 9) for (const z of [B.z0 + 1, 6]) {
+      const w = 7, d = 7; if (R() < 0.2) continue;
+      this.box(x, x + w, z, z + 0.15, 0, 3.4, wallM); this.box(x, x + 0.15, z, z + d, 0, 3.4, wallM); this.box(x + w - 0.15, x + w, z, z + d, 0, 3.4, wallM);
+      this.box(x, x + 2.5, z + d - 0.15, z + d, 0, 3.4, wallM); this.box(x + 4, x + w, z + d - 0.15, z + d, 0, 3.4, wallM);
+      this.box(x + 1.5, x + 4, z + 2, z + 3, 0, 0.75, desk); this.prop('crate', x + 5.5, z + 1.5, R());
+    }
+    for (let x = -12; x < 12; x += 4) for (let z = -5; z < 3; z += 3) this.box(x, x + 0.08, z, z + 2, 0, 1.4, this.mat('cube', { color: 0x5a564e, roughness: 1 }));
+    this.lamp(-18, 0, { h: 3.2, r: 7, i: 0.7, arm: 'none', col: 0xf0f0e0, flicker: 1 }); this.lamp(4, -2, { h: 3.2, r: 7, i: 0.6, arm: 'none', col: 0xf0f0e0 });
+    this.lamp(18, 10, { h: 3.2, r: 6, i: 0.8, arm: 'none', col: 0xffe8c0 }); this.lamp(-10, 12, { h: 3.2, r: 6, i: 0.0, real: false, arm: 'none' });
+    this.lamp(B.x1 - 2, 3, { h: 3.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, wallM);
+    this.finish(1200 + this.idx, this.def.hunters || 7);
+  }
+
+  // ================================================================== docks
+  buildDocks() {
+    const B = this.B, R = seeded(1300 + this.idx);
+    this.ground(T.concrete, 22, 16, { roughness: 0.9, color: 0x6a6a64 });
+    const corr = this.mat('corr', { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 });
+    this.perimeter(4, corr, 'e');
+    // the quay: black water along the south edge
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, 6), this.mat('water', { color: 0x050806, roughness: 0.05, metalness: 0.6 })); water.rotation.x = -Math.PI / 2; water.position.set(0, 0.02, B.z1 - 3); this.root.add(water);
+    this.boxes.push({ x0: B.x0, x1: B.x1, z0: B.z1 - 6, z1: B.z1, y0: 0, y1: 1, see: true });
+    const cols = [0x5a2a1c, 0x3a4a2a, 0x6a5a2a, 0x4a1a1a, 0x2a2a2a];
+    for (let k = 0; k < 16; k++) { const x = B.x0 + 6 + (k % 4) * 15 + R() * 3, z = B.z0 + 5 + Math.floor(k / 4) * 8; if (R() < 0.15) continue; const col = cols[k % 5]; this.box(x - 3, x + 3, z - 1.25, z + 1.25, 0, 2.6, this.mat('cont' + col, { map: rep(T.corrugated.map, 1, 1), color: col, roughness: 0.6, metalness: 0.4 })); if (R() < 0.4) this.box(x - 3, x + 3, z - 1.25, z + 1.25, 2.6, 5.2, this.mat('cont' + col)); }
+    this.box(-4, 8, B.z1 - 12, B.z1 - 7, 0, 6, corr); // a warehouse on the quay
+    for (const [x, z, i] of [[-24, 0, 1.1], [0, -12, 0.0], [20, 2, 1.0], [-8, 10, 0.8]]) this.lamp(x, z, { i, real: i > 0, h: 8, r: 14 });
+    this.fire(12, -14);
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, corr);
+    this.finish(1400 + this.idx, this.def.hunters || 8);
+  }
+
+  // =========================================================== estate grounds
+  buildEstate() {
+    const B = this.B, R = seeded(1500 + this.idx);
+    this.ground(T.gravel, 20, 14, { roughness: 1, color: 0x3a4a2a });
+    const hedge = this.mat('hedge', { color: 0x1a2a14, roughness: 1 }), stone = this.mat('stone', { map: rep(T.concrete.map, 1, 1), color: 0x8a8478, roughness: 1 });
+    this.perimeter(3.5, stone);
+    // a hedge maze garden: hedges you can't see over, gravel paths, statues and a fountain
+    for (let x = B.x0 + 6; x < B.x1 - 6; x += 6) for (let z = B.z0 + 5; z < B.z1 - 5; z += 6) {
+      if (R() < 0.35) continue;
+      if (R() < 0.5) this.box(x, x + 5, z, z + 0.8, 0, 2.4, hedge); else this.box(x, x + 0.8, z, z + 5, 0, 2.4, hedge);
+    }
+    this.box(-2, 2, -2, 2, 0, 0.8, stone);
+    for (const [x, z] of [[-14, 8], [14, -8], [-20, -14], [20, 14]]) { this.box(x - 0.5, x + 0.5, z - 0.5, z + 0.5, 0, 1.2, stone); const st = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1, 4, 8), stone); st.position.set(x, 2.2, z); this.root.add(st); }
+    for (const [x, z, i] of [[-18, 0, 0.8], [0, 10, 0.9], [18, -4, 0.8], [6, -14, 0.0]]) this.lamp(x, z, { i, real: i > 0, h: 3.6, r: 9, col: 0xffd8a0 });
+    this.lamp(B.x1 - 2, 3, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, stone);
+    this.finish(1600 + this.idx, this.def.hunters || 8);
+  }
+
+  // ================================================================ mansion
+  buildMansion() {
+    const B = this.B, R = seeded(1700 + this.idx);
+    const boards = this.texMat('mboards', { map: T.wood.map }, 16, 10, { roughness: 0.6, color: 0x6a4a30 });
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), boards); fl.rotation.x = -Math.PI / 2; this.root.add(fl);
+    this.ceiling(4, 0x1a120c);
+    const wallM = this.mat('mwall', { color: 0x4a2a22, roughness: 0.9 }), trim = this.mat('trim', { color: 0x2a1a12, roughness: 0.5 });
+    this.perimeter(4, wallM);
+    // rooms off a grand hall: library shelves, dining table, a gallery of screens
+    for (let x = B.x0 + 2; x < B.x1 - 8; x += 10) for (const side of [-1, 1]) {
+      const zf = 4 * side, zb = (B.z1 - 1) * side;
+      this.box(x, x + 0.25, Math.min(zf, zb), Math.max(zf, zb), 0, 4, wallM);
+      const zz = side > 0 ? [zf, zf + 0.25] : [zf - 0.25, zf];
+      this.box(x + 0.25, x + 3.5, zz[0], zz[1], 0, 4, wallM); this.box(x + 6, x + 10, zz[0], zz[1], 0, 4, wallM);
+      this.box(x + 3.5, x + 6, zz[0], zz[1], 3, 4, trim, { solid: false });
+      const zin = zf + 3 * side;
+      if (R() < 0.5) this.box(x + 1.5, x + 8.5, Math.min(zin, zin + 1.2 * side), Math.max(zin, zin + 1.2 * side), 0, 0.8, trim); else this.box(x + 1, x + 1.6, Math.min(zf + 1, zb - side), Math.max(zf + 1, zb - side), 0, 3, this.mat('books', { color: 0x3a2018, roughness: 0.8 }));
+    }
+    for (const [x, i] of [[-14, 0.7], [0, 0.8], [14, 0.6]]) this.lamp(x, 0, { h: 3.6, r: 7, i, arm: 'none', col: 0xffd8a0, flicker: R() < 0.3 ? 2 : 0 });
+    this.lamp(B.x1 - 2, 3, { h: 3.6, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.startRoom(B.x0 + 1, -1.5, 3, 3, wallM);
+    this.finish(1800 + this.idx, this.def.hunters || 8);
+  }
+
   // -------------------------------------------------------------- queries
   // does the segment a->b (3D) clear every sight-blocking box?
   clear(a, b, forSight = true) {
@@ -740,9 +1023,24 @@ class MinHeap {
 
 // ------------------------------------------------------------------ scenes
 export const SCENES = [
-  { id: 'pens', title: 'THE PENS', build: 'buildPens', B: { x0: -36, x1: 36, z0: -26, z1: 26 }, gang: 'hoods', fog: 0.042 },
-  { id: 'mall', title: 'THE MALL', build: 'buildMall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
-  { id: 'asylum', title: 'THE ASYLUM', build: 'buildAsylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'innocentz', fog: 0.06, amb: 0.65 },
-  { id: 'junkyard', title: 'THE JUNKYARD', build: 'buildJunkyard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'wardogs', fog: 0.045 },
-  { id: 'attic', title: 'PIGGSY', build: 'buildAttic', B: { x0: -18, x1: 18, z0: -12, z1: 12 }, gang: 'piggsy', fog: 0.07, amb: 0.6 },
+  { id: 'born-again', title: 'BORN AGAIN', area: 'Carcer Market', build: 'buildPens', B: { x0: -36, x1: 36, z0: -26, z1: 26 }, gang: 'hoods', fog: 0.042 },
+  { id: 'doorway', title: 'DOORWAY INTO HELL', area: 'Carcer Market', build: 'buildStreets', variant: 'alleys', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'hoods', fog: 0.045, hunters: 6 },
+  { id: 'road-to-ruin', title: 'ROAD TO RUIN', area: 'Carcer Market', build: 'buildRailyard', B: { x0: -40, x1: 40, z0: -20, z1: 20 }, gang: 'hoods', fog: 0.045, hunters: 7 },
+  { id: 'white-trash', title: 'WHITE TRASH', area: 'Dentons City Junkyard', build: 'buildJunkyard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'skinz', fog: 0.045 },
+  { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildMall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
+  { id: 'grounds', title: 'GROUNDS FOR ASSAULT', area: 'Carcer City Zoo', build: 'buildZoo', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'wardogs', fog: 0.045, hunters: 7 },
+  { id: 'strapped', title: 'STRAPPED FOR CASH', area: 'Carcer City Zoo', build: 'buildZoo', variant: 'house', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.65, hunters: 7 },
+  { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildStreets', variant: 'slums', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
+  { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildStreets', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
+  { id: 'graveyard', title: 'GRAVEYARD SHIFT', area: 'East Los Ablos', build: 'buildGraveyard', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'innocentz', fog: 0.05, hunters: 8 },
+  { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
+  { id: 'doing-time', title: 'DOING TIME', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 7 },
+  { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPrison', variant: 'yard', B: { x0: -34, x1: 34, z0: -20, z1: 20 }, gang: 'smileys', fog: 0.045, hunters: 8, rabbit: true },
+  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 8 },
+  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildOffices', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'cerberus', fog: 0.05, amb: 0.7, hunters: 7 },
+  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildRailyard', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
+  { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'wardogs', fog: 0.045, hunters: 9 },
+  { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildEstate', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
+  { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildMansion', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'cerberus', fog: 0.055, amb: 0.65, hunters: 8 },
+  { id: 'deliverance', title: 'DELIVERANCE', area: 'Wapona Hills', build: 'buildAttic', B: { x0: -18, x1: 18, z0: -12, z1: 12 }, gang: 'piggsy', fog: 0.07, amb: 0.6 },
 ];

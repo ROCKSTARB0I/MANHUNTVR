@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=5';
-import { T } from './paint.js?v=5';
+import { Person, BONE, SKIN_TONES } from './body.js?v=6';
+import { T } from './paint.js?v=6';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -23,6 +23,16 @@ const GANG_SETS = {
     { g: 'B', mask: 'skull', weapon: 'pipe', top: [0.5, 0.46, 0.4], legs: [0.24, 0.2, 0.18] },
   ] },
   piggsy: { vp: 'p', boss: true, bulk: 1.5, members: [{ g: 'A', mask: 'pig', weapon: 'chainsaw', top: [0.42, 0.38, 0.32], legs: [0.18, 0.16, 0.14] }] },
+  smileys: { vp: 'y', bulk: 0.95, members: [ // painted smiley masks, straitjacket rags
+    { g: 'C', mask: 'smiley', weapon: 'machete', top: [0.62, 0.6, 0.52], legs: [0.3, 0.28, 0.24] },
+    { g: 'A', mask: 'smiley', weapon: 'pipe', top: [0.5, 0.48, 0.42], legs: [0.22, 0.2, 0.18] },
+    { g: 'B', mask: 'smiley', weapon: 'bat', top: [0.58, 0.54, 0.46], legs: [0.26, 0.24, 0.2] },
+  ] },
+  cerberus: { vp: 'c', bulk: 1.15, torch: 'all', sharp: true, guns: true, members: [ // the Director's private SWAT
+    { g: 'B', mask: 'swat', weapon: 'rifle', top: [0.07, 0.07, 0.075], legs: [0.08, 0.08, 0.085] },
+    { g: 'A', mask: 'swat', weapon: 'rifle', top: [0.08, 0.08, 0.08], legs: [0.07, 0.07, 0.075] },
+    { g: 'C', mask: 'swat', weapon: 'rifle', top: [0.06, 0.06, 0.065], legs: [0.08, 0.08, 0.08] },
+  ] },
   wardogs: { vp: 'w', bulk: 1.1, torch: 'all', sharp: true, members: [ // ex-military: balaclavas and fatigues
     { g: 'B', mask: 'knit', weapon: 'machete', top: [0.24, 0.27, 0.18], legs: [0.22, 0.24, 0.17] },
     { g: 'A', mask: 'knit', weapon: 'pipe', top: [0.2, 0.22, 0.15], legs: [0.24, 0.26, 0.18] },
@@ -170,6 +180,12 @@ export class Hunter {
         const tgt = this.lostT > 0.5 ? this.last : P.pos;
         if (this.pathT < 0) { this.goPath(tgt); this.pathT = 0.5; }
         if (d < 1.55 && this.lostT < 0.5) { this.state = 'attack'; this.atkT = 0; A.swing = 0; this.hitDone = false; break; }
+        // Cerberus: stop and shoot when they can see you
+        if (this.set.guns && this.alive && v > 0.04 && d > 2.4 && d < 22) {
+          speed = 0; this.face(P.pos, dt * 3); A.hold = 0; this.shootT = (this.shootT ?? 0.8) - dt;
+          if (this.shootT <= 0) { this.shootT = 0.9 + Math.random() * 0.6; this.shoot(P, d); }
+          break;
+        }
         speed = d > 4 ? 3.3 : 2.4; this.followPath(dt);
         this.talkT -= dt; if (this.talkT < 0) { this.talkT = 6 + Math.random() * 6; this.say('chase'); }
         break;
@@ -226,6 +242,15 @@ export class Hunter {
       return;
     }
   }
+
+  shoot(P, d) {
+    const G = this.game, mz = this.muzzle();
+    G.sound.bang(mz); G.flash(mz); G.noise(this.pos, 25, 'shout', this);
+    // harder to hit you far away, moving, or in the dark
+    const chance = Math.max(0.12, 0.85 - d * 0.03 - (P.speed > 1.2 ? 0.2 : 0) - (P.light < 0.15 ? 0.2 : 0) - (P.crouch ? 0.1 : 0));
+    if (Math.random() < chance) { P.hurt(10 + Math.random() * 8, this); G.blood.spray(P.chest.clone(), P.chest.clone().sub(mz).normalize(), 10, 0.6); }
+  }
+  muzzle(out = new V()) { const w = this.body.weapon; return w && w.userData.muzzle ? w.localToWorld(out.copy(w.userData.muzzle)) : this.eye(out); }
 
   spot() {
     this.state = 'hunt'; this.susp = 1; this.lostT = 0; this.last.copy(this.game.player.pos); this.pathT = 0;
@@ -290,6 +315,7 @@ export class Hunter {
     if (this.torch) { this.torch.intensity = 0; this.beam.visible = false; }
     if (this.saw) this.saw(this.eye(_a), 0, true);
     if (this.body.weapon) { const w = this.body.weapon; w.parent.remove(w); }
+    if (this.set.guns) this.game.kit.spawn('rifle', new V(this.pos.x + 0.4, 0.04, this.pos.z + 0.2));
     this.body.anim.struggle = 0; this.body.anim.swing = -1;
     this.body.die(impulse, at, this.game.world);
     this.game.sound.gurgle(this.eye(_a)); this.say('die');

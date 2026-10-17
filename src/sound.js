@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=5';
-import { Score } from './score.js?v=5';
+import { LINE, VOICES } from './lines.js?v=6';
+import { Score } from './score.js?v=6';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -30,7 +30,7 @@ export class Sound {
     this.ambience();
     this.heart = { next: 0, rate: 0 };
     this.score = new Score(this); this.score.start();
-    this.preloadVO(Object.keys(LINE));
+    this.preloadVO(Object.keys(LINE)); this.sample('sfx/hint.wav', 0); // warm the hint sound
   }
 
   now() { return this.ctx.currentTime; }
@@ -186,6 +186,19 @@ export class Sound {
       o.connect(bp); bp.connect(g); g.connect(out); o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
       this.burst(out, { t: t0 - now, dur: dur * 0.7, f: squeal ? 2500 : 300, q: 1, gain: 0.15, attack: 0.01 });
     }
+  }
+  bang(p) { // a rifle shot: crack, body, room tail
+    const o = p ? this.at(p) : this.sfx;
+    this.burst(o, { dur: 0.05, f: 3000, q: 0.5, gain: 1.0, attack: 0.001 });
+    this.burst(o, { dur: 0.25, f: 220, type: 'lowpass', gain: 1.2, attack: 0.001 });
+    this.burst(o, { dur: 0.9, f: 700, q: 0.4, gain: 0.12, attack: 0.02, t: 0.05 });
+  }
+  click() { this.tone(this.sfx, { f: 1800, dur: 0.03, type: 'square', gain: 0.08 }); }
+  // play a sound file from the game folder (cached after the first load)
+  sample(url, gain = 1) {
+    if (!this.ctx) return; this.samples = this.samples || {};
+    if (!this.samples[url]) this.samples[url] = fetch(url).then((r) => r.arrayBuffer()).then((b) => this.ctx.decodeAudioData(b)).catch(() => null);
+    this.samples[url].then((buf) => { if (!buf) return; const s = this.src(buf), g = this.ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(this.sfx); s.start(); });
   }
   radio() { this.burst(this.sfx, { dur: 0.06, f: 2500, q: 0.6, gain: 0.12 }); this.burst(this.sfx, { dur: 0.35, f: 1800, q: 1, gain: 0.025, t: 0.05 }); }
 

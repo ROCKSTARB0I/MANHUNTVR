@@ -226,7 +226,15 @@ function makeBlood(i) {
 // ---------------------------------------------------------------- masks
 function makeMask(kind) {
   const [c, g] = cnv(256); const rr = seeded(kind === 'hockey' ? 5 : kind === 'skull' ? 6 : 7);
-  if (kind === 'pig') { // a filthy rubber pig's head
+  if (kind === 'smiley') { // a grubby yellow smiley face
+    g.fillStyle = '#d8b424'; g.fillRect(0, 0, 256, 256);
+    for (let k = 0; k < 50; k++) { g.fillStyle = `rgba(${50 + rr() * 40},${40 + rr() * 30},10,${0.1 + rr() * 0.25})`; g.beginPath(); g.ellipse(rr() * 256, rr() * 256, 4 + rr() * 20, 3 + rr() * 12, rr() * 3, 0, 7); g.fill(); }
+    g.fillStyle = '#141008'; g.beginPath(); g.ellipse(92, 100, 12, 22, 0, 0, 7); g.ellipse(164, 100, 12, 22, 0, 0, 7); g.fill();
+    g.strokeStyle = '#141008'; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath(); g.arc(128, 128, 64, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+    g.fillStyle = 'rgba(110,10,8,0.75)'; for (let k = 0; k < 6; k++) { g.beginPath(); g.ellipse(70 + rr() * 120, 150 + rr() * 80, 3 + rr() * 6, 8 + rr() * 18, 0, 0, 7); g.fill(); }
+  } else if (kind === 'swat') { // a black balaclava under the helmet
+    g.fillStyle = '#121212'; g.fillRect(0, 0, 256, 256); g.fillStyle = '#060606'; g.beginPath(); g.ellipse(128, 104, 70, 20, 0, 0, 7); g.fill();
+  } else if (kind === 'pig') { // a filthy rubber pig's head
     const gr = g.createRadialGradient(128, 120, 20, 128, 120, 150); gr.addColorStop(0, '#d89a8c'); gr.addColorStop(1, '#8a5048'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
     for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(${60 + rr() * 40},${30 + rr() * 20},20,${0.15 + rr() * 0.3})`; g.beginPath(); g.ellipse(rr() * 256, rr() * 256, 4 + rr() * 22, 3 + rr() * 14, rr() * 3, 0, 7); g.fill(); }
     g.fillStyle = '#c87a6c'; g.beginPath(); g.ellipse(128, 150, 44, 32, 0, 0, 7); g.fill();            // snout
@@ -316,7 +324,7 @@ export function paintAll(low) {
   T.chain = makeChainlink(128);
   T.graffiti = TAGS.map((_, i) => makeGraffiti(i));
   T.blood = [0, 1, 2, 3].map(makeBlood);
-  T.mask = { hockey: makeMask('hockey'), skull: makeMask('skull'), knit: makeMask('knit'), pig: makeMask('pig') };
+  T.mask = { hockey: makeMask('hockey'), skull: makeMask('skull'), knit: makeMask('knit'), pig: makeMask('pig'), smiley: makeMask('smiley'), swat: makeMask('swat') };
   T.knit = makeKnit(n / 2, 121); T.fleece = makeKnit(n / 2, 131);
   T.denim = makeDenim(n / 2);
   T.skin = makeSkinDetail(256);
