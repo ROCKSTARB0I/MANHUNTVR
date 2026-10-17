@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=14';
-import { T } from './paint.js?v=14';
+import { Loft, ring, blend } from './loft.js?v=15';
+import { T } from './paint.js?v=15';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -43,7 +43,7 @@ const SKIN_TONES = [[0.62, 0.44, 0.34], [0.48, 0.32, 0.23], [0.30, 0.20, 0.14], 
 // front and back, so chest, glutes, biceps and calves have real shape.
 function buildGeometry(o) {
   const Lt = new Loft(), Ll = new Loft(), Ls = new Loft();
-  const skin = o.skin, top = o.top, legs = o.legs, boots = [0.06, 0.05, 0.045], sole = [0.03, 0.03, 0.03];
+  const skin = o.skin, top = o.top, legs = o.legs, boots = o.cash ? [0.7, 0.68, 0.64] : [0.06, 0.05, 0.045], sole = o.cash ? [0.84, 0.83, 0.79] : [0.03, 0.03, 0.03]; // Cash wears scuffed white sneakers
   const v = (x, y, z) => new V(x, y, z);
   const W = (n) => [[B[n], 1]];
   const k = o.bulk;
@@ -75,7 +75,7 @@ function buildGeometry(o) {
   for (const sd of [1, -1]) Lt.blob(v(0.175 * sd * k, 1.4, -0.002), 0.07 * k, 0.07, 0.075 * k, blend(B.chest, B[sd > 0 ? 'armL' : 'armR'], 0.55), top, 14, 10);
   // neck (in the shadow of a raised hood it's barely lit)
   const nk = o.hood === 'up' ? skin.map((c) => c * 0.3) : skin;
-  Ls.tube([ring(v(0, 1.47, 0), up, fwd, 0.072, 0.068, blend(B.chest, B.neck, 0.5), nk, { ryn: 0.07 }), ring(v(0, 1.56, 0.008), up, fwd, 0.06, 0.06, W('neck'), nk, { ryn: 0.062 }), ring(v(0, 1.63, 0.014), up, fwd, 0.058, 0.064, W('head'), nk)], 14);
+  Ls.tube([ring(v(0, 1.47, 0), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), nk, { ryn: 0.075 }), ring(v(0, 1.56, 0.008), up, fwd, 0.066, 0.064, W('neck'), nk, { ryn: 0.066 }), ring(v(0, 1.63, 0.014), up, fwd, 0.058, 0.064, W('head'), nk)], 14);
   if (o.mask) {
     Ls.blob(v(0, 1.71, 0.012), 0.094, 0.118, 0.108, W('head'), skin, 16, 12);
     Ls.blob(v(0, 1.66, 0.075), 0.05, 0.045, 0.04, W('head'), skin, 10, 8);
@@ -181,9 +181,9 @@ export class Person {
     this.skel = makeSkeleton();
     this.root = new THREE.Group();
     const mats = {
-      top: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, map: T.fleece.map, bumpMap: T.fleece.bump, bumpScale: 0.006 }),
-      legs: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, map: T.denim.map, bumpMap: T.denim.bump, bumpScale: 0.005 }),
-      skin: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, bumpMap: T.skin, bumpScale: 0.002 }),
+      top: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, map: T.fleece.map, bumpMap: T.fleece.bump, bumpScale: 0.006, side: THREE.DoubleSide }), // both sides: the lofted tubes are open, never let you see through them
+      legs: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, map: T.denim.map, bumpMap: T.denim.bump, bumpScale: 0.005, side: THREE.DoubleSide }),
+      skin: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, bumpMap: T.skin, bumpScale: 0.002, side: THREE.DoubleSide }),
     };
     this.meshes = ['legs', 'top', 'skin'].map((k, i) => {
       const m = new THREE.SkinnedMesh(geo[k], mats[k]);
@@ -221,9 +221,9 @@ export class Person {
     // bare faces get eyes, brows, a nose and a mouth
     if (!o.mask) {
       const hb = this.bones[B.head], dark = new THREE.MeshStandardMaterial({ color: 0x1a120e, roughness: 0.6 });
-      this.head = makeHead(o.skin, o.stubble, o.hair); this.head.position.set(0, 0.1, 0.012); this.head.scale.setScalar(1.1); hb.add(this.head);
+      this.head = makeHead(o.skin, o.stubble, o.hair, o.cash || o.cashFace); this.head.position.set(0, 0.088, 0.012); this.head.scale.setScalar(1.2); hb.add(this.head); // a man-sized head, sat down on the neck
       const white = new THREE.MeshStandardMaterial({ color: 0xb8ae9e, roughness: 0.35 }), iris = new THREE.MeshStandardMaterial({ color: 0x1e140c, roughness: 0.15 });
-      const skinM = new THREE.MeshStandardMaterial({ color: new THREE.Color(o.skin[0] * 0.9, o.skin[1] * 0.85, o.skin[2] * 0.85), roughness: 0.8 });
+      const skinM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(o.skin[0] * 0.9, o.skin[1] * 0.82, o.skin[2] * 0.82, THREE.SRGBColorSpace), roughness: 0.8 });
       for (const s of [1, -1]) {
         const eye = new THREE.Group(); eye.position.set(0.033 * s, 0.122, 0.085); hb.add(eye);
         const e = new THREE.Mesh(new THREE.SphereGeometry(0.0128, 14, 12), white); e.scale.set(1, 0.85, 1); eye.add(e);
@@ -243,6 +243,30 @@ export class Person {
       // the rim folds back a little round the face
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.012, 6, 20, Math.PI * 1.2), hm); rim.rotation.set(0.12, 0, -0.1 * Math.PI); rim.position.set(0, 0.105, 0.06); rim.scale.set(0.92, 1.25, 1);
       this.bones[B.head].add(hood, rim); this.hoodMesh = hood;
+    }
+    // Cash's Darkwoods inmate patch on the right breast
+    if (o.cash) {
+      const pc = document.createElement('canvas'); pc.width = 128; pc.height = 64; const pg = pc.getContext('2d');
+      pg.fillStyle = '#d8d2c0'; pg.fillRect(0, 0, 128, 64); pg.strokeStyle = '#3a3a3a'; pg.lineWidth = 4; pg.strokeRect(3, 3, 122, 58);
+      pg.fillStyle = '#1a1a1a'; pg.font = 'bold 34px "Courier New", monospace'; pg.textAlign = 'center'; pg.fillText('10771', 64, 44);
+      const pt = new THREE.CanvasTexture(pc); pt.colorSpace = THREE.SRGBColorSpace;
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.042), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
+      patch.position.set(-0.075, 0.06, 0.142 * (o.bulk || 1)); patch.rotation.set(-0.12, -0.25, 0); this.bones[B.chest].add(patch);
+      const k = o.bulk || 1, ch = this.bones[B.chest];
+      const jacket = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(o.top[0] * 0.85, o.top[1] * 0.85, o.top[2] * 0.85, THREE.SRGBColorSpace), map: T.fleece.map, roughness: 0.95, side: THREE.DoubleSide });
+      // the jacket's raised collar round the back and sides of the neck
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.11, 0.075, 20, 1, true, Math.PI * 0.62, Math.PI * 1.76), jacket); collar.position.set(0, 0.215, -0.012); collar.rotation.x = -0.12; ch.add(collar);
+      // the cream shirt showing in a V where the jacket hangs open
+      const shirtM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.66, 0.6, 0.48, THREE.SRGBColorSpace), map: T.fleece.map, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
+      const sv = new THREE.Shape(); sv.moveTo(-0.07, 0.2); sv.lineTo(0.07, 0.2); sv.lineTo(0.012, -0.12); sv.lineTo(-0.012, -0.12); sv.closePath();
+      const shirt = new THREE.Mesh(new THREE.ShapeGeometry(sv), shirtM); shirt.position.set(0, 0.0, 0.142 * k); shirt.rotation.x = -0.08; ch.add(shirt);
+      for (const sd of [1, -1]) { // the jacket's open front edges either side of it
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.34, 0.012), jacket); edge.position.set(sd * 0.045, 0.04, 0.144 * k); edge.rotation.set(-0.08, 0, sd * 0.2); ch.add(edge);
+      }
+      // the dark blue strap he hangs weapons from: over the left shoulder, across chest and back to the right hip
+      const strapM = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.1, 0.13, 0.24, THREE.SRGBColorSpace), roughness: 0.6 });
+      for (const z of [0.135 * k, -0.118]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.62, 0.012), strapM); st.position.set(0.0, -0.02, z); st.rotation.set(z > 0 ? -0.1 : 0.1, 0, -0.72); ch.add(st); }
+      const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.016), new THREE.MeshStandardMaterial({ color: 0x8a8a84, metalness: 0.9, roughness: 0.35 })); buckle.position.set(-0.053, -0.08, 0.145 * k); buckle.rotation.z = -0.72; ch.add(buckle);
     }
     // weapon in the right hand
     this.weapon = o.weapon ? makeHunterWeapon(o.weapon) : null;
@@ -369,7 +393,7 @@ export class Person {
 // A sculpted head: an ellipsoid pushed and pulled into a face (sockets, brow,
 // cheekbones, nose, lips, chin, jaw, ears), vertex-painted, with a morph
 // target that drops the jaw so the mouth opens when he talks.
-function makeHead(skin, stubble = false, hair = null) {
+function makeHead(skin, stubble = false, hair = null, cash = false) {
   const g = new THREE.SphereGeometry(1, 72, 56), p = g.attributes.position, n = p.count;
   const open = new Float32Array(n * 3), col = new Float32Array(n * 3);
   const gs = (x, y, z, cx, cy, cz, sx, sy, sz) => Math.exp(-((x - cx) ** 2 / (2 * sx * sx) + (y - cy) ** 2 / (2 * sy * sy) + (z - cz) ** 2 / (2 * sz * sz)));
@@ -427,7 +451,7 @@ function makeHead(skin, stubble = false, hair = null) {
   for (let i = 0; i < n; i++) { if (p.getZ(i) > 0.025) uv.setXY(i, 0.5 + p.getX(i) / 0.16, 0.5 + p.getY(i) / 0.22); else uv.setXY(i, 0.004, 0.996); }
   g.morphAttributes.position = [new THREE.BufferAttribute(open, 3)];
   g.computeVertexNormals();
-  const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: paintFace(stubble, hair), roughness: 0.62, bumpMap: T.skin, bumpScale: 0.0012 }));
+  const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: paintFace(stubble, hair, cash), roughness: 0.62, bumpMap: T.skin, bumpScale: 0.0012 }));
   mesh.morphTargetInfluences = [0];
   // the inside of the mouth, seen when the jaw drops
   const inner = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), new THREE.MeshStandardMaterial({ color: 0x2a0c0a, roughness: 0.9 }));
@@ -437,7 +461,7 @@ function makeHead(skin, stubble = false, hair = null) {
   gap.scale.set(0.02, 0.0001, 0.006); gap.position.set(0, -0.045, 0.082); mesh.add(gap);
   mesh.userData.mouth = { gap };
   // ears
-  const ear = new THREE.MeshStandardMaterial({ color: new THREE.Color(skin[0] * 1.02, skin[1] * 0.95, skin[2] * 0.95), roughness: 0.7 });
+  const ear = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(skin[0] * 0.95, skin[1] * 0.85, skin[2] * 0.85, THREE.SRGBColorSpace), roughness: 0.7 }); // skin tones are sRGB
   for (const s of [1, -1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), ear); e.scale.set(0.35, 1.25, 0.8); e.position.set(0.079 * s, 0.0, -0.005); mesh.add(e); }
   mesh.castShadow = true;
   return mesh;
@@ -447,8 +471,8 @@ function makeHead(skin, stubble = false, hair = null) {
 // lips and stubble as a texture that multiplies the skin colour. Coordinates
 // are head-space metres: x -0.08..0.08 left to right, y -0.11..0.11 bottom to top.
 const faceCache = {};
-function paintFace(stubble, hair) {
-  const key = (stubble ? 's' : '') + (hair ? 'h' : ''); if (faceCache[key]) return faceCache[key];
+function paintFace(stubble, hair, cash = false) {
+  const key = (stubble ? 's' : '') + (hair ? 'h' : '') + (cash ? 'c' : ''); if (faceCache[key]) return faceCache[key];
   const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
   const X = (x) => (0.5 + x / 0.16) * N, Y = (y) => (0.5 - y / 0.22) * N, S = (d) => d / 0.16 * N;
   g.fillStyle = '#fff'; g.fillRect(0, 0, N, N);
@@ -486,6 +510,22 @@ function paintFace(stubble, hair) {
       g.fillStyle = `rgba(45,35,30,${0.15 + Math.random() * 0.3})`; g.fillRect(X(x), Y(y), 1.4, 1.4);
     }
     for (let k = 0; k < 1500; k++) { const x = (Math.random() - 0.5) * 0.05, y = -0.031 - Math.random() * 0.009; g.fillStyle = 'rgba(45,35,30,0.3)'; g.fillRect(X(x), Y(y), 1.3, 1.3); }
+  }
+  if (cash) {
+    // James Earl Cash: a short dark-brown beard on the chin, stubble on the top lip, a scar on the left of the forehead
+    for (let k = 0; k < 14000; k++) {
+      const x = (Math.random() - 0.5) * 0.06, y = -0.05 - Math.random() * 0.05, edge = Math.abs(x) / 0.03 + Math.max(0, (-0.05 - y) / 0.05 - 0.7);
+      if (y > -0.058 && Math.abs(x) > 0.012 || Math.random() < edge * 0.7) continue; // chin, fading out at the sides
+      g.strokeStyle = `rgba(${38 + Math.random() * 20 | 0},${24 + Math.random() * 12 | 0},${16 + Math.random() * 8 | 0},${0.35 + Math.random() * 0.45})`; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(X(x), Y(y)); g.lineTo(X(x + (Math.random() - 0.5) * 0.003), Y(y - 0.0025 - Math.random() * 0.002)); g.stroke();
+    }
+    for (let k = 0; k < 2600; k++) { const x = (Math.random() - 0.5) * 0.048, y = -0.03 - Math.random() * 0.011; if (Math.abs(x) > 0.024 - (y + 0.03) * -0.4) continue; g.fillStyle = `rgba(40,28,20,${0.3 + Math.random() * 0.35})`; g.fillRect(X(x), Y(y), 1.4, 1.6); }
+    // the scar: a pale, slightly shiny seam with old stitch marks across it
+    g.save(); g.translate(X(0.034), Y(0.072)); g.rotate(-0.55);
+    g.strokeStyle = 'rgba(230,185,170,0.85)'; g.lineWidth = S(0.0028); g.lineCap = 'round'; g.beginPath(); g.moveTo(-S(0.018), 0); g.quadraticCurveTo(0, -S(0.0025), S(0.018), S(0.001)); g.stroke();
+    g.strokeStyle = 'rgba(150,80,70,0.45)'; g.lineWidth = S(0.001); g.beginPath(); g.moveTo(-S(0.018), S(0.0016)); g.quadraticCurveTo(0, -S(0.0008), S(0.018), S(0.0026)); g.stroke();
+    g.strokeStyle = 'rgba(170,110,100,0.5)'; g.lineWidth = S(0.0008); for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(S(k * 0.005), -S(0.003)); g.lineTo(S(k * 0.005 + 0.0005), S(0.003)); g.stroke(); }
+    g.restore();
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   return (faceCache[key] = t);
@@ -658,17 +698,17 @@ class Ragdoll {
 // bones that curl around whatever he's holding.
 export function makeHand(left = false) {
   const L = new Loft();
-  const skin = [0.55, 0.38, 0.28], knuckle = [0.6, 0.39, 0.31], nail = [0.72, 0.57, 0.5], scar = [0.66, 0.45, 0.38], sleeve = [0.14, 0.16, 0.2], cuff = [0.7, 0.64, 0.52], ink = skin; // Cash: dark Darkwoods inmate jacket, cream shirt cuff rolled at the wrist
+  const skin = [0.52, 0.36, 0.27], knuckle = [0.56, 0.35, 0.28], nail = [0.66, 0.52, 0.47], scar = [0.6, 0.42, 0.36], sleeve = [0.14, 0.16, 0.2], cuff = [0.7, 0.64, 0.52], ink = skin; // Cash: dark Darkwoods inmate jacket, cream shirt cuff rolled at the wrist
   const v = (x, y, z) => new V(x, y, z);
   // bones: 0 wrist, then per finger (index..pinky) 3 bones, thumb 3 bones
   const bones = [new THREE.Bone()]; bones[0].position.set(0, 0.075, 0.0);
   const fingerDefs = [ // base (relative to wrist root space), length of phalanges
-    { base: v(-0.005, -0.004, -0.031), l: [0.039, 0.025, 0.020], r: 0.0102 },
-    { base: v(-0.007, -0.009, -0.010), l: [0.043, 0.028, 0.021], r: 0.0106 },
-    { base: v(-0.006, -0.007, 0.011), l: [0.040, 0.026, 0.020], r: 0.0100 },
-    { base: v(-0.004, -0.001, 0.030), l: [0.032, 0.020, 0.018], r: 0.0088 },
+    { base: v(-0.005, -0.004, -0.030), l: [0.040, 0.025, 0.020], r: 0.0094 },
+    { base: v(-0.007, -0.010, -0.010), l: [0.044, 0.028, 0.021], r: 0.0097 },
+    { base: v(-0.006, -0.008, 0.010), l: [0.041, 0.026, 0.020], r: 0.0091 },
+    { base: v(-0.004, -0.002, 0.028), l: [0.032, 0.020, 0.018], r: 0.0080 },
   ];
-  const fingers = [];
+  const fingers = [], joints = [], tips = [];
   const Wn = (i) => [[i, 1]];
   // palm: from wrist (y≈0.075) to knuckles (y≈0); fingers start at the knuckle line pointing -Y then curl toward +X? no:
   // fingers extend down -Y from the knuckles in the open pose; curling rotates them about Z toward -X (palm side).
@@ -686,13 +726,15 @@ export function makeHand(left = false) {
       const r0 = f.r * (1 - k * 0.11), r1 = f.r * (1 - (k + 1) * 0.11);
       const prev = k === 0 ? [[chain[0], 0.65], [0, 0.35]] : blend(chain[k - 1], chain[k], 0.62);
       const col = k === 0 ? knuckle : skin;
-      rings.push(ring(v(f.base.x, y - 0.001, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 1.06, r0 * 1.1, prev, col));
-      rings.push(ring(v(f.base.x, y - f.l[k] * 0.35, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 0.93, r0 * 0.94, Wn(chain[k]), skin));
-      rings.push(ring(v(f.base.x, y - f.l[k] * 0.72, f.base.z), v(0, -1, 0), v(1, 0, 0), (r0 + r1) * 0.47, (r0 + r1) * 0.48, Wn(chain[k]), skin));
+      rings.push(ring(v(f.base.x, y - 0.001, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 1.08, r0 * 0.95, prev, col, { ryn: r0 * 1.05 }));
+      rings.push(ring(v(f.base.x, y - f.l[k] * 0.3, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 0.95, r0 * 0.8, Wn(chain[k]), skin, { ryn: r0 * 1.02 }));
+      rings.push(ring(v(f.base.x, y - f.l[k] * 0.62, f.base.z), v(0, -1, 0), v(1, 0, 0), (r0 + r1) * 0.46, (r0 + r1) * 0.39, Wn(chain[k]), skin, { ryn: (r0 + r1) * 0.5 }));
+      rings.push(ring(v(f.base.x, y - f.l[k] * 0.9, f.base.z), v(0, -1, 0), v(1, 0, 0), r1 * 0.98, r1 * 0.85, blend(chain[k], chain[Math.min(2, k + 1)], 0.5), skin, { ryn: r1 * 0.95 }));
       y -= f.l[k];
     }
     rings.push(ring(v(f.base.x, y + 0.004, f.base.z), v(0, -1, 0), v(1, 0, 0), f.r * 0.74, f.r * 0.72, Wn(chain[2]), skin));
-    L.tube(rings, 12);
+    L.tube(rings, 14);
+    joints.push(...f.l.map((_, k) => ({ x: f.base.x, z: f.base.z, y: f.base.y - f.l.slice(0, k).reduce((a, b) => a + b, 0) }))); tips.push({ x: f.base.x, z: f.base.z, y });
     // rounded fingertip pad and a fingernail on the back (+X) of the last joint
     L.blob(v(f.base.x - 0.0008, y + 0.004, f.base.z), f.r * 0.74, f.r * 0.85, f.r * 0.72, Wn(chain[2]), skin, 10, 6);
     L.blob(v(f.base.x + f.r * 0.6, y + 0.0095, f.base.z), f.r * 0.14, f.r * 0.7, f.r * 0.52, Wn(chain[2]), nail, 8, 5);
@@ -703,19 +745,20 @@ export function makeHand(left = false) {
   {
     const tb = v(-0.017, 0.048, -0.026), td = v(-0.55, -0.74, -0.38).normalize();
     const chain = []; let parent = bones[0], pos = tb.clone().sub(bones[0].position);
-    const ls = [0.04, 0.032, 0.026];
+    const ls = [0.035, 0.03, 0.025];
     for (let k = 0; k < 3; k++) { const b = new THREE.Bone(); b.position.copy(pos); parent.add(b); bones.push(b); chain.push(bones.length - 1); parent = b; pos = td.clone().multiplyScalar(ls[k]); }
     fingers.push(chain);
     const d = td; let c = tb.clone(); const rings = [];
     for (let k = 0; k < 3; k++) {
-      const r = 0.0128 - k * 0.0013;
+      const r = 0.0112 - k * 0.0011;
       rings.push(ring(c.clone(), d, v(1, 0, 0), r * 1.05, r * 1.1, k === 0 ? [[chain[0], 0.6], [0, 0.4]] : blend(chain[k - 1], chain[k], 0.6), skin));
       rings.push(ring(c.clone().addScaledVector(d, ls[k] * 0.5), d, v(1, 0, 0), r * 0.93, r * 0.96, Wn(chain[k]), skin));
       c = c.clone().addScaledVector(d, ls[k]);
     }
-    rings.push(ring(c.clone().addScaledVector(d, -0.004), d, v(1, 0, 0), 0.0085, 0.009, Wn(chain[2]), skin));
-    L.tube(rings, 12);
-    L.blob(c.clone().addScaledVector(d, -0.004), 0.0088, 0.0095, 0.0088, Wn(chain[2]), skin, 10, 6);
+    rings.push(ring(c.clone().addScaledVector(d, -0.004), d, v(1, 0, 0), 0.0078, 0.0082, Wn(chain[2]), skin));
+    rings.unshift(ring(tb.clone().addScaledVector(d, -0.012), d, v(1, 0, 0), 0.008, 0.009, [[0, 1]], skin)); // starts buried in the palm
+    L.tube(rings, 14, { capStart: true });
+    L.blob(c.clone().addScaledVector(d, -0.004), 0.0079, 0.0085, 0.0079, Wn(chain[2]), skin, 10, 6);
     L.blob(c.clone().addScaledVector(d, -0.008).add(v(0.0055, 0.002, -0.003)), 0.0018, 0.0068, 0.0052, Wn(chain[2]), nail, 8, 5);
     // the meaty pad at the base of the thumb, on the palm side
     L.blob(v(-0.014, 0.05, -0.019), 0.0085, 0.022, 0.012, [[0, 0.7], [chain[0], 0.3]], skin, 12, 8);
@@ -750,7 +793,8 @@ export function makeHand(left = false) {
   L.tube(arm, 18, { capEnd: true });
   // put bones into world-of-hand space: bone 0 sits at the wrist; children positions are relative
   const geo = L.geometry(left);
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.58, bumpMap: T.skin, bumpScale: 0.0012, sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0.9, 0.45, 0.35) });
+  shadeHand(geo, joints, tips, left);
+  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.6, bumpMap: T.skin, bumpScale: 0.0016, sheen: 0.25, sheenRoughness: 0.5, sheenColor: new THREE.Color(0.8, 0.35, 0.28), side: THREE.DoubleSide });
   const mesh = new THREE.SkinnedMesh(geo, mat);
   // children were positioned relative to parents using world coords; fix bone 0 children (they used pos relative to wrist root already)
   if (left) { // mirror bone positions in X
@@ -767,17 +811,46 @@ export function makeHand(left = false) {
       fingers.forEach((ch, fi) => {
         const a = fi === 4 ? thumb : amt;
         // a relaxed hand: each finger a little more curled than the last, fanned slightly
-        const bias = fi === 4 ? 0 : (fi - 1) * 0.1 * (1 - amt), spread = fi === 4 ? 0 : (fi - 1.5) * 0.06 * (1 - amt);
+        const bias = fi === 4 ? 0 : fi * 0.09 * (1 - amt * 0.6), spread = fi === 4 ? 0 : (fi - 1.5) * 0.07 * (1 - amt);
         ch.forEach((bi, k) => {
-          const b = bones[bi], c = Math.min(1, a + bias + 0.08);
-          if (fi === 4) b.quaternion.setFromEuler(new THREE.Euler(-a * (k === 0 ? 0.5 : 0.35), 0, -sgn * a * (k === 0 ? 0.35 : 0.5)));
-          else b.quaternion.setFromEuler(new THREE.Euler(k === 0 ? spread : 0, 0, -sgn * c * (k === 0 ? 1.45 : k === 1 ? 1.6 : 1.1)));
+          const b = bones[bi], c = Math.min(1, 0.12 + a * 0.92 + bias);
+          if (fi === 4) b.quaternion.setFromEuler(new THREE.Euler(-(0.15 + a * 0.5) * (k === 0 ? 0.9 : 0.6), 0, -sgn * (0.1 + a) * (k === 0 ? 0.3 : 0.45)));
+          else b.quaternion.setFromEuler(new THREE.Euler(k === 0 ? spread : 0, 0, -sgn * c * (k === 0 ? 1.25 : k === 1 ? 1.55 : 1.0)));
         });
       });
     },
   };
   hand.curl(0.35);
   return hand;
+}
+
+// What makes a hand read as a hand: shadow down between the fingers and in the
+// palm, creases at the joints on the palm side, redder knuckles, a paler palm,
+// pink fingertips. Bind-space, before the left-hand mirror is applied to bones.
+function shadeHand(geo, joints, tips, left) {
+  const p = geo.attributes.position.array, n = geo.attributes.normal.array, col = geo.attributes.color.array, cnt = p.length / 3;
+  const sx = left ? -1 : 1, cell = 0.012, grid = new Map(), key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  for (let i = 0; i < cnt; i++) { const k = key(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(i); }
+  const lin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  for (let i = 0; i < cnt; i++) {
+    const x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2], nx = n[i * 3], ny = n[i * 3 + 1], nz = n[i * 3 + 2], hx = x * sx; // hx: + back of the hand, - palm
+    if (y > 0.2) continue; // the sleeve
+    let occ = 0; const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+    for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) {
+      const L = grid.get(`${cx + a},${cy + b},${cz + c}`); if (!L) continue;
+      for (const j of L) { const dx = p[j * 3] - x, dy = p[j * 3 + 1] - y, dz = p[j * 3 + 2] - z, d = Math.hypot(dx, dy, dz); if (d < 0.003 || d > 0.024) continue; const f = (dx * nx + dy * ny + dz * nz) / d; if (f > 0.3) occ += (f - 0.3) * (1 - d / 0.024); }
+    }
+    let r = 1, g = 1, bl = 1;
+    const ao = 1 - Math.min(0.55, occ * 0.05); r *= ao; g *= ao; bl *= ao;
+    if (hx < -0.006) { r *= 1.08; g *= 1.1; bl *= 1.08; } // palm: paler
+    else if (hx > 0.006) { r *= 0.94; g *= 0.92; bl *= 0.92; } // back of the hand: a shade more tan
+    for (const J of joints) { const d = Math.hypot(z - J.z, y - J.y); if (d < 0.004 + 0.003) { if (hx < -0.002) { const k = 1 - d / 0.007; r *= 1 - k * 0.35; g *= 1 - k * 0.4; bl *= 1 - k * 0.4; } else { const k = 1 - d / 0.007; r *= 1 + k * 0.08; g *= 1 - k * 0.06; bl *= 1 - k * 0.04; } } }
+    for (const T0 of tips) { const d = Math.hypot(z - T0.z, y - T0.y); if (d < 0.016) { const k = 1 - d / 0.016; r *= 1 + k * 0.1; g *= 1 - k * 0.02; bl *= 1 + k * 0.01; } }
+    // fine mottling so the skin isn't plastic
+    const m = 1 + (Math.sin(x * 900 + y * 700) * Math.sin(z * 800 - y * 500)) * 0.04; r *= m; g *= m; bl *= m;
+    col[i * 3] *= r; col[i * 3 + 1] *= g; col[i * 3 + 2] *= bl;
+  }
+  geo.attributes.color.needsUpdate = true;
 }
 
 export { B as BONE, SKIN_TONES };

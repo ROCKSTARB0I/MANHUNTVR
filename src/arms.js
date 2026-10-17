@@ -2,7 +2,7 @@
 // camera on desktop); these join each hand back to a shoulder hung under the
 // head, with a two-bone IK elbow that drops down and out like a real arm.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=14';
+import { T } from './paint.js?v=15';
 
 const V = THREE.Vector3, UP = new V(0, 1, 0);
 const UPPER = 0.30, FORE = 0.19;          // shoulder->elbow, sleeve start->elbow (the hand mesh carries the first 12 cm of forearm)
@@ -10,7 +10,7 @@ const WRIST = new V(0, 0.2, 0);           // in hand-model space: where the slee
 
 // a tapered sleeve segment, base at y=0, top at y=1 (scaled to length each frame)
 function segment(r0, r1, mat) {
-  const g = new THREE.CylinderGeometry(r1, r0, 1, 16, 6, true); g.translate(0, 0.5, 0);
+  const g = new THREE.CylinderGeometry(r1, r0, 1, 16, 6, false); g.translate(0, 0.5, 0); // closed: never see into the sleeve
   // creases: squash the cloth a little in rings and darken them (fabric bunching)
   const p = g.attributes.position, col = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
@@ -25,7 +25,7 @@ function segment(r0, r1, mat) {
 export class Arms {
   constructor(scene) {
     const map = T.fleece.map.clone(); map.needsUpdate = true; map.repeat.set(2, 3);
-    this.mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.14, 0.16, 0.2, THREE.SRGBColorSpace), map, vertexColors: true, roughness: 0.95 });
+    this.mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.14, 0.16, 0.2, THREE.SRGBColorSpace), map, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide }); // shaded from inside too, so a sleeve near the eye isn't see-through
     this.arms = [1, -1].map((side) => {
       const g = new THREE.Group();
       const upper = segment(0.05, 0.056, this.mat), fore = segment(0.046, 0.05, this.mat);
