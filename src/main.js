@@ -1,17 +1,18 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=11';
-import { District, SCENES } from './district.js?v=11';
-import { spawnHunters } from './hunters.js?v=11';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=11';
-import { Blood } from './blood.js?v=11';
-import { Director } from './director.js?v=11';
-import { Sound } from './sound.js?v=11';
-import { makeHand, Person, BONE } from './body.js?v=11';
-import { VHS } from './vhs.js?v=11';
-import { Grime } from './grime.js?v=11';
-import { Cutscene } from './cutscene.js?v=11';
+import { paintAll, T } from './paint.js?v=12';
+import { District, SCENES } from './district.js?v=12';
+import { spawnHunters } from './hunters.js?v=12';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=12';
+import { Blood } from './blood.js?v=12';
+import { Director } from './director.js?v=12';
+import { Sound } from './sound.js?v=12';
+import { makeHand, Person, BONE } from './body.js?v=12';
+import { VHS } from './vhs.js?v=12';
+import { Grime } from './grime.js?v=12';
+import { Cutscene } from './cutscene.js?v=12';
+import { Arms } from './arms.js?v=12';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -115,6 +116,7 @@ const vHands = [0, 1].map((i) => {
 function useDesktopHands() { G.hands = dHands; dHands.forEach((h) => camera.add(h.obj)); vHands.forEach((h) => { h.obj.visible = false; }); }
 function useVRHands() { G.hands = vHands; dHands.forEach((h) => { if (h.item) G.kit.drop(h, new V()); camera.remove(h.obj); }); vHands.forEach((h) => { h.obj.visible = true; }); }
 useDesktopHands();
+const arms = new Arms(scene); G.arms = arms;
 
 // ------------------------------------------------------------- HUD
 const hud = (() => {
@@ -633,6 +635,7 @@ renderer.setAnimationLoop(() => {
   if ((G.state === 'cut' || G.state === 'menu' || G.state === 'loading') && sound.score) sound.score.set(G.state === 'menu' ? 'silent' : G.state === 'loading' ? 'hiding' : 'theme');
   if (G.state === 'loading') { loadingTick(dt); renderer.render(renderer.xr.isPresenting ? loadRoom : scene, camera); return; }
   if (G.state === 'cut') { cut.update(dt); if (renderer.xr.isPresenting) vrSkip(); cut.render(); return; }
+  arms.update(camera, G.hands); // join the hands to Cash's shoulders
   vhs.render(scene, camera);
 });
 

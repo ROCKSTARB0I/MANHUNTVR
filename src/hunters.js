@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=11';
-import { T } from './paint.js?v=11';
+import { Person, BONE, SKIN_TONES } from './body.js?v=12';
+import { T } from './paint.js?v=12';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -47,7 +47,7 @@ export class Hunter {
     this.game = game; this.idx = idx; this.name = NAMES[idx % NAMES.length];
     const set = this.set = GANG_SETS[game.world.def.gang] || GANG_SETS.hoods;
     const G = this.gang = set.members[idx % set.members.length];
-    this.body = new Person({ mask: G.mask, weapon: G.weapon, top: G.top, legs: G.legs, stubble: G.stubble, hood: !!G.mask, skin: SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: (set.bulk || 1) * (0.95 + (idx % 3) * 0.08) });
+    this.body = new Person({ mask: G.mask, weapon: G.weapon, top: G.top, legs: G.legs, stubble: G.stubble, hood: G.mask === 'hockey' || G.mask === 'skull' ? 'up' : false, dirt: 1, stains: idx % 2 ? 0.8 : 0.3, seed: idx + 1, skin: SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: (set.bulk || 1) * (0.95 + (idx % 3) * 0.08) });
     game.scene.add(this.body.root);
     this.route = route; this.wp = 0;
     this.boss = !!set.boss; if (this.boss) { this.hp = 300; this.saw = game.sound.sawLoop?.(); }

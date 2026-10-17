@@ -1,35 +1,40 @@
 // blood.js — droplets thrown by wounds (instanced, ballistic), splats where
 // they land, and pools that spread slowly under the dead.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=11';
+import { T } from './paint.js?v=12';
 
 const V = THREE.Vector3, MAX = 400;
 export class Blood {
   constructor(scene, world) {
     this.scene = scene; this.world = world;
-    this.drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 5, 4), new THREE.MeshStandardMaterial({ color: 0x5a0306, roughness: 0.2 }), MAX);
+    this.drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.008, 6, 4), new THREE.MeshStandardMaterial({ color: 0x3c0204, roughness: 0.12 }), MAX);
     this.drops.frustumCulled = false; this.drops.count = 0; scene.add(this.drops);
     this.p = []; this.v = []; this.n = 0;
     this.splats = []; this.pools = []; this.spurts = [];
-    this.m = new THREE.Matrix4();
+    this.m = new THREE.Matrix4(); this.sz = []; this.q = new THREE.Quaternion(); this.s = new V(); this.yAxis = new V(0, 1, 0);
   }
   spray(at, dir, count = 30, power = 1) {
     for (let k = 0; k < count; k++) {
-      if (this.p.length >= MAX) { this.p.shift(); this.v.shift(); }
+      if (this.p.length >= MAX) { this.p.shift(); this.v.shift(); this.sz.shift(); }
       const d = dir.clone().normalize().multiplyScalar(1.2 + Math.random() * 2.5 * power);
       d.x += (Math.random() - 0.5) * 1.6; d.y += Math.random() * 1.5; d.z += (Math.random() - 0.5) * 1.6;
-      this.p.push(at.clone()); this.v.push(d);
+      this.p.push(at.clone()); this.v.push(d); this.sz.push(0.5 + Math.random() * Math.random() * 2.2);
     }
   }
-  splat(p, s = 0.25) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshStandardMaterial({ map: T.blood[Math.floor(Math.random() * 4)], transparent: true, depthWrite: false, roughness: 0.2, polygonOffset: true, polygonOffsetFactor: -2 - this.splats.length % 4 }));
-    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.position.set(p.x, 0.008 + Math.random() * 0.003, p.z);
+  // vel: landing velocity; a fast sideways hit leaves a tailed, stretched splat pointing where it was going
+  splat(p, s = 0.25, vel = null) {
+    const hs = vel ? Math.hypot(vel.x, vel.z) : 0, dirn = hs > 1.2;
+    const map = dirn ? T.blood[4 + (Math.random() * 2 | 0)] : T.blood[Math.floor(Math.random() * 4)];
+    if (!this.mats) this.mats = T.blood.map((t) => new THREE.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: 0.14, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const m = new THREE.Mesh(this.quad || (this.quad = new THREE.PlaneGeometry(1, 1)), this.mats[T.blood.indexOf(map)]);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = dirn ? Math.atan2(-vel.z, vel.x) : Math.random() * 6.28;
+    m.scale.set(s * (dirn ? 1.4 : 1), s * (dirn ? 0.8 : 1), 1); m.position.set(p.x, 0.008 + this.splats.length % 7 * 0.0006, p.z);
     this.scene.add(m); this.splats.push(m);
-    if (this.splats.length > 140) { const o = this.splats.shift(); this.scene.remove(o); o.geometry.dispose(); }
+    if (this.splats.length > 160) { const o = this.splats.shift(); this.scene.remove(o); }
   }
   pool(p, size) {
-    const m = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshStandardMaterial({ map: T.blood[1], color: 0x8a1010, transparent: true, depthWrite: false, roughness: 0.08, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -1 }));
-    m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.006, p.z); m.scale.setScalar(0.01);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: T.blood[7], transparent: true, depthWrite: false, roughness: 0.04, metalness: 0.15, polygonOffset: true, polygonOffsetFactor: -1 }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.position.set(p.x, 0.006, p.z); m.scale.setScalar(0.01);
     this.scene.add(m); this.pools.push({ m, size, t: 0 });
   }
   // a wound that keeps pumping in pulses, following the body part it's on
@@ -49,17 +54,18 @@ export class Blood {
     for (let i = 0; i < this.p.length; i++) {
       const p = this.p[i], v = this.v[i];
       v.y -= g; p.addScaledVector(v, dt);
-      if (p.y <= 0.01) { if (Math.random() < 0.35) this.splat(p, 0.1 + Math.random() * 0.25); continue; }
-      this.p[w] = p; this.v[w] = v; w++;
+      if (p.y <= 0.01) { if (Math.random() < 0.4) this.splat(p, (0.05 + Math.random() * 0.12) * (0.6 + this.sz[i] * 0.5), v); continue; }
+      this.p[w] = p; this.v[w] = v; this.sz[w] = this.sz[i]; w++;
     }
-    this.p.length = w; this.v.length = w;
-    for (let i = 0; i < w; i++) { this.m.makeTranslation(this.p[i].x, this.p[i].y, this.p[i].z); this.drops.setMatrixAt(i, this.m); }
+    this.p.length = w; this.v.length = w; this.sz.length = w;
+    // drops stretch along their flight like real thrown blood
+    for (let i = 0; i < w; i++) { const v = this.v[i], sp = v.length(), k = this.sz[i]; this.q.setFromUnitVectors(this.yAxis, this.s.copy(v).divideScalar(sp || 1)); this.s.set(k, k * (1 + Math.min(4, sp * 0.6)), k); this.m.compose(this.p[i], this.q, this.s); this.drops.setMatrixAt(i, this.m); }
     this.drops.count = w; this.drops.instanceMatrix.needsUpdate = true;
-    for (const P of this.pools) if (P.t < 1) { P.t = Math.min(1, P.t + dt / 25); const s = P.size * Math.sqrt(P.t) * 2; P.m.scale.set(s, s, 1); }
+    for (const P of this.pools) if (P.t < 1) { P.t = Math.min(1, P.t + dt / 25); const s = P.size * Math.sqrt(P.t) * 2.6; P.m.scale.set(s, s, 1); }
   }
   clear() {
     this.spurts = [];
     for (const s of this.splats) this.scene.remove(s); for (const P of this.pools) this.scene.remove(P.m);
-    this.splats = []; this.pools = []; this.p = []; this.v = [];
+    this.splats = []; this.pools = []; this.p = []; this.v = []; this.sz = [];
   }
 }

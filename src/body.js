@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=11';
-import { T } from './paint.js?v=11';
+import { Loft, ring, blend } from './loft.js?v=12';
+import { T } from './paint.js?v=12';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -55,8 +55,8 @@ function buildGeometry(o) {
   const chest = [
     [1.00, 0.158 * k, 0.104 * k, 0.108, 2.4], [1.06, 0.152 * k, 0.1 * k, 0.1, 2.4], [1.12, 0.156 * k, 0.106 * k, 0.098, 2.5],
     [1.19, 0.164 * k, 0.116 * k, 0.1, 2.6], [1.26, 0.175 * k, 0.128 * k, 0.106, 2.6], [1.32, 0.183 * k, 0.132 * k, 0.108, 2.6],
-    [1.37, 0.19 * k, 0.122 * k, 0.106, 2.5], [1.415, 0.182 * k, 0.1, 0.098, 2.4], [1.45, 0.15 * k, 0.078, 0.086, 2.3],
-    [1.485, 0.1, 0.064, 0.074, 2.2], [1.51, 0.074, 0.064, 0.07, 2.1],
+    [1.37, 0.196 * k, 0.122 * k, 0.11, 2.5], [1.415, 0.19 * k, 0.102, 0.104, 2.4], [1.45, 0.165 * k, 0.084, 0.096, 2.3],
+    [1.485, 0.128 * k, 0.07, 0.086, 2.2], [1.515, 0.092, 0.066, 0.078, 2.1],
   ];
   const tw = (y) => y < 1.0 ? blend(B.hips, B.spine, (y - 0.86) / 0.24, 0.85, 0.3)
     : y < 1.30 ? blend(B.spine, B.chest, (y - 1.0) / 0.3, 0.6, 0.35)
@@ -66,12 +66,16 @@ function buildGeometry(o) {
   Ll.blob(v(0, 1.02, 0.0), 0.152 * k, 0.012, 0.098 * k, tw(1.02), [legs[0] * 0.7, legs[1] * 0.7, legs[2] * 0.7], 18, 4); // belt line
   Lt.tube(chest.map((r) => R(r, top, 0.006)), 20, { capStart: true });
   // the hood bunched behind the neck, and a collar ring
-  if (o.hood !== false) Lt.blob(v(0, 1.5, -0.075), 0.115, 0.06, 0.065, blend(B.chest, B.neck, 0.4), [top[0] * 0.85, top[1] * 0.85, top[2] * 0.85], 14, 8);
+  if (o.hood === 'up') Lt.tube([ring(v(0, 1.46, -0.01), up, fwd, 0.15 * k, 0.075, blend(B.chest, B.neck, 0.2), top, { ryn: 0.11 }), ring(v(0, 1.54, -0.02), up, fwd, 0.125, 0.08, blend(B.neck, B.head, 0.3), top, { ryn: 0.115 }), ring(v(0, 1.62, -0.02), up, fwd, 0.118, 0.085, blend(B.neck, B.head, 0.7), top, { ryn: 0.12 })], 18);
+  else if (o.hood !== false) Lt.blob(v(0, 1.5, -0.075), 0.115, 0.06, 0.065, blend(B.chest, B.neck, 0.4), [top[0] * 0.85, top[1] * 0.85, top[2] * 0.85], 14, 8);
   Lt.tube([ring(v(0, 1.495, 0.005), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), top, { ryn: 0.078 }), ring(v(0, 1.525, 0.008), up, fwd, 0.072, 0.066, blend(B.chest, B.neck, 0.6), top, { ryn: 0.072 })], 16);
+  // trapezius slopes from the neck to the shoulders
+  for (const sd of [1, -1]) Lt.blob(v(0.085 * sd * k, 1.475, -0.02), 0.075 * k, 0.04, 0.06, blend(B.chest, B.neck, 0.25), top, 12, 8);
   // shoulders: deltoid caps under the cloth
   for (const sd of [1, -1]) Lt.blob(v(0.175 * sd * k, 1.4, -0.002), 0.07 * k, 0.07, 0.075 * k, blend(B.chest, B[sd > 0 ? 'armL' : 'armR'], 0.55), top, 14, 10);
-  // neck
-  Ls.tube([ring(v(0, 1.47, 0), up, fwd, 0.066, 0.064, blend(B.chest, B.neck, 0.5), skin, { ryn: 0.07 }), ring(v(0, 1.56, 0.008), up, fwd, 0.06, 0.06, W('neck'), skin, { ryn: 0.062 }), ring(v(0, 1.63, 0.014), up, fwd, 0.058, 0.064, W('head'), skin)], 14);
+  // neck (in the shadow of a raised hood it's barely lit)
+  const nk = o.hood === 'up' ? skin.map((c) => c * 0.3) : skin;
+  Ls.tube([ring(v(0, 1.47, 0), up, fwd, 0.072, 0.068, blend(B.chest, B.neck, 0.5), nk, { ryn: 0.07 }), ring(v(0, 1.56, 0.008), up, fwd, 0.06, 0.06, W('neck'), nk, { ryn: 0.062 }), ring(v(0, 1.63, 0.014), up, fwd, 0.058, 0.064, W('head'), nk)], 14);
   if (o.mask) {
     Ls.blob(v(0, 1.71, 0.012), 0.094, 0.118, 0.108, W('head'), skin, 16, 12);
     Ls.blob(v(0, 1.66, 0.075), 0.05, 0.045, 0.04, W('head'), skin, 10, 8);
@@ -85,8 +89,8 @@ function buildGeometry(o) {
     const upper = [[0.02, 0.064, 0.06, 0.062], [0.25, 0.056, 0.058, 0.056], [0.5, 0.052, 0.056, 0.054], [0.75, 0.047, 0.048, 0.048], [0.98, 0.043, 0.042, 0.044]];
     const fore = [[0.08, 0.046, 0.046, 0.044], [0.3, 0.045, 0.044, 0.04], [0.6, 0.038, 0.036, 0.034], [0.88, 0.032, 0.03, 0.029]];
     const rings = [];
-    upper.forEach(([t, rx, f, b]) => rings.push(ring(at(a, e, t), dA, fwd, rx * k, f * k, t < 0.15 ? blend(B.chest, B['arm' + S], 0.7) : blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), top, { ryn: b * k })));
-    fore.forEach(([t, rx, f, b]) => rings.push(ring(at(e, w, t), dF, fwd, rx + 0.004, f + 0.004, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top, { ryn: b + 0.004 })));
+    upper.forEach(([t, rx, f, b]) => rings.push(ring(at(a, e, t), dA, fwd, rx * k + 0.01, f * k + 0.012, t < 0.15 ? blend(B.chest, B['arm' + S], 0.7) : blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), top, { ryn: b * k + 0.012 })));
+    fore.forEach(([t, rx, f, b]) => rings.push(ring(at(e, w, t), dF, fwd, rx + 0.012 - t * 0.004, f + 0.012 - t * 0.004, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top, { ryn: b + 0.012 - t * 0.004 })));
     rings.push(ring(at(e, w, 0.97), dF, fwd, 0.036, 0.034, W('fore' + S), [top[0] * 0.8, top[1] * 0.8, top[2] * 0.8])); // cuff
     Lt.tube(rings, 14, { capEnd: true });
     // hand: wrist, palm (wide front-to-back), fingers loosely curled, thumb forward
@@ -122,7 +126,41 @@ function buildGeometry(o) {
     ], 14, { capStart: true, capEnd: true });
     Ll.tube([ring(an.clone().add(v(0, -0.077, -0.075)), fwd, up, 0.05, 0.008, W('foot' + S), sole, { n: 3 }), ring(an.clone().add(v(0, -0.077, 0.185)), fwd, up, 0.04, 0.008, W('foot' + S), sole, { n: 3 })], 12, { capStart: true, capEnd: true });
   }
-  return { top: Lt.geometry(), legs: Ll.geometry(), skin: Ls.geometry() };
+  const geo = { top: Lt.geometry(), legs: Ll.geometry(), skin: Ls.geometry() };
+  shadeBody(geo, o);
+  return geo;
+}
+
+// Bake what a game engine's AO and a bit of wear would give: creases, armpits,
+// the crotch and the collar go dark; clothes pick up grime, mud at the hems,
+// old stains. Vertex colours are linear here.
+function shadeBody(geo, o) {
+  const list = [geo.top, geo.legs, geo.skin], P = [], N = [], cell = 0.06, grid = new Map();
+  for (const g of list) { const p = g.attributes.position.array, n = g.attributes.normal.array; for (let i = 0; i < p.length; i += 3) { const id = P.length / 3; P.push(p[i], p[i + 1], p[i + 2]); N.push(n[i], n[i + 1], n[i + 2]); const key = `${Math.floor(p[i] / cell)},${Math.floor(p[i + 1] / cell)},${Math.floor(p[i + 2] / cell)}`; let a = grid.get(key); if (!a) grid.set(key, a = []); a.push(id); } }
+  const r = 0.085, hash = (x, y, z) => { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h); };
+  const noise = (x, y, z) => { const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz; let s = 0; for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) for (let c = 0; c < 2; c++) s += hash(ix + a, iy + b, iz + c) * (a ? fx : 1 - fx) * (b ? fy : 1 - fy) * (c ? fz : 1 - fz); return s; };
+  const dirt = o.dirt ?? 0.6, seed = (o.seed || 0) * 13.7;
+  let off = 0;
+  list.forEach((g, gi) => {
+    const col = g.attributes.color.array, cnt = col.length / 3;
+    for (let i = 0; i < cnt; i++) {
+      const id = off + i, x = P[id * 3], y = P[id * 3 + 1], z = P[id * 3 + 2], nx = N[id * 3], ny = N[id * 3 + 1], nz = N[id * 3 + 2];
+      let occ = 0; const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+      for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) {
+        const L = grid.get(`${cx + a},${cy + b},${cz + c}`); if (!L) continue;
+        for (const j of L) { const dx = P[j * 3] - x, dy = P[j * 3 + 1] - y, dz = P[j * 3 + 2] - z, d = Math.hypot(dx, dy, dz); if (d < 0.012 || d > r) continue; const f = (dx * nx + dy * ny + dz * nz) / d; if (f > 0.25) occ += (f - 0.25) * (1 - d / r); }
+      }
+      let k = 1 - Math.min(0.62, occ * 0.03);
+      if (gi < 2) { // cloth: grime blotches, darker low down, mud on the jeans and boots
+        const n1 = noise(x * 9 + seed, y * 9, z * 9), n2 = noise(x * 31, y * 31 + seed, z * 31);
+        k *= 1 - dirt * (0.28 * Math.max(0, n1 - 0.35) + 0.1 * n2);
+        const mud = gi === 1 ? Math.max(0, 0.45 - y) * 2 * dirt * noise(x * 14, y * 6 + seed, z * 14) : 0;
+        col[i * 3] = col[i * 3] * k * (1 - mud * 0.2) + mud * 0.03; col[i * 3 + 1] = col[i * 3 + 1] * k * (1 - mud * 0.3) + mud * 0.02; col[i * 3 + 2] = col[i * 3 + 2] * k * (1 - mud * 0.45) + mud * 0.008;
+        if (o.stains && noise(x * 7 + 40, y * 7, z * 7 + seed) > 0.72) { const t = Math.min(1, (noise(x * 7 + 40, y * 7, z * 7 + seed) - 0.72) * 6) * o.stains; col[i * 3] += (0.07 - col[i * 3]) * t; col[i * 3 + 1] += (0.012 - col[i * 3 + 1]) * t; col[i * 3 + 2] += (0.01 - col[i * 3 + 2]) * t; } // old dried blood
+      } else { col[i * 3] *= k; col[i * 3 + 1] *= k; col[i * 3 + 2] *= k; }
+    }
+    off += cnt;
+  });
 }
 
 export function makeSkeleton() {
@@ -196,11 +234,22 @@ export class Person {
       }
       this.blinkT = 2 + Math.random() * 3;
     }
+    // hood up: a fleece shell round the skull, open at the face
+    if (o.hood === 'up') {
+      const sr = o.top.map((c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)) * 0.8);
+      const hm = new THREE.MeshStandardMaterial({ color: new THREE.Color(sr[0], sr[1], sr[2]), map: T.fleece.map, bumpMap: T.fleece.bump, bumpScale: 0.006, roughness: 0.95, side: THREE.DoubleSide });
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.128, 24, 16, Math.PI / 2 + 0.78, Math.PI * 2 - 1.56, 0, Math.PI * 0.7), hm);
+      hood.position.set(0, 0.112, -0.012); hood.scale.set(1.02, 1.12, 1.1); hood.castShadow = true;
+      // the rim folds back a little round the face
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.012, 6, 20, Math.PI * 1.2), hm); rim.rotation.set(0.12, 0, -0.1 * Math.PI); rim.position.set(0, 0.105, 0.06); rim.scale.set(0.92, 1.25, 1);
+      this.bones[B.head].add(hood, rim); this.hoodMesh = hood;
+    }
     // weapon in the right hand
     this.weapon = o.weapon ? makeHunterWeapon(o.weapon) : null;
     if (this.weapon) { this.weapon.position.set(0, -0.1, 0.02); this.bones[B.handR].add(this.weapon); }
     // a flashlight for some
-    this.wounds = [];
+    this.wounds = []; this.soaks = []; this.soakT = 0;
+    for (const m of this.meshes) m.userData.base = m.geometry.attributes.color.array.slice();
     this.anim = { phase: 0, speed: 0, look: 0, lookV: 0, swing: -1, struggle: 0, alert: 0, stagger: 0, crouch: 0, hold: 0 };
     this.rag = null;
   }
@@ -221,6 +270,7 @@ export class Person {
 
   // ---------------------------------------------------------- animation
   animate(dt, t) {
+    if (this.soaks.length) this.soak(dt);
     if (this.rag) { this.rag.step(dt); return; }
     const A = this.anim, b = this.bones;
     for (let i = 0; i < b.length; i++) { b[i].quaternion.identity(); b[i].position.copy(this.rest[i]); }
@@ -270,12 +320,41 @@ export class Person {
 
   // ------------------------------------------------------------ wounds
   wound(boneName, worldPoint, size = 1) {
-    const bone = this.bones[B[boneName]];
+    const bi = B[boneName], bone = this.bones[bi];
     const local = bone.worldToLocal(worldPoint.clone());
-    const d = new THREE.Mesh(new THREE.CircleGeometry(0.035 * size, 10), new THREE.MeshStandardMaterial({ map: T.blood[Math.floor(Math.random() * 3)], transparent: true, roughness: 0.25, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
-    d.position.copy(local);
-    d.lookAt(local.clone().multiplyScalar(2)); // face outward from the bone axis-ish
-    bone.add(d); this.wounds.push(d);
+    // the gash itself: a torn, wet opening facing out from the bone
+    const out = local.clone().setY(0); if (out.lengthSq() < 1e-6) out.set(0, 0, 1); out.normalize();
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(...Array(2).fill(Math.min(boneName === 'neck' || boneName === 'head' ? 0.1 : 0.2, 0.13 * size))), new THREE.MeshStandardMaterial({ map: T.wound[Math.floor(Math.random() * T.wound.length)], transparent: true, alphaTest: 0.05, roughness: 0.18, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    const surf = { head: 0.115, neck: 0.075, chest: 0.15, spine: 0.14, hips: 0.15 }[boneName] || 0.06, rad = Math.hypot(local.x, local.z);
+    d.position.copy(local).addScaledVector(out, Math.max(0, surf - rad) + 0.008); // sit on the skin/cloth, not inside it
+    bone.add(d); bone.updateMatrixWorld(true);
+    d.up.set(0, 1, 0); d.lookAt(bone.localToWorld(d.position.clone().add(out))); d.rotateZ((Math.random() - 0.5) * 0.35); // lookAt wants a world point
+    this.wounds.push(d);
+    // blood soaks out through the clothes from here and runs down
+    this.soaks.push({ p: BP[bi].clone().add(local), r: 0, max: 0.13 + size * 0.09, t: 0 }); this.soakT = 0;
+  }
+  // grow the soaked patches in the vertex colours (bind space = geometry space)
+  soak(dt) {
+    this.soakT -= dt; let live = false;
+    for (const s of this.soaks) { s.t += dt; s.r = s.max * Math.min(1, Math.sqrt(s.t / 7)); if (s.t < 7) live = true; }
+    if (this.soakT > 0) return; this.soakT = 0.12;
+    for (const m of this.meshes) {
+      const pos = m.geometry.attributes.position.array, ca = m.geometry.attributes.color, col = ca.array, base = m.userData.base;
+      for (let i = 0; i < pos.length; i += 3) {
+        let k = 0;
+        for (const s of this.soaks) {
+          const dx = pos[i] - s.p.x, dy = pos[i + 1] - s.p.y, dz = pos[i + 2] - s.p.z;
+          if (dy > s.r || dy < -s.r * 3.2) continue;
+          const d = Math.sqrt(dx * dx + dz * dz * 0.8 + (dy > 0 ? dy * dy : dy * dy * 0.1)) / (s.r + 1e-4); // runs down far more than up
+          const rag = 0.85 + 0.1 * Math.sin(pos[i] * 23 + pos[i + 1] * 17) + 0.05 * Math.sin(pos[i + 2] * 31 - pos[i + 1] * 29);
+          if (d < rag) k = Math.max(k, Math.min(1, (rag - d) * 2.5));
+        }
+        const wet = Math.min(0.97, k * 1.1);
+        col[i] = base[i] + (0.075 - base[i]) * wet; col[i + 1] = base[i + 1] + (0.0015 - base[i + 1]) * wet; col[i + 2] = base[i + 2] + (0.002 - base[i + 2]) * wet;
+      }
+      ca.needsUpdate = true;
+    }
+    if (!live) this.soakT = 1e9; // done spreading: stop touching the buffers
   }
 
   // ------------------------------------------------------------ ragdoll
@@ -667,7 +746,7 @@ export function makeHand(left = false) {
   arm.push(ring(v(-0.004, 0.23, 0), v(0, 1, 0), v(1, 0, 0), 0.049, 0.047, Wn(0), cuff));
   arm.push(ring(v(-0.004, 0.245, 0), v(0, 1, 0), v(1, 0, 0), 0.046, 0.045, Wn(0), sleeve));
   arm.push(ring(v(-0.004, 0.26, 0), v(0, 1, 0), v(1, 0, 0), 0.042, 0.048, Wn(0), sleeve));
-  arm.push(ring(v(-0.004, 0.42, 0), v(0, 1, 0), v(1, 0, 0), 0.045, 0.05, Wn(0), sleeve));
+  arm.push(ring(v(-0.004, 0.29, 0), v(0, 1, 0), v(1, 0, 0), 0.044, 0.049, Wn(0), sleeve)); // the IK arm (arms.js) carries on from here
   L.tube(arm, 18, { capEnd: true });
   // put bones into world-of-hand space: bone 0 sits at the wrist; children positions are relative
   const geo = L.geometry(left);

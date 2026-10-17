@@ -4,7 +4,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=11';
+import { T, seeded } from './paint.js?v=12';
 
 const V = THREE.Vector3;
 const CELL = 0.5;
@@ -39,6 +39,7 @@ export class District {
   }
   texMat(key, t, rx, ry, extra = {}) {
     const map = t.map.clone(); map.needsUpdate = true; map.repeat.set(rx, ry);
+    if (t.normal) return this.mat(key, Object.assign({ map, normalMap: rep(t.normal, rx, ry), roughnessMap: rep(t.rough, rx, ry), roughness: 1, metalness: 0 }, extra));
     let bump; if (t.bump) { bump = t.bump.clone(); bump.needsUpdate = true; bump.repeat.set(rx, ry); }
     return this.mat(key, Object.assign({ map, bumpMap: bump, bumpScale: 0.03, roughness: 0.92, metalness: 0 }, extra));
   }
