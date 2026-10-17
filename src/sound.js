@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=2';
-import { Score } from './score.js?v=2';
+import { LINE, VOICES } from './lines.js?v=3';
+import { Score } from './score.js?v=3';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -30,6 +30,7 @@ export class Sound {
     this.ambience();
     this.heart = { next: 0, rate: 0 };
     this.score = new Score(this); this.score.start();
+    this.preloadVO(Object.keys(LINE));
   }
 
   now() { return this.ctx.currentTime; }
@@ -203,15 +204,21 @@ export class Sound {
       say(0);
     } else setTimeout(done, 1200 + L.text.length * 60);
   }
-  async loadVO(id) {
-    if (id in this.vo) return this.vo[id];
-    this.vo[id] = null;
-    try {
-      const r = await fetch(`vo/${id}.mp3`);
-      if (r.ok && this.ctx) this.vo[id] = await this.ctx.decodeAudioData(await r.arrayBuffer());
-    } catch (e) {}
+  // Nathan's own recording (vo/<id>.mp3) wins; otherwise the shipped voice (vo/<id>.m4a).
+  // Speech synthesis is only the last resort: the Quest browser has no voices.
+  loadVO(id) {
+    if (!(id in this.vo)) this.vo[id] = (async () => {
+      for (const ext of ['mp3', 'm4a']) {
+        try {
+          const r = await fetch(`vo/${id}.${ext}`);
+          if (r.ok && this.ctx) return await this.ctx.decodeAudioData(await r.arrayBuffer());
+        } catch (e) {}
+      }
+      return null;
+    })();
     return this.vo[id];
   }
+  preloadVO(ids) { let i = 0; const next = () => { if (i < ids.length) { this.loadVO(ids[i++]).finally(next); } }; for (let k = 0; k < 4; k++) next(); }
   idle() { return !this.busy && !this.queue.length; }
   hush() { this.queue.length = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 }

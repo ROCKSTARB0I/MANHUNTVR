@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=2';
-import { District } from './district.js?v=2';
-import { spawnHunters } from './hunters.js?v=2';
-import { Kit, LEVELS } from './kit.js?v=2';
-import { Blood } from './blood.js?v=2';
-import { Director } from './director.js?v=2';
-import { Sound } from './sound.js?v=2';
-import { makeHand, Person, BONE } from './body.js?v=2';
-import { VHS } from './vhs.js?v=2';
-import { Cutscene } from './cutscene.js?v=2';
+import { paintAll, T } from './paint.js?v=3';
+import { District } from './district.js?v=3';
+import { spawnHunters } from './hunters.js?v=3';
+import { Kit, LEVELS } from './kit.js?v=3';
+import { Blood } from './blood.js?v=3';
+import { Director } from './director.js?v=3';
+import { Sound } from './sound.js?v=3';
+import { makeHand, Person, BONE } from './body.js?v=3';
+import { VHS } from './vhs.js?v=3';
+import { Cutscene } from './cutscene.js?v=3';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);

@@ -73,8 +73,8 @@ export class VHS {
           float band = smoothstep(0.05, 0.0, abs(fract(vUv.y * 0.6 - t * 0.07) - 0.5) - 0.44);
           vec2 q = vUv - 0.5; float vig = smoothstep(0.12, 0.42, dot(q, q));
           // darken: scanlines + vignette; lighten: grain specks + tracking band
-          float dark = (scan * 0.025 + vig * (0.35 + hot * 0.3) + step(g, 0.34) * 0.14) * amt;
-          float light = (step(0.66, g) * 0.13 + band * 0.015 + hot * step(0.97, g) * 0.1) * amt;
+          float dark = (scan * 0.012 + vig * (0.3 + hot * 0.3) + step(g, 0.25) * 0.035) * amt;
+          float light = (step(0.75, g) * 0.035 + band * 0.01 + hot * step(0.97, g) * 0.08) * amt;
           vec4 o = vec4(mix(vec3(0.0), vec3(0.9, 0.86, 0.78), light / max(0.001, light + dark)), clamp(dark + light, 0.0, 0.85));
           gl_FragColor = o;
         }`,
