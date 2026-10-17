@@ -1,29 +1,28 @@
-// district.js — Scene 1: "THE PENS", a sealed-off block of Carcer City's east side.
+// district.js — the scenes of Carcer City. Each scene is a builder method that
+// lays out boxes, lamps, cameras, items, patrol routes, a start door and an exit gate.
 // Builds the geometry, the collision boxes, the lamps, a baked light grid the
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=4';
+import { T, seeded } from './paint.js?v=5';
 
 const V = THREE.Vector3;
-export const BOUNDS = { x0: -36, x1: 36, z0: -26, z1: 26 };
 const CELL = 0.5;
 
 export class District {
-  constructor(scene) {
-    this.scene = scene;
+  constructor(scene, idx = 0) {
+    this.scene = scene; this.idx = idx; this.def = SCENES[idx]; this.B = { ...this.def.B };
     this.boxes = [];          // {x0,x1,z0,z1,y0,y1, solid, see}  see=false -> fences you can see through
     this.lamps = [];          // {p, r, i, col, flicker, light, bulb}
     this.cams = [];           // CCTV spots {p, yaw, sweep}
     this.items = [];          // item spawns {kind, p}
     this.routes = [];         // patrol loops [[x,z]..]
     this.hunterSpawns = [];
-    this.start = new V(-31, 0, 19.5); this.startYaw = Math.PI * 0.75;
-    this.exit = new V(34.2, 0, 0);
+    this.start = new V(); this.startYaw = 0; this.startOpen = false; this.startSwing = 0;
     this.mats = {};
     this.R = seeded(1979);
     this.root = new THREE.Group(); scene.add(this.root);
-    this.build();
+    this[this.def.build]();
     this.bakeLight();
     this.bakeWalk();
   }
@@ -193,8 +192,9 @@ export class District {
     this.boxes.push({ x0: Math.min(x0, x1) - th, x1: Math.max(x0, x1) + th, z0: Math.min(z0, z1) - th, z1: Math.max(z0, z1) + th, y0: 0, y1: h, see: false });
   }
 
-  build() {
-    const B = BOUNDS;
+  buildPens() {
+    const B = this.B;
+    this.start.set(-31, 0, 19.5); this.startYaw = Math.PI * 0.75;
     // ground: asphalt street, concrete lots, gravel yard
     const asphalt = this.texMat('asphalt', T.asphalt, 18, 4, { roughness: 0.85 });
     const street = new THREE.Mesh(new THREE.PlaneGeometry(72, 9), asphalt); street.rotation.x = -Math.PI / 2; street.position.set(0, 0, 0); street.receiveShadow = true; this.root.add(street);
@@ -284,19 +284,10 @@ export class District {
     this.lamp(30, -5, { dir: 0, i: 1.0 });
     this.lamps[this.lamps.length - 4].bulb.material.color.set(0x111111);
 
-    // the exit: a chained gate in the east wall
-    this.gate = new THREE.Group(); this.gate.position.set(B.x1 + 0.5, 0, 0);
-    const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
-    for (let z = -2.8; z <= 2.8; z += 0.25) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 4, 5), bars); b.position.set(0, 2, z); this.gate.add(b); }
-    for (const y of [0.3, 2, 3.8]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 6), bars); r.position.y = y; this.gate.add(r); }
-    this.chain = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 6, 14), this.mat('chainlock', { color: 0x9a9a9a, metalness: 0.9, roughness: 0.3 }));
-    this.chain.position.set(-0.1, 1.2, 0); this.chain.rotation.y = Math.PI / 2; this.gate.add(this.chain);
-    this.root.add(this.gate);
-    this.gateBox = { x0: B.x1 - 0.1, x1: B.x1 + 1, z0: -3, z1: 3, y0: 0, y1: 4, see: false };
-    this.boxes.push(this.gateBox);
-    this.exitSign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), new THREE.MeshBasicMaterial({ map: T.exit, color: 0x333333 }));
-    this.exitSign.position.set(B.x1 - 0.05, 4.4, 0); this.exitSign.rotation.y = -Math.PI / 2; this.root.add(this.exitSign);
+    // the exit: a chained gate in the east wall; the pen door Cash starts behind
+    this.makeGate(B.x1 + 0.5, 0, true, 6, -1);
     this.lamp(33, 3.2, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.makeStartDoor(-26, 17.5, true, 4);
 
     // graffiti
     this.graffiti(-28, 2.4, -7.95, 0, 4, 1); this.graffiti(-12, 2.2, -7.95, 0, 3.5, 4); this.graffiti(18, 2.1, -7.95, 0, 3.4, 8);
@@ -335,6 +326,214 @@ export class District {
     this.routes.push([[20, 9], [26, 12], [31, 15], [24, 20], [19, 15]]);
   }
 
+  // ============================================================ scene 2: the mall
+  buildMall() {
+    const B = this.B;
+    this.start.set(-26.5, 0, 0); this.startYaw = -Math.PI / 2;
+    const tile = this.texMat('mallfloor', T.slab, 20, 14, { color: 0xb8b2a4, roughness: 0.4 });
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), tile); fl.rotation.x = -Math.PI / 2; this.root.add(fl);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), this.mat('mallceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.y = 7; this.root.add(ceil);
+    const wall = this.mat('mallwall', { map: rep(T.concrete.map, 1, 1), color: 0x8c867c, roughness: 0.9 });
+    const glass = this.mat('shopglass', { color: 0x14181a, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0.55 });
+    // perimeter
+    this.box(B.x0 - 1, B.x0, B.z0, B.z1, 0, 7, wall); this.box(B.x0, B.x1, B.z1, B.z1 + 1, 0, 7, wall); this.box(B.x0, B.x1, B.z0 - 1, B.z0, 0, 7, wall);
+    this.box(B.x1, B.x1 + 1, B.z0, -3, 0, 7, wall); this.box(B.x1, B.x1 + 1, 3, B.z1, 0, 7, wall);
+    // shops along both sides of the concourse (z -6..6): walls with doorways and smashed shop windows
+    const shops = [-22, -12, -2, 8, 18];
+    for (const side of [-1, 1]) {
+      const zf = 6 * side, zb = B.z1 * side;
+      for (let k = 0; k < shops.length; k++) {
+        const x0 = shops[k], x1 = x0 + 10;
+        this.box(x0, x0 + 0.3, Math.min(zf, zb), Math.max(zf, zb), 0, 4.2, wall); // party wall
+        // shop front: low wall + glass, doorway in the middle
+        const zz = side > 0 ? [zf, zf + 0.25] : [zf - 0.25, zf];
+        this.box(x0 + 0.3, x0 + 4, zz[0], zz[1], 0, 1.0, wall); this.box(x0 + 6, x1, zz[0], zz[1], 0, 1.0, wall);
+        if (k % 2 === 0) { this.box(x0 + 0.3, x0 + 4, zz[0], zz[1], 1.0, 3.6, glass, { solid: true, see: false }); }
+        this.box(x0 + 0.3, x1, zz[0], zz[1], 3.6, 4.2, wall, { solid: false });
+        // inside: shelving and a counter
+        const shelf = this.mat('shelf', { color: 0x40362c, roughness: 0.8, metalness: 0.4 });
+        const zin = zf + 3 * side;
+        this.box(x0 + 1.5, x0 + 4.5, Math.min(zin, zin + 0.8 * side), Math.max(zin, zin + 0.8 * side), 0, 1.8, shelf);
+        this.box(x0 + 6, x0 + 9, Math.min(zin + 4 * side, zin + 4.8 * side), Math.max(zin + 4 * side, zin + 4.8 * side), 0, 1.1, this.mat('counter', { color: 0x5a4a3a, roughness: 0.6 }));
+        if ((k + (side > 0 ? 1 : 0)) % 2) this.prop('trash', x0 + 7, zin + 1.5 * side); else this.prop('crate', x0 + 3, zin + 3 * side, 0.4);
+      }
+      this.box(28, 28.3, Math.min(zf, zb), Math.max(zf, zb), 0, 4.2, wall);
+    }
+    // the concourse: a dead fountain, benches, a fallen sign, mannequins
+    this.box(-3, 3, -2, 2, 0, 0.6, this.mat('fountain', { color: 0x6a665e, roughness: 0.5 }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 3.4), this.mat('scum', { color: 0x1a2014, roughness: 0.1, metalness: 0.3 })); water.rotation.x = -Math.PI / 2; water.position.set(0, 0.55, 0); this.root.add(water);
+    for (const x of [-15, -8, 10, 20]) this.box(x, x + 2, -0.25 + (x > 0 ? 3 : -3), 0.25 + (x > 0 ? 3 : -3), 0, 0.45, this.mat('bench', { color: 0x3a2a1c, roughness: 0.8 }));
+    this.prop('car', 14, -3.5, 0.2); // someone drove in through the doors
+    this.prop('barrel', -18, 4); this.prop('trash', 6, 4.5); this.prop('trash', -10, -4.8);
+    this.fire(22, 0.5);
+    // ceiling strip lights: most dead, two flickering, a burst skylight letting the moon in
+    this.lamp(-14, 0, { h: 6.6, r: 9, i: 0.9, col: 0xf0ecdc, arm: 'none', flicker: 1 });
+    this.lamp(5, 0, { h: 6.6, r: 9, i: 0.8, col: 0xf0ecdc, arm: 'none', flicker: 3 });
+    this.lamp(-17, 13, { h: 3.6, r: 6, i: 0.6, col: 0xffc880, arm: 'none' });
+    this.lamp(13, -13, { h: 3.6, r: 6, i: 0.6, col: 0xffc880, arm: 'none', flicker: 2 });
+    this.lamp(-7, -13, { h: 3.6, r: 5, i: 0.0, real: false, arm: 'none' });
+    this.lamp(27, 0, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.graffiti(-5, 2.6, 5.7, Math.PI, 4, 0); this.graffiti(12, 2.4, -5.7, 0, 3.6, 3); this.graffiti(-24, 2.4, -5.7, 0, 3, 9);
+    // the security office Cash starts in (west end), door into the concourse
+    this.box(-30, -24, -4, -3.7, 0, 3, wall); this.box(-30, -24, 3.7, 4, 0, 3, wall); this.box(-24, -23.7, -4, -2, 0, 3, wall); this.box(-24, -23.7, 2, 4, 0, 3, wall);
+    this.makeStartDoor(-23.85, -2, true, 4);
+    this.makeGate(B.x1 + 0.5, 0, true, 6, -1);
+    this.cams.push({ p: new V(-23.5, 5.5, 5.6), yaw: Math.PI * 0.75, sweep: 0.6 });
+    this.cams.push({ p: new V(0, 6.5, -5.6), yaw: 0.2, sweep: 0.9 });
+    this.cams.push({ p: new V(20, 5.5, 5.6), yaw: Math.PI * 1.2, sweep: 0.6 });
+    for (const [k, x, z] of [['crowbar', -28, 2.6], ['bag', -16, 9], ['shard', -8, -10], ['bottle', 2, 9.5], ['brick', 9, -9], ['bottle', 15, 3.5], ['shard', 21, -12], ['bag', 24, 10], ['pills', -26, -15], ['pills', 4, 16], ['pills', 26, -16]])
+      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+    this.routes.push([[-20, -2], [-6, -3], [-6, 3], [-20, 3]], [[-17, 10], [-13, 16], [-9, 10]], [[3, -10], [7, -15], [13, -11], [9, -9]],
+      [[6, 2], [24, 2], [24, -2], [6, -2]], [[19, 10], [25, 15], [21, 17], [19, 12]], [[-7, -11], [-3, -16], [-9, -16]]);
+  }
+
+  // ========================================================== scene 3: the asylum
+  buildAsylum() {
+    const B = this.B;
+    this.start.set(-25.5, 0, 9); this.startYaw = Math.PI;
+    const lino = this.texMat('lino', T.slab, 18, 12, { color: 0x9a9a88, roughness: 0.55 });
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), lino); fl.rotation.x = -Math.PI / 2; this.root.add(fl);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), this.mat('aceil', { color: 0x2a2a26, roughness: 1, side: THREE.DoubleSide }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.y = 3.6; this.root.add(ceil);
+    // institutional green-and-cream walls
+    const tc = document.createElement('canvas'); tc.width = tc.height = 256; const t = tc.getContext('2d');
+    t.fillStyle = '#c8c2ae'; t.fillRect(0, 0, 256, 256); t.fillStyle = '#5e6a52'; t.fillRect(0, 150, 256, 106); t.fillStyle = '#3e4636'; t.fillRect(0, 146, 256, 6);
+    for (let k = 0; k < 60; k++) { t.fillStyle = `rgba(60,50,30,${Math.random() * 0.25})`; t.fillRect(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 30, 8 + Math.random() * 60); }
+    const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace; tt.wrapS = tt.wrapT = THREE.RepeatWrapping;
+    const wall = this.mat('asylumwall', { map: tt, roughness: 0.9 });
+    const H = 3.6;
+    this.box(B.x0 - 1, B.x0, B.z0, B.z1, 0, H, wall); this.box(B.x0, B.x1, B.z1, B.z1 + 1, 0, H, wall); this.box(B.x0, B.x1, B.z0 - 1, B.z0, 0, H, wall);
+    this.box(B.x1, B.x1 + 1, B.z0, -2, 0, H, wall); this.box(B.x1, B.x1 + 1, 2, B.z1, 0, H, wall);
+    // two cell blocks either side of the main corridor (z -2..2), a back corridor behind each
+    for (const side of [-1, 1]) {
+      const zc = 2 * side, zback = 8 * side;
+      for (let x = -24; x < 24; x += 4) {
+        this.box(x, x + 0.2, Math.min(zc, zback), Math.max(zc, zback), 0, H, wall);          // cell partition
+        // cell front with a doorway (most doors gone)
+        const zz = side > 0 ? [zc, zc + 0.2] : [zc - 0.2, zc];
+        this.box(x + 0.2, x + 1.4, zz[0], zz[1], 0, H, wall); this.box(x + 2.6, x + 4, zz[0], zz[1], 0, H, wall);
+        this.box(x + 1.4, x + 2.6, zz[0], zz[1], 2.3, H, wall, { solid: false });
+        const zb = side > 0 ? [zback, zback + 0.2] : [zback - 0.2, zback];
+        if ((x / 4) % 3 === 0) { this.box(x + 0.2, x + 1.4, zb[0], zb[1], 0, H, wall); this.box(x + 2.6, x + 4, zb[0], zb[1], 0, H, wall); } else this.box(x + 0.2, x + 4, zb[0], zb[1], 0, H, wall);
+        if ((x / 4 + side) % 2 === 0) this.prop('mattress', x + 2, zc + 3 * side, 0.2); else this.box(x + 0.6, x + 1.6, Math.min(zc + 4 * side, zc + 5 * side), Math.max(zc + 4 * side, zc + 5 * side), 0, 0.5, this.mat('bed', { color: 0x6a6a64, metalness: 0.5, roughness: 0.6 }));
+      }
+      this.box(24, 24.2, Math.min(zc, zback), Math.max(zc, zback), 0, H, wall);
+    }
+    // the shower block (north-east) and padded room (south-west) behind the back corridors
+    this.box(8, 8.2, 11, B.z1, 0, H, wall); this.box(-10, -9.8, B.z0, -11, 0, H, wall);
+    const tiles = this.mat('tiles', { color: 0xa8b0a8, roughness: 0.3 });
+    for (let x = 11; x < 26; x += 3) this.box(x, x + 0.15, 14, B.z1, 0, 2, tiles);
+    this.prop('trash', 4, -12); this.prop('barrel', -16, 12.5); this.prop('crate', 16, -12, 0.3); this.prop('mattress', -14, -14, 1.1);
+    // a wheelchair and a gurney in the corridor
+    this.box(-8, -6.4, -0.6, 0.2, 0, 0.9, this.mat('gurney', { color: 0x8a8a84, metalness: 0.6, roughness: 0.4 }));
+    this.prop('barrel', 12, 1.2);
+    // bare bulbs: few and far between
+    this.lamp(-18, 0, { h: 3.2, r: 6, i: 0.7, col: 0xffe6b0, arm: 'none', flicker: 1 });
+    this.lamp(-2, 0, { h: 3.2, r: 6, i: 0.0, real: false, arm: 'none' });
+    this.lamp(10, 0, { h: 3.2, r: 6, i: 0.7, col: 0xffe6b0, arm: 'none', flicker: 3 });
+    this.lamp(-14, 10, { h: 3.2, r: 5, i: 0.55, col: 0xffe6b0, arm: 'none' });
+    this.lamp(16, 16, { h: 3.2, r: 6, i: 0.6, col: 0xd8ffe0, arm: 'none', flicker: 2 });
+    this.lamp(4, -10, { h: 3.2, r: 5, i: 0.5, col: 0xffe6b0, arm: 'none', flicker: 1 });
+    this.lamp(26, 0, { h: 3.2, r: 5, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    // Cash wakes in an isolation cell in the west back corridor
+    this.box(-28, -23, 11.8, 12, 0, H, wall); this.box(-23, -22.8, 8, 9.8, 0, H, wall); this.box(-23, -22.8, 11.8, 12, 0, H, wall);
+    this.makeStartDoor(-22.9, 9.8, true, 2);
+    this.makeGate(B.x1 + 0.5, 0, true, 4, -1);
+    this.cams.push({ p: new V(-20, 3.3, -1.8), yaw: Math.PI * 0.6, sweep: 0.7 });
+    this.cams.push({ p: new V(6, 3.3, 1.8), yaw: -0.3, sweep: 0.9 });
+    this.cams.push({ p: new V(20, 3.3, -9.6), yaw: Math.PI * 0.8, sweep: 0.5 });
+    for (const [k, x, z] of [['shard', -25, 11], ['bag', -18, 10], ['crowbar', -6, 12], ['bottle', 2, -10], ['brick', 12, 10], ['shard', 18, -12], ['bag', 6, 14], ['bottle', -12, -12], ['pills', -26, 15], ['pills', 0, -15], ['pills', 20, 16]])
+      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+    this.routes.push([[-20, 0], [-4, 0]], [[-24, 10], [-6, 10]], [[0, 10], [18, 10], [18, 15], [12, 16]], [[-20, -10], [-2, -10], [-2, -14], [-8, -15]],
+      [[4, 0], [22, 0]], [[6, -10], [22, -10], [22, -15]]);
+  }
+
+  // ======================================================= scene 4: the junkyard
+  buildJunkyard() {
+    const B = this.B;
+    this.start.set(-32, 0, 20); this.startYaw = Math.PI * 0.75;
+    const dirt = this.texMat('gravel', T.gravel, 22, 16, { roughness: 1, color: 0x8a7a66 });
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), dirt); fl.rotation.x = -Math.PI / 2; this.root.add(fl);
+    const corr = this.mat('corr', { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 });
+    // perimeter: corrugated fence, chain link at the gate
+    this.box(B.x0 - 0.3, B.x0, B.z0, B.z1, 0, 4, corr); this.box(B.x1, B.x1 + 0.3, B.z0, B.z1, 0, 4, corr); this.box(B.x0, B.x1, B.z1, B.z1 + 0.3, 0, 4, corr);
+    this.box(B.x0, -3, B.z0 - 0.3, B.z0, 0, 4, corr); this.box(3, B.x1, B.z0 - 0.3, B.z0, 0, 4, corr);
+    // shipping containers in rows: lanes to creep down
+    const cols = [0x5a2a1c, 0x2a3a4a, 0x3a4a2a, 0x6a5a2a, 0x4a1a1a];
+    const cont = (x, z, rot, k) => { const m = this.mat('cont' + k, { map: rep(T.corrugated.map, 1, 1), color: cols[k % cols.length], roughness: 0.6, metalness: 0.4 }); if (rot) this.box(x - 1.25, x + 1.25, z - 3, z + 3, 0, 2.6, m); else this.box(x - 3, x + 3, z - 1.25, z + 1.25, 0, 2.6, m); };
+    let k = 0;
+    for (const x of [-24, -10, 6, 20]) for (const z of [-16, -6, 8]) { if (!(x === -24 && z === 8)) cont(x, z, (x + z) % 4 === 0, k++); }
+    cont(30, 18, true, 7); cont(-30, -18, false, 8);
+    // stacks of crushed cars
+    for (const [x, z] of [[-16, 14], [0, 16], [14, 14], [28, -10], [-30, 4], [-2, -22]]) {
+      for (let y = 0; y < 3; y++) { const c = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 3.8), this.mat('charred', { map: rep(T.charred.map, 1, 1), roughness: 0.95, metalness: 0.3 })); c.position.set(x + (Math.random() - 0.5) * 0.3, 0.35 + y * 0.72, z); c.rotation.y = (Math.random() - 0.5) * 0.3; this.root.add(c); }
+      this.solidOBB(x, z, 1.0, 2.0, 0, 2.2);
+    }
+    // the crane, dog kennels, a burning tyre pile
+    this.box(10, 11, -1, 0, 0, 12, this.mat('crane', { color: 0x9a7a1a, metalness: 0.5, roughness: 0.6 }));
+    const jib = new THREE.Mesh(new THREE.BoxGeometry(14, 0.6, 0.6), this.mat('crane')); jib.position.set(15, 12, -0.5); this.root.add(jib);
+    for (let x = -34; x < -24; x += 2.2) this.box(x, x + 2, -25.5, -23.5, 0, 1.6, this.mat('kennel', { color: 0x4a3a2a, roughness: 0.9 }));
+    this.fire(-6, 0); this.fire(24, 2);
+    // two floodlights on poles, the rest is dark
+    this.lamp(-4, 12, { h: 8, r: 16, i: 1.2, col: 0xf0f0e8, dir: Math.PI });
+    this.lamp(26, -20, { h: 8, r: 14, i: 1.1, col: 0xf0f0e8, flicker: 1 });
+    this.lamp(-20, -10, { h: 6, r: 9, i: 0.0, real: false });
+    this.lamp(0, -25, { h: 4.2, r: 6, i: 0.5, col: 0xff3a2a, arm: 'none' });
+    this.prop('van', -18, 0, 0.4); this.prop('car', 30, 8, 1.2); this.prop('barrel', 6, 2); this.prop('barrel', 7, 2.6); this.prop('trash', -12, -10);
+    // Cash starts locked in a container in the south-west corner
+    const m = this.mat('cont9', { map: rep(T.corrugated.map, 1, 1), color: 0x5a3a2a, roughness: 0.6, metalness: 0.4 });
+    this.box(-35, -29, 21.5, 21.7, 0, 2.6, m); this.box(-35, -29, 18.3, 18.5, 0, 2.6, m); this.box(-35, -34.8, 18.5, 21.5, 0, 2.6, m);
+    this.box(-35, -29, 18.3, 21.7, 2.6, 2.75, m, { solid: false });
+    this.makeStartDoor(-29, 18.5, true, 3);
+    this.makeGate(0, B.z0 - 0.5, false, 6, -1);
+    this.cams.push({ p: new V(-23, 3.4, -4.8), yaw: Math.PI * 0.2, sweep: 0.8 });
+    this.cams.push({ p: new V(10.5, 6, -1.2), yaw: Math.PI, sweep: 1.0 });
+    this.cams.push({ p: new V(19, 3.4, 9.3), yaw: Math.PI * 0.5, sweep: 0.7 });
+    for (const [k, x, z] of [['crowbar', -31, 19.4], ['brick', -28, 12], ['bottle', -14, 2], ['bag', -4, -10], ['shard', 4, 10], ['brick', 14, -12], ['bottle', 24, 12], ['bag', 30, -20], ['shard', -26, -12], ['pills', -34, -6], ['pills', 0, 24], ['pills', 34, 22], ['pills', 16, -24]])
+      this.items.push({ kind: k, p: new V(x, k === 'shard' ? 0.03 : 0.05, z) });
+    this.routes.push([[-30, -1], [-12, -1], [-12, 2]], [[-17, -11], [-3, -11]], [[13, -11], [27, -11], [27, -2]], [[-6, 4], [2, 4], [2, 12], [-6, 12]],
+      [[13, 4], [27, 4], [27, 13]], [[-20, 20], [-6, 21], [8, 21], [22, 22]], [[-8, -21], [8, -21]]);
+  }
+
+  // ===================================================== scene 5: Piggsy's attic
+  buildAttic() {
+    const B = this.B;
+    this.start.set(-15, 0, 0); this.startYaw = -Math.PI / 2;
+    const boards = this.texMat('boards', { map: T.wood.map }, 12, 8, { roughness: 0.85, color: 0x9a7a5a });
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, B.z1 - B.z0), boards); fl.rotation.x = -Math.PI / 2; this.root.add(fl);
+    const wood = this.mat('atticwall', { map: rep(T.wood.map, 1, 1), color: 0x5a4636, roughness: 0.9 });
+    this.box(B.x0 - 0.5, B.x0, B.z0, B.z1, 0, 4.5, wood); this.box(B.x1, B.x1 + 0.5, B.z0, B.z1, 0, 4.5, wood);
+    this.box(B.x0, B.x1, B.z0 - 0.5, B.z0, 0, 2.2, wood); this.box(B.x0, B.x1, B.z1, B.z1 + 0.5, 0, 2.2, wood);
+    // the roof slopes down to the eaves
+    for (const side of [-1, 1]) { const r = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0, 13.5), this.mat('roofslope', { color: 0x2a2018, roughness: 1, side: THREE.DoubleSide })); r.position.set(0, 3.4, side * 6); r.rotation.x = Math.PI / 2 + side * 0.2; this.root.add(r); }
+    for (let x = -16; x <= 16; x += 4) this.box(x - 0.15, x + 0.15, -10, 10, 3.9, 4.2, wood, { solid: false });
+    // junk: trunks, a rocking horse, sheeted furniture, a cage
+    const sheet = this.mat('sheet', { color: 0xb8b2a0, roughness: 1 });
+    for (const [x, z, w, d, h] of [[-8, -7, 2, 1.2, 1.1], [-2, 7, 1.6, 1.6, 1.4], [6, -6, 2.4, 1, 0.9], [12, 6, 1.4, 1.4, 1.8], [-11, 6, 1, 2.4, 1.0]]) this.box(x, x + w, z, z + d, 0, h, sheet);
+    this.box(14, 17, -9, -6, 0, 2.2, this.mat('cage', { color: 0x3a3a3a, metalness: 0.8, roughness: 0.4 }), { see: false });
+    this.prop('crate', 3, -9, 0.3); this.prop('crate', -5, 9, 0.8); this.prop('barrel', 9, 9); this.prop('mattress', 15, 8, 0.4);
+    // rotten boards: lure Piggsy across one while he's charging and he goes through the floor
+    this.weak = [];
+    for (const [x, z] of [[-4, -2], [4, 3], [10, -3]]) {
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), this.mat('rotten', { map: T.charred.map, color: 0x6a4a30, roughness: 1 }));
+      pl.rotation.x = -Math.PI / 2; pl.position.set(x, 0.012, z); this.root.add(pl);
+      this.weak.push({ x, z, r: 1.2, mesh: pl, broken: false });
+    }
+    this.lamp(-12, 0, { h: 3.4, r: 6, i: 0.6, col: 0xffd8a0, arm: 'none', flicker: 1 });
+    this.lamp(2, 0, { h: 3.6, r: 7, i: 0.55, col: 0xffd8a0, arm: 'none', flicker: 3 });
+    this.lamp(13, 0, { h: 3.4, r: 6, i: 0.5, col: 0xffd8a0, arm: 'none', flicker: 2 });
+    // the hatch Cash climbs through, and the door out once Piggsy's dead
+    this.box(-18, -16.2, -2, -1.8, 0, 2.2, wood); this.box(-18, -16.2, 1.8, 2, 0, 2.2, wood);
+    this.makeStartDoor(-16.2, -1.8, true, 3.6);
+    this.makeGate(B.x1 + 0.3, 0, true, 3, -1);
+    this.cams.push({ p: new V(-17.5, 3.4, 9.5), yaw: Math.PI * 0.75, sweep: 0.6 });
+    this.cams.push({ p: new V(17.5, 3.4, -9.5), yaw: -Math.PI * 0.25, sweep: 0.6 });
+    for (const [k, x, z] of [['brick', -14, 5], ['bottle', -10, -6], ['bottle', 0, 8], ['brick', 8, -8], ['crowbar', -13, -8], ['pills', -16, 8], ['pills', 16, -2], ['pills', 0, -9]])
+      this.items.push({ kind: k, p: new V(x, 0.05, z) });
+    this.routes.push([[-6, 0], [6, 0], [12, 4], [12, -4], [0, -6], [-8, 4]]);
+  }
+
   // -------------------------------------------------------------- queries
   // does the segment a->b (3D) clear every sight-blocking box?
   clear(a, b, forSight = true) {
@@ -365,14 +564,16 @@ export class District {
         }
       }
     }
-    p.x = Math.max(BOUNDS.x0 + r, Math.min(BOUNDS.x1 + (this.gateOpen ? 6 : -r), p.x));
-    p.z = Math.max(BOUNDS.z0 + r, Math.min(BOUNDS.z1 - r, p.z));
+    const E = this.exitZone;
+    if (this.gateOpen && E && p.x > E.x0 - 1 && p.x < E.x1 + 1 && p.z > E.z0 - 1 && p.z < E.z1 + 1) return p;
+    p.x = Math.max(this.B.x0 + r, Math.min(this.B.x1 - r, p.x));
+    p.z = Math.max(this.B.z0 + r, Math.min(this.B.z1 - r, p.z));
     return p;
   }
 
   // ------------------------------------------------------------ light grid
   bakeLight() {
-    const B = BOUNDS, nx = Math.ceil((B.x1 - B.x0) / CELL), nz = Math.ceil((B.z1 - B.z0) / CELL);
+    const B = this.B, nx = Math.ceil((B.x1 - B.x0) / CELL), nz = Math.ceil((B.z1 - B.z0) / CELL);
     this.lnx = nx; this.lnz = nz;
     this.lgrid = this.lamps.map(() => new Float32Array(nx * nz));
     const a = new V(), b = new V();
@@ -390,7 +591,7 @@ export class District {
   }
   // 0 = pitch black, ~1 = standing under a lamp
   lightAt(p) {
-    const B = BOUNDS, i = Math.floor((p.x - B.x0) / CELL), j = Math.floor((p.z - B.z0) / CELL);
+    const B = this.B, i = Math.floor((p.x - B.x0) / CELL), j = Math.floor((p.z - B.z0) / CELL);
     if (i < 0 || j < 0 || i >= this.lnx || j >= this.lnz) return 0.05;
     let s = 0.04; const k = j * this.lnx + i;
     this.lamps.forEach((L, li) => { s += this.lgrid[li][k] * L.base * L.on; });
@@ -399,7 +600,7 @@ export class District {
 
   // ------------------------------------------------------------- walk grid
   bakeWalk() {
-    const B = BOUNDS, nx = this.lnx, nz = this.lnz, r = 0.35;
+    const B = this.B, nx = this.lnx, nz = this.lnz, r = 0.35;
     this.walk = new Uint8Array(nx * nz);
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
       const x = B.x0 + (i + 0.5) * CELL, z = B.z0 + (j + 0.5) * CELL;
@@ -408,7 +609,7 @@ export class District {
       this.walk[j * nx + i] = ok;
     }
   }
-  cellOf(x, z) { return [Math.floor((x - BOUNDS.x0) / CELL), Math.floor((z - BOUNDS.z0) / CELL)]; }
+  cellOf(x, z) { return [Math.floor((x - this.B.x0) / CELL), Math.floor((z - this.B.z0) / CELL)]; }
   walkable(i, j) { return i >= 0 && j >= 0 && i < this.lnx && j < this.lnz && this.walk[j * this.lnx + i] === 1; }
   nearestWalk(i, j) {
     if (this.walkable(i, j)) return [i, j];
@@ -440,7 +641,7 @@ export class District {
     }
     if (!found) return [[to.x, to.z]];
     const cells = []; for (let k = goal; k !== -1; k = fr[k]) cells.push(k); cells.reverse();
-    const pts = cells.map((k) => [BOUNDS.x0 + ((k % nx) + 0.5) * CELL, BOUNDS.z0 + (((k / nx) | 0) + 0.5) * CELL]);
+    const pts = cells.map((k) => [this.B.x0 + ((k % nx) + 0.5) * CELL, this.B.z0 + (((k / nx) | 0) + 0.5) * CELL]);
     // string-pull: skip points while the straight walk stays on walkable cells
     const out = [pts[0]]; let a = 0;
     while (a < pts.length - 1) {
@@ -457,13 +658,53 @@ export class District {
     return true;
   }
 
+  // ---- the exit gate (chained shut until the Director opens it) and the start door
+  makeGate(cx, cz, alongZ, w = 6, face = -1) {
+    const g = new THREE.Group(); g.position.set(cx, 0, cz); if (!alongZ) g.rotation.y = Math.PI / 2;
+    const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
+    for (let z = -w / 2 + 0.2; z <= w / 2 - 0.2; z += 0.25) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 4, 5), bars); b.position.set(0, 2, z); g.add(b); }
+    for (const y of [0.3, 2, 3.8]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, w), bars); r.position.y = y; g.add(r); }
+    this.chain = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 6, 14), this.mat('chainlock', { color: 0x9a9a9a, metalness: 0.9, roughness: 0.3 }));
+    this.chain.position.set(0.1 * face, 1.2, 0); this.chain.rotation.y = Math.PI / 2; g.add(this.chain);
+    this.exitSign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), new THREE.MeshBasicMaterial({ map: T.exit, color: 0x333333 }));
+    this.exitSign.position.set(0.45 * face, 4.4, 0); this.exitSign.rotation.y = face < 0 ? -Math.PI / 2 : Math.PI / 2; g.add(this.exitSign);
+    this.root.add(g); this.gate = g; this.gateAlongZ = alongZ;
+    const hw = w / 2;
+    this.gateBox = alongZ ? { x0: cx - 0.6, x1: cx + 0.5, z0: cz - hw, z1: cz + hw, y0: 0, y1: 4, see: false } : { x0: cx - hw, x1: cx + hw, z0: cz - 0.6, z1: cz + 0.5, y0: 0, y1: 4, see: false };
+    this.boxes.push(this.gateBox);
+    // walking through the open gate (toward the outside) ends the scene
+    this.exitZone = alongZ ? (face < 0 ? { x0: cx, x1: cx + 6, z0: cz - hw, z1: cz + hw } : { x0: cx - 6, x1: cx, z0: cz - hw, z1: cz + hw })
+      : (face < 0 ? { x0: cx - hw, x1: cx + hw, z0: cz, z1: cz + 6 } : { x0: cx - hw, x1: cx + hw, z0: cz - 6, z1: cz });
+  }
   openGate() {
     this.gateOpen = true;
     const i = this.boxes.indexOf(this.gateBox); if (i >= 0) this.boxes.splice(i, 1);
     this.chain.visible = false; this.exitSign.material.color.set(0xffffff);
   }
+  closeGate() { this.gateOpen = false; if (!this.boxes.includes(this.gateBox)) this.boxes.push(this.gateBox); this.chain.visible = true; this.exitSign.material.color.set(0x333333); }
+  // through the gate and at least 0.8 m past it
+  atExit(p) {
+    const E = this.exitZone, g = this.gate.position; if (!this.gateOpen || !E) return false;
+    if (p.x < E.x0 || p.x > E.x1 || p.z < E.z0 || p.z > E.z1) return false;
+    return (this.gateAlongZ ? Math.abs(p.x - g.x) : Math.abs(p.z - g.z)) > 0.8;
+  }
+  makeStartDoor(x, z, alongZ, w = 4) { // a chain-link door that swings open when the Director says so
+    const pv = new THREE.Group(); pv.position.set(x, 0, z); if (!alongZ) pv.rotation.y = -Math.PI / 2;
+    const t = T.chain.clone(); t.needsUpdate = true; t.repeat.set(w / 0.6, 3 / 0.6);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(w, 3), new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, metalness: 0.7, roughness: 0.5 }));
+    door.position.set(0, 1.5, w / 2); door.rotation.y = Math.PI / 2; pv.add(door);
+    const frame = this.mat('post', { color: 0x777a7c, metalness: 0.7, roughness: 0.4 });
+    for (const zz of [0.05, w - 0.05]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3, 6), frame); p.position.set(0, 1.5, zz); pv.add(p); }
+    this.root.add(pv); this.startDoor = pv; this.startBaseYaw = pv.rotation.y;
+    this.startBox = alongZ ? { x0: x - 0.08, x1: x + 0.08, z0: z, z1: z + w, y0: 0, y1: 3, see: false } : { x0: x, x1: x + w, z0: z - 0.08, z1: z + 0.08, y0: 0, y1: 3, see: false };
+    this.boxes.push(this.startBox);
+  }
+  openStart() { if (this.startOpen || !this.startBox) return false; this.startOpen = true; const i = this.boxes.indexOf(this.startBox); if (i >= 0) this.boxes.splice(i, 1); this.bakeWalk(); this.startSwing = 0; return true; }
+  closeStart() { if (!this.startBox) return; this.startOpen = false; this.startSwing = 0; this.startDoor.rotation.y = this.startBaseYaw; if (!this.boxes.includes(this.startBox)) this.boxes.push(this.startBox); this.bakeWalk(); }
+  dispose() { this.scene.remove(this.root); this.root.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
 
   update(t, dt) {
+    if (this.startOpen && this.startSwing < 1) { this.startSwing = Math.min(1, this.startSwing + dt * 0.6); this.startDoor.rotation.y = this.startBaseYaw - this.startSwing * 1.6; }
     for (const L of this.lamps) {
       if (!L.flicker || L.base <= 0) continue;
       let on = 1;
@@ -496,3 +737,12 @@ class MinHeap {
     return top;
   }
 }
+
+// ------------------------------------------------------------------ scenes
+export const SCENES = [
+  { id: 'pens', title: 'THE PENS', build: 'buildPens', B: { x0: -36, x1: 36, z0: -26, z1: 26 }, gang: 'hoods', fog: 0.042 },
+  { id: 'mall', title: 'THE MALL', build: 'buildMall', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.05, amb: 0.75 },
+  { id: 'asylum', title: 'THE ASYLUM', build: 'buildAsylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'innocentz', fog: 0.06, amb: 0.65 },
+  { id: 'junkyard', title: 'THE JUNKYARD', build: 'buildJunkyard', B: { x0: -38, x1: 38, z0: -28, z1: 28 }, gang: 'wardogs', fog: 0.045 },
+  { id: 'attic', title: 'PIGGSY', build: 'buildAttic', B: { x0: -18, x1: 18, z0: -12, z1: 12 }, gang: 'piggsy', fog: 0.07, amb: 0.6 },
+];

@@ -26,9 +26,10 @@ export class Director {
 
   // after the opening tape (or a skip): last instruction, then the pen opens
   intro() {
-    const S = this.game.sound;
-    setTimeout(() => S.say('dir_intro_4'), 800);
-    this.penT = setTimeout(() => { this.game.openPen(); S.say('dir_gate_open'); }, 9000);
+    const S = this.game.sound, n = this.game.world.idx + 1;
+    if (n === 1) { setTimeout(() => S.say('dir_intro_4'), 800); this.penT = setTimeout(() => { this.game.openPen(); S.say('dir_gate_open'); }, 9000); return; }
+    setTimeout(() => { S.say(`dir_s${n}_1`); S.say(`dir_s${n}_2`); }, 800);
+    this.penT = setTimeout(() => this.game.openPen(), 4000);
   }
 
   event(kind, arg) {
@@ -51,6 +52,7 @@ export class Director {
     const took = G.time - (h.firstHit || G.time), stealth = h.stealthStart;
     setTimeout(() => {
       // he congratulates every takedown; executions are graded by how far you charged them
+      if (cause === 'fall') { this.line('dir_end', 0); if (this.kills >= this.quota && !this.gate) { this.gate = true; G.world.openGate(); } return; }
       const lvl = h.execLevel;
       if (lvl === 2) this.any('dir_exec_red', 0, 3);
       else if (lvl === 1) this.any('dir_exec_green', 0, 3);
@@ -93,6 +95,8 @@ export class Director {
 
   update(dt) {
     const G = this.game, P = G.player;
+    // however they died, once they're all dead the gate opens
+    if (!this.gate && G.hunters.length && G.hunters.every((h) => !h.alive)) { this.gate = true; this.kills = Math.max(this.kills, this.quota); G.world.openGate(); setTimeout(() => this.line('dir_gate', 999), 1600); }
     // CCTV sweeps and reports
     for (const c of this.cams) {
       if (!c.alive) continue;

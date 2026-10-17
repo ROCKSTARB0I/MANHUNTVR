@@ -9,6 +9,7 @@ export const VOICES = {
   HUNTER_A: { name: 'Hood (hockey mask)', pitch: 0.8, rate: 1.05, note: 'Rough street thug, cocky.' },
   HUNTER_B: { name: 'Hood (skull mask)', pitch: 0.65, rate: 0.95, note: 'Low, slow and menacing. Taunts quietly.' },
   HUNTER_C: { name: 'Hood (balaclava)', pitch: 1.0, rate: 1.15, note: 'Twitchy, high-strung, laughs a lot.' },
+  PIGGSY: { name: 'Piggsy', pitch: 0.5, rate: 0.8, note: 'Not words. Grunts, snorts, squeals behind a pig mask.' },
   CASH: { name: 'James Earl Cash', pitch: 0.85, rate: 0.95, note: 'A grown man in his late 30s, low gravelly voice. Exhausted, angry, few words. Under his breath.' },
 };
 
@@ -80,6 +81,76 @@ export const LINES = [
     [`h${g}_die`, 'HUNTER_' + g, 'Dies', ["Aaagh... shit...", "Hhk...", "No... no... fuck..."][('ABC').indexOf(g)]],
   ]),
 
+  // ---------------------------------------------------------------- Scene briefings
+  ['dir_s2_1', 'DIRECTOR', 'Scene 2 start: the mall', "Welcome to the Carcer Mall, James. Closed for business since the riots. The Skinz have made it their home."],
+  ['dir_s2_2', 'DIRECTOR', 'Scene 2 start: the mall', "Big lads, and they don't scare easily. Kill all of them. Use the shadows between the shops."],
+  ['dir_s3_1', 'DIRECTOR', 'Scene 3 start: the asylum', "Ah, Ravenwood Asylum. The state stopped paying for it years ago. The Innocentz never left."],
+  ['dir_s3_2', 'DIRECTOR', 'Scene 3 start: the asylum', "They're quite mad, James. Mad and very, very quick with a blade. Every last one, please."],
+  ['dir_s4_1', 'DIRECTOR', 'Scene 4 start: the junkyard', "The junkyard. I've hired professionals this time. The Wardogs. Ex-army."],
+  ['dir_s4_2', 'DIRECTOR', 'Scene 4 start: the junkyard', "They carry torches and they check the shadows. Don't let them get close to you in the dark."],
+  ['dir_s5_1', 'DIRECTOR', 'Scene 5 start: the mansion', "So. You've found my house. Clever, James. Very clever."],
+  ['dir_s5_2', 'DIRECTOR', 'Scene 5 start: the mansion', "I'm afraid I can't let you upstairs. Not while my... associate is up there. Say hello to Piggsy."],
+  ['dir_piggsy_hurt', 'DIRECTOR', 'Piggsy falls through the floor', "No! Get up, you stupid animal! GET UP!"],
+  ['dir_end', 'DIRECTOR', 'Piggsy is dead', "Cut... No. No, no, no. This isn't how it ends. This isn't how it..."],
+  ['piggsy_1', 'PIGGSY', 'Piggsy roaming', "Hhhrrnnk... hrrnk hrrnk..."],
+  ['piggsy_2', 'PIGGSY', 'Piggsy chasing', "SQUEEEEEE! HRRRNK!"],
+  ['piggsy_3', 'PIGGSY', 'Piggsy hurt', "Hrrrk... nnnnngh..."],
+
+  // ---------------------------------------------------------------- the Skinz (scene 2)
+  ...gang('s', {
+    idle_1: ["This mall's ours now. Nobody shops here but us, ha!", "Come on out, convict. We'll make it quick. Probably.", "Smell that? That's fear, that is. Fuckin' love it."],
+    idle_2: ["Where's that prick hiding? Behind the fuckin' mannequins?", "I'll stomp your skull flat, Cash. Flat!", "My boots are gonna be wearing your teeth, mate."],
+    idle_3: ["Lights are out again. Bloody perfect.", "Keep your eyes open, lads. He's a sneaky bastard.", "Rip him up and get paid. Easy money."],
+    hear: ["Oi! What was that?", "Somethin' moved. By the shops.", "Who's that? Show yourself, you coward!"],
+    suspect: ["Hang on... over there.", "Was that him? I think that was him.", "Movement! In the dark, there!"],
+    search: ["I know you're in here, you rat.", "Check behind the counters. Every fuckin' one.", "Come out and fight like a man!"],
+    giveup: ["Nothing. Fuckin' nothing.", "Bloody pigeons. Forget it.", "He's not here. Waste of my fuckin' time."],
+    spot: ["THERE! GET HIM!", "Got you now, you little shit!", "OVER HERE! HE'S OVER HERE!"],
+    chase: ["You're dead! You're fuckin' dead!", "Run all you like, I'll catch you!", "Stop runnin', you coward!"],
+    hit: ["Have some of that!", "Go down! Go DOWN!", "How'd that feel, eh?"],
+    hurt: ["ARGH! You bastard!", "Fuck! My face!", "You'll pay for that, you prick!"],
+    lost: ["Where'd the bastard go?", "Lost him. Fuck!", "He's gone again. Shit."],
+    body: ["Oh fuck, he got Gaz! He got Gaz!", "Bloody hell... look at the state of him.", "He's dead! Lads, he's fuckin' dead!"],
+    bagged: ["MMPH! MMMPH!", "Hhhkk... mmph!", "Nnngh! NNNGH!"],
+    die: ["Ugh... fuck...", "Hhhk...", "No... not like this..."],
+  }),
+  // ---------------------------------------------------------------- the Innocentz (scene 3)
+  ...gang('i', {
+    idle_1: ["Hee hee hee... come and play, Jamesy...", "We can hear your heart. Thump thump thump.", "Nobody leaves the asylum. Nobody, nobody, nobody."],
+    idle_2: ["The doctors are all gone. It's just us now. Just us.", "I want to see what's inside you, Cash.", "Shhhh... the walls are listening. They told me where you are."],
+    idle_3: ["Pretty blade, pretty blade, where's the pretty man?", "Come out, come out, little lamb!", "We're going to have so much fun, you and me."],
+    hear: ["Ooh! A noise! A noise!", "Who's there? Is that you, Jamesy?", "Did you hear that? Did you HEAR that?"],
+    suspect: ["Is that a game? I love games!", "I saw you! I think I saw you!", "Something's in the dark... something tasty."],
+    search: ["Hide and seek! I'll find you, I always find you!", "Peekaboo... peekaboo... where are you?", "Come out, come out, wherever you are!"],
+    giveup: ["Aww. No fun. No fun at all.", "He went away. Bye bye.", "Boring! Boring boring boring!"],
+    spot: ["FOUND YOU! FOUND YOU!", "There you are, my sweet!", "HE'S HERE! HE'S HERE! HAHAHA!"],
+    chase: ["Don't run! I just want to cut you!", "Wheee! Run, run, run!", "Come back! We're not finished playing!"],
+    hit: ["Hahaha! Again! Again!", "Bleed for me!", "Ooh, that's a pretty colour!"],
+    hurt: ["OW! That's not fair!", "You hurt me! You HURT me!", "Aaaah! Naughty! NAUGHTY!"],
+    lost: ["Where did he go? Where did he go?", "Gone, gone, gone...", "No! Come back! Come BACK!"],
+    body: ["He broke him! He broke my friend!", "Ooh... look at all the red...", "Wake up! Wake UP! Hahaha... he won't wake up."],
+    bagged: ["MMMPH! Hmmhmm!", "Hhhkkk!", "Nnnnn! Nnnnnn!"],
+    die: ["Is the... game over...?", "Mummy...", "Haha... ha..."],
+  }),
+  // ---------------------------------------------------------------- the Wardogs (scene 4)
+  ...gang('w', {
+    idle_1: ["Stay sharp. Target's a convict, not an idiot.", "Sector clear. Moving on.", "Check every shadow. Every one of them."],
+    idle_2: ["Eyes up. He likes the dark.", "Radio check. Nothing yet. Keep sweeping.", "Two in the head when you see him. No talking."],
+    idle_3: ["This scrap heap's a maze. Watch your corners.", "I did three tours. This prick is nothing.", "Stay in pairs if you can. Don't be a hero."],
+    hear: ["Contact? Noise, my nine o'clock.", "Movement. Investigating.", "Heard something. Moving to check."],
+    suspect: ["Possible contact. Hold.", "Something in the dark there. Light it up.", "I've got movement. Closing in."],
+    search: ["Sweep the area. Grid pattern.", "He's close. I can feel it.", "Check under the wrecks. Go."],
+    giveup: ["Negative. Area's clear.", "Nothing here. Back to patrol.", "False alarm. Stay alert."],
+    spot: ["CONTACT! CONTACT!", "Target sighted! Engaging!", "I've got him! On me!"],
+    chase: ["Cut him off! Flank left!", "He's running! Don't lose him!", "Target moving! Pursue!"],
+    hit: ["Stay down, convict.", "That's how it's done.", "Hit! He's hurt!"],
+    hurt: ["I'm hit! Son of a bitch!", "Agh! Bastard got me!", "Man down... no, I'm good. Fuck!"],
+    lost: ["Lost visual. Lost visual!", "Where'd he go? Report!", "Shit. He's gone dark again."],
+    body: ["Man down! We've got a man down!", "Jesus... he got Kowalski.", "Body here. He's good, this one. Stay sharp."],
+    bagged: ["MMPH!", "Hhhkk... mmh!", "NNNGH!"],
+    die: ["Tell my... wife...", "Hhk...", "Damn it..."],
+  }),
+
   // ---------------------------------------------------------------- Cash
   ['cash_wake', 'CASH', 'Start of scene', "Where the hell am I... Carcer? Shit."],
   ['cash_reply', 'CASH', 'After the Director explains', "I didn't kill anybody, you sick bastard."],
@@ -89,6 +160,11 @@ export const LINES = [
   ['cash_hurt', 'CASH', 'Takes a hit', "Agh! Fuck!"],
   ['cash_gate', 'CASH', 'Gate opens', "I'm coming for you next, you son of a bitch."],
 ];
+
+function gang(prefix, table) { // three voices (A, B, C), one line each per moment
+  const when = { idle_1: 'Patrolling, bored', idle_2: 'Patrolling, bored', idle_3: 'Patrolling, bored', hear: 'Hears a noise', suspect: 'Glimpses something', search: 'Searching an area', giveup: 'Gives up searching', spot: 'Spots James', chase: 'Chasing James', hit: 'Hits James', hurt: 'Gets hurt', lost: 'Loses sight of James', body: 'Finds a dead hunter', bagged: 'Bag pulled over head (muffled)', die: 'Dies' };
+  return ['A', 'B', 'C'].flatMap((g, gi) => Object.entries(table).map(([k, t]) => [`${prefix}${g}_${k}`, 'HUNTER_' + g, when[k], t[gi]]));
+}
 
 export const LINE = Object.fromEntries(LINES.map(([id, who, when, text]) => [id, { id, who, when, text }]));
 export function pick(prefix) { // random line among ids starting with prefix (e.g. 'dir_kill_quiet')

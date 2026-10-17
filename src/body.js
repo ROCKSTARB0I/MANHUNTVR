@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=4';
-import { T } from './paint.js?v=4';
+import { Loft, ring, blend } from './loft.js?v=5';
+import { T } from './paint.js?v=5';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -162,6 +162,13 @@ export class Person {
       const mk = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 12, Math.PI * 0.04, Math.PI * 0.92, Math.PI * 0.12, Math.PI * 0.68), new THREE.MeshStandardMaterial({ map: T.mask[o.mask], transparent: o.mask === 'hockey', alphaTest: 0.5, roughness: o.mask === 'hockey' ? 0.4 : 0.9, side: THREE.DoubleSide }));
       mk.rotation.y = 0; mk.scale.set(0.98, 1.12, 1.02); mk.position.set(0, 0.11, 0.014);
       if (o.mask === 'knit') { mk.geometry = new THREE.SphereGeometry(0.108, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.82); mk.material.transparent = false; }
+      if (o.mask === 'pig') {
+        mk.geometry = new THREE.SphereGeometry(0.13, 20, 14); mk.material.transparent = false; mk.scale.set(1.05, 1.05, 1.15); mk.position.set(0, 0.11, 0.02);
+        const pink = new THREE.MeshStandardMaterial({ color: 0xb0786a, roughness: 0.6 });
+        const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.07, 16), pink); snout.rotation.x = Math.PI / 2; snout.position.set(0, 0.075, 0.155); this.bones[B.head].add(snout);
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), new THREE.MeshStandardMaterial({ map: T.mask.pig, roughness: 0.6 })); disc.position.set(0, 0.075, 0.191); this.bones[B.head].add(disc);
+        for (const s of [1, -1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 8), pink); ear.position.set(0.09 * s, 0.23, 0.0); ear.rotation.z = -0.6 * s; this.bones[B.head].add(ear); }
+      }
       this.bones[B.head].add(mk); this.maskMesh = mk;
       // eyes glinting behind the holes
       const eyeM = new THREE.MeshBasicMaterial({ color: 0x1a1410 });
@@ -410,12 +417,16 @@ function makeHunterWeapon(kind) {
     const bl = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.05, 0.48), new THREE.MeshStandardMaterial({ color: 0x8a8d90, metalness: 0.95, roughness: 0.3 }));
     bl.position.z = 0.32; g.add(bl);
     const h = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.035, 0.13), new THREE.MeshStandardMaterial({ color: 0x111111 })); h.position.z = 0.04; g.add(h);
+  } else if (kind === 'chainsaw') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.32), new THREE.MeshStandardMaterial({ color: 0xa8740c, roughness: 0.5, metalness: 0.3 })); body.position.z = 0.05; g.add(body);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.62), new THREE.MeshStandardMaterial({ color: 0x8a8d90, metalness: 0.9, roughness: 0.35 })); bar.position.z = 0.5; g.add(bar);
+    const chain = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.11, 0.64), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.8, roughness: 0.6, wireframe: true })); chain.position.z = 0.5; g.add(chain);
   } else if (kind === 'pipe') {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5a524a, metalness: 0.8, roughness: 0.6 }));
     m.rotation.x = Math.PI / 2; m.position.z = 0.25; g.add(m);
   }
-  // point the weapon along the hand (bone points down -Y)
-  g.rotation.x = -Math.PI / 2 + 0.3;
+  // point the weapon along the hand (bone points down -Y); the chainsaw is carried out in front
+  g.rotation.x = kind === 'chainsaw' ? -0.35 : -Math.PI / 2 + 0.3;
   return g;
 }
 

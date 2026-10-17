@@ -1,33 +1,54 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=4';
-import { T } from './paint.js?v=4';
+import { Person, BONE, SKIN_TONES } from './body.js?v=5';
+import { T } from './paint.js?v=5';
 
 const V = THREE.Vector3;
-const GANGS = [
-  { g: 'A', mask: 'hockey', weapon: 'bat', top: [0.32, 0.12, 0.10], legs: [0.16, 0.2, 0.3] },
-  { g: 'B', mask: 'skull', weapon: 'machete', top: [0.08, 0.08, 0.09], legs: [0.1, 0.1, 0.11] },
-  { g: 'C', mask: 'knit', weapon: 'pipe', top: [0.22, 0.24, 0.17], legs: [0.24, 0.22, 0.18] },
-];
+// every scene has its own gang; g picks one of three voices, vp the gang's lines
+const GANG_SETS = {
+  hoods: { vp: 'h', members: [
+    { g: 'A', mask: 'hockey', weapon: 'bat', top: [0.32, 0.12, 0.10], legs: [0.16, 0.2, 0.3] },
+    { g: 'B', mask: 'skull', weapon: 'machete', top: [0.08, 0.08, 0.09], legs: [0.1, 0.1, 0.11] },
+    { g: 'C', mask: 'knit', weapon: 'pipe', top: [0.22, 0.24, 0.17], legs: [0.24, 0.22, 0.18] },
+  ] },
+  skinz: { vp: 's', bulk: 1.12, members: [ // shaved heads, bomber jackets, bleached jeans
+    { g: 'A', mask: null, weapon: 'bat', top: [0.2, 0.24, 0.15], legs: [0.34, 0.38, 0.46], stubble: true },
+    { g: 'B', mask: null, weapon: 'pipe', top: [0.07, 0.07, 0.07], legs: [0.3, 0.33, 0.42], stubble: true },
+    { g: 'C', mask: null, weapon: 'machete', top: [0.42, 0.1, 0.08], legs: [0.12, 0.12, 0.14], stubble: true },
+  ] },
+  innocentz: { vp: 'i', bulk: 0.9, members: [ // pale painted faces, filthy whites
+    { g: 'C', mask: 'skull', weapon: 'machete', top: [0.7, 0.68, 0.62], legs: [0.2, 0.18, 0.16] },
+    { g: 'A', mask: 'hockey', weapon: 'machete', top: [0.62, 0.6, 0.55], legs: [0.16, 0.15, 0.14] },
+    { g: 'B', mask: 'skull', weapon: 'pipe', top: [0.5, 0.46, 0.4], legs: [0.24, 0.2, 0.18] },
+  ] },
+  piggsy: { vp: 'p', boss: true, bulk: 1.5, members: [{ g: 'A', mask: 'pig', weapon: 'chainsaw', top: [0.42, 0.38, 0.32], legs: [0.18, 0.16, 0.14] }] },
+  wardogs: { vp: 'w', bulk: 1.1, torch: 'all', sharp: true, members: [ // ex-military: balaclavas and fatigues
+    { g: 'B', mask: 'knit', weapon: 'machete', top: [0.24, 0.27, 0.18], legs: [0.22, 0.24, 0.17] },
+    { g: 'A', mask: 'knit', weapon: 'pipe', top: [0.2, 0.22, 0.15], legs: [0.24, 0.26, 0.18] },
+    { g: 'C', mask: 'knit', weapon: 'bat', top: [0.26, 0.28, 0.2], legs: [0.2, 0.22, 0.16] },
+  ] },
+};
 const NAMES = ['Ricky', 'Dwayne', 'Lonnie', 'Cutter', 'Moss', 'Tully', 'Boone', 'Vic'];
 const _a = new V(), _b = new V(), _c = new V();
 
 export class Hunter {
   constructor(game, idx, route) {
     this.game = game; this.idx = idx; this.name = NAMES[idx % NAMES.length];
-    const G = this.gang = GANGS[idx % 3];
-    this.body = new Person({ mask: G.mask, weapon: G.weapon, top: G.top, legs: G.legs, skin: SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: 0.95 + (idx % 3) * 0.08 });
+    const set = this.set = GANG_SETS[game.world.def.gang] || GANG_SETS.hoods;
+    const G = this.gang = set.members[idx % set.members.length];
+    this.body = new Person({ mask: G.mask, weapon: G.weapon, top: G.top, legs: G.legs, stubble: G.stubble, hood: !!G.mask, skin: SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: (set.bulk || 1) * (0.95 + (idx % 3) * 0.08) });
     game.scene.add(this.body.root);
     this.route = route; this.wp = 0;
+    this.boss = !!set.boss; if (this.boss) { this.hp = 300; this.saw = game.sound.sawLoop?.(); }
     this.pos = new V(route[0][0], 0, route[0][1]); this.yaw = 0; this.speed = 0;
-    this.state = 'patrol'; this.susp = 0; this.hp = 100; this.alive = true;
+    this.state = 'patrol'; this.susp = 0; this.hp = this.boss ? 300 : 100; this.alive = true;
     this.path = []; this.pathT = 0; this.goal = new V(); this.last = new V();
     this.timer = 0; this.lostT = 0; this.lookT = 0; this.talkT = 8 + Math.random() * 20; this.atkT = 0;
     this.seen = 0; this.heardAt = -9; this.foundBodies = new Set();
     this.stepPh = 0;
     // flashlight on every other hunter
-    if (idx % 2 === 0) {
+    if (!set.boss && (set.torch === 'all' || idx % 2 === 0)) {
       const torch = new THREE.SpotLight(0xfff2d8, 14, 16, 0.38, 0.5, 1.6);
       const beam = new THREE.Mesh(new THREE.ConeGeometry(1.6, 7, 16, 1, true), new THREE.MeshBasicMaterial({ map: T.beam, color: 0xfff2d0, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
       beam.geometry.translate(0, -3.5, 0); beam.geometry.rotateX(-Math.PI / 2); // cone along +Z from apex
@@ -47,12 +68,17 @@ export class Hunter {
   forward(out = new V()) { return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   eye(out = new V()) { return out.copy(this.pos).setY(this.body.anim.crouch ? 1.2 : 1.62); }
   aware() { return this.state === 'hunt' || this.state === 'attack'; }
-  say(kind) { if (this.alive) this.game.sound.say(`h${this.gang.g}_${kind}`, { at: this.eye(_c).clone() }); }
+  say(kind) {
+    if (!this.alive) return;
+    if (this.boss) { const id = kind === 'spot' || kind === 'chase' ? 'piggsy_2' : kind === 'hurt' || kind === 'die' ? 'piggsy_3' : kind.startsWith('idle') ? 'piggsy_1' : null; if (id) this.game.sound.say(id, { at: this.eye(_c).clone(), force: true }); return; }
+    this.game.sound.say(`${this.set.vp}${this.gang.g}_${kind}`, { at: this.eye(_c).clone() });
+  }
 
   // ------------------------------------------------------------ senses
   // how strongly does this hunter see Cash right now (0..~1.5)?
   look(dt) {
-    const P = this.game.player; if (!P.alive || P.hidden) return 0;
+    const P = this.game.player; if (!P.alive) return 0;
+    if (P.hidden && !(this.set.sharp && this.torch && this.pos.distanceTo(P.pos) < 4.5)) return 0;
     const eye = this.eye(_a), tgt = _b.copy(P.chest);
     const d = eye.distanceTo(tgt); if (d > 26) return 0;
     const f = this.forward(_c), dir = tgt.clone().sub(eye).setY(0).normalize();
@@ -88,6 +114,7 @@ export class Hunter {
     const A = this.body.anim;
     if (!this.alive) { this.body.animate(dt, t); return; }
     if (this.state === 'bagged') { A.speed = 0; A.struggle = Math.min(1, A.struggle + dt * 4); this.body.animate(dt, t); return; }
+    if (this.state === 'fallen') { this.fallen -= dt; if (this.saw) this.saw(this.eye(_a), 0); if (this.fallen <= 0) { const p = [[14, -8], [-12, 8], [12, 8]][Math.floor(Math.random() * 3)]; this.pos.set(p[0], 0, p[1]); this.body.root.position.y = 0; this.state = 'hunt'; this.susp = 1; this.last.copy(this.game.player.pos); this.lostT = 0; this.say('spot'); } this.place(); this.body.root.position.y = this.fallen > 0 ? -2.4 : 0; return; }
     if (this.state === 'executed') { A.speed = 0; this.speed = 0; this.place(); this.body.animate(dt, t); return; }
     A.struggle = Math.max(0, A.struggle - dt * 3);
     if (this.stun > 0) { this.stun -= dt; A.speed = 0; this.body.animate(dt, t); this.place(); return; }
@@ -153,7 +180,7 @@ export class Hunter {
         if (!this.hitDone && A.swing > 0.55) {
           this.hitDone = true; this.game.sound.whoosh(this.eye(_a));
           const d = this.pos.distanceTo(P.pos), f = this.forward(_c).dot(_b.copy(P.pos).sub(this.pos).setY(0).normalize());
-          if (d < 1.9 && f > 0.4 && P.alive) { P.hurt(20 + Math.random() * 10, this); this.say('hit'); }
+          if (d < 1.9 && f > 0.4 && P.alive) { P.hurt(this.boss ? 40 : 20 + Math.random() * 10, this); this.say('hit'); }
         }
         if (this.atkT > 1.25) { A.swing = -1; this.state = 'hunt'; this.pathT = 0; }
         break;
@@ -179,8 +206,25 @@ export class Hunter {
       if (this.stepPh > 1) { this.stepPh = 0; this.game.sound.step(this.pos, this.speed > 2.5 ? 'run' : 'walk'); }
     }
     A.speed = this.speed;
+    if (this.boss) this.bossTick(dt);
     this.place();
     this.body.animate(dt, t);
+  }
+
+  bossTick(dt) {
+    const W = this.game.world;
+    if (this.saw) this.saw(this.eye(_a), this.aware() ? 1 : 0.35);
+    for (const w of W.weak || []) {
+      if (w.broken || this.speed < 2.2 || Math.hypot(this.pos.x - w.x, this.pos.z - w.z) > w.r) continue;
+      // CRACK: he goes straight through the floor
+      w.broken = true; w.mesh.material = new THREE.MeshBasicMaterial({ color: 0x050302 });
+      W.boxes.push({ x0: w.x - 1.1, x1: w.x + 1.1, z0: w.z - 1.1, z1: w.z + 1.1, y0: 0, y1: 0.5, see: true }); W.bakeWalk();
+      this.game.sound.crunch(this.eye(_a)); this.game.sound.thud(this.eye(_a), 2); this.say('hurt'); this.game.director.line('dir_piggsy_hurt', 0);
+      this.game.blood.spray(this.eye(_a).clone(), new V(0, 1, 0), 40, 1.2);
+      this.hp -= 100; this.fallen = 7; this.body.root.position.y = -2.4; this.state = 'fallen'; this.speed = 0;
+      if (this.hp <= 0) { this.body.root.position.y = 0; this.pos.set(w.x + 1.6, 0, w.z); this.place(); this.kill(new V(0, 0, 0), this.eye(_a).clone(), 'fall'); }
+      return;
+    }
   }
 
   spot() {
@@ -231,6 +275,7 @@ export class Hunter {
 
   damage(n, part, dir, at, cause) {
     if (!this.alive) return false;
+    if (this.boss) n *= 0.12; // only the floor can stop him
     this.hp -= n;
     this.body.wound(part === 'head' ? 'head' : part === 'neck' ? 'neck' : part === 'chest' ? 'chest' : 'spine', at, n > 50 ? 1.6 : 1);
     this.game.blood.spray(at, dir, n > 50 ? 70 : 30, part === 'neck' ? 1.4 : 1);
@@ -243,6 +288,7 @@ export class Hunter {
     if (!this.alive) return;
     this.alive = false; this.state = 'dead'; this.hp = 0;
     if (this.torch) { this.torch.intensity = 0; this.beam.visible = false; }
+    if (this.saw) this.saw(this.eye(_a), 0, true);
     if (this.body.weapon) { const w = this.body.weapon; w.parent.remove(w); }
     this.body.anim.struggle = 0; this.body.anim.swing = -1;
     this.body.die(impulse, at, this.game.world);

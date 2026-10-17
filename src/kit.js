@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=4';
+import { T } from './paint.js?v=5';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V();
@@ -355,9 +355,9 @@ export class Kit {
   // a hunter Cash could execute with the thing in this hand right now
   candidate(hand) {
     const G = this.game, it = hand.item; if (!it || this.exec || this.struggle) return null;
-    let best = null, bd = 1.6;
+    let best = null, bd = hand.desktop ? 1.7 : 2.4; // VR: lock on from further away; he's pulled in when you commit
     for (const h of G.hunters) {
-      if (!h.alive || h.aware() || h.state === 'bagged' || h.state === 'executed') continue;
+      if (!h.alive || h.boss || h.aware() || h.state === 'bagged' || h.state === 'executed') continue;
       const d = h.pos.distanceTo(G.player.pos);
       if (d < bd && h.behind(G.player.pos)) { bd = d; best = h; }
     }
@@ -382,7 +382,7 @@ export class Kit {
     this.mark.position.copy(head).y += 0.32; this.mark.visible = true; this.fill.position.copy(this.mark.position);
     if (!C) { this.mark.material.color.setHex(0xffffff); this.mark.material.opacity = 0.35 + Math.sin(G.time * 6) * 0.1; this.fill.visible = false; G.execMeter = { t: 0, lvl: -1 }; return; }
     // lost him? (he turned, walked off, or noticed)
-    if (!target.alive || target.aware() || target.pos.distanceTo(G.player.pos) > 2.3 || !C.hand.item) { this.charge = null; return; }
+    if (!target.alive || target.aware() || target.pos.distanceTo(G.player.pos) > 3.2 || !C.hand.item) { this.charge = null; return; }
     if (this.held(C.hand)) {
       C.t += dt; const lvl = levelOf(C.t);
       if (lvl !== C.lvl) { C.lvl = lvl; C.hand.haptic?.(0.3 + lvl * 0.35, 50); G.sound.lock?.(lvl); }
@@ -398,6 +398,10 @@ export class Kit {
   startExec(hand, h, level) {
     const G = this.game, it = hand.item; if (!it) return;
     h.state = 'executed'; h.speed = 0; h.body.anim.speed = 0; h.execLevel = level;
+    // the grab: haul him in to arm's length in front of Cash, back to you
+    const P = G.player, f = G.lookDir ? new V(G.lookDir.x, 0, G.lookDir.z).normalize() : h.pos.clone().sub(P.pos).setY(0).normalize();
+    h.pos.copy(P.pos).addScaledVector(f, hand.desktop ? 0.8 : 0.62); G.world.collide(h.pos, 0.3);
+    h.yaw = Math.atan2(f.x, f.z); h.place();
     h.hitsTaken = 0; h.firstHit = G.time; h.stealthStart = true;
     G.vhs.hot = 0.4 + level * 0.3; hand.haptic?.(1, 120);
     G.sound.stinger(); this.killOn(h); G.sound.grunt(h.eye(new V()), 0.8, it.kind === 'bag');

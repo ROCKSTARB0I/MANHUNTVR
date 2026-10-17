@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=4';
-import { District } from './district.js?v=4';
-import { spawnHunters } from './hunters.js?v=4';
-import { Kit, LEVELS } from './kit.js?v=4';
-import { Blood } from './blood.js?v=4';
-import { Director } from './director.js?v=4';
-import { Sound } from './sound.js?v=4';
-import { makeHand, Person, BONE } from './body.js?v=4';
-import { VHS } from './vhs.js?v=4';
-import { Cutscene } from './cutscene.js?v=4';
+import { paintAll, T } from './paint.js?v=5';
+import { District, SCENES } from './district.js?v=5';
+import { spawnHunters } from './hunters.js?v=5';
+import { Kit, LEVELS } from './kit.js?v=5';
+import { Blood } from './blood.js?v=5';
+import { Director } from './director.js?v=5';
+import { Sound } from './sound.js?v=5';
+import { makeHand, Person, BONE } from './body.js?v=5';
+import { VHS } from './vhs.js?v=5';
+import { Cutscene } from './cutscene.js?v=5';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -37,12 +37,12 @@ const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.03, 3
 const dolly = new THREE.Group(); dolly.add(camera); scene.add(dolly);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 const vhs = new VHS(renderer, camera); vhs.amount = S.vhs ? 1 : 0;
-scene.add(new THREE.HemisphereLight(0x2a2824, 0x0b0907, 0.35));
+const hemi = new THREE.HemisphereLight(0x2a2824, 0x0b0907, 0.35); scene.add(hemi);
 const moon = new THREE.DirectionalLight(0x9a9488, 0.2); moon.position.set(-30, 50, 20); scene.add(moon);
 
 // --------------------------------------------------------------- the game
 paintAll(QUEST);
-const world = new District(scene);
+let world = new District(scene, 0);
 const cut = new Cutscene(renderer, camera, null, world);
 const sound = new Sound();
 const G = {
@@ -57,22 +57,11 @@ const G = {
   onKill(h, cause) { G.director.onKill(h, cause); hud.flash('kill'); },
   openPen,
 };
-G.vhs = vhs; G.cut = cut; G.camera = camera; window.manhunt = G; // for debugging from the console
+G.vhs = vhs; G.cut = cut; G.camera = camera; G.goScene = (i) => goScene(i); window.manhunt = G; // for debugging from the console
 
-// pen gate (chain-link door Cash starts behind)
-const pen = new THREE.Group(); pen.position.set(-26, 0, 17.5);
-{
-  const t = T.chain.clone(); t.needsUpdate = true; t.repeat.set(4 / 0.6, 3 / 0.6);
-  const door = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, metalness: 0.7, roughness: 0.5 }));
-  door.position.set(0, 1.5, 2); door.rotation.y = Math.PI / 2; pen.add(door);
-  const frame = new THREE.MeshStandardMaterial({ color: 0x777a7c, metalness: 0.7, roughness: 0.4 });
-  for (const z of [0.05, 3.95]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3, 6), frame); p.position.set(0, 1.5, z); pen.add(p); }
-  scene.add(pen);
-}
-const penBox = { x0: -26.08, x1: -25.92, z0: 17.5, z1: 21.5, y0: 0, y1: 3, see: false };
-function closePen() { pen.rotation.y = 0; if (!world.boxes.includes(penBox)) world.boxes.push(penBox); world.bakeWalk(); G.penOpen = false; }
-function openPen() { if (G.penOpen) return; G.penOpen = true; world.boxes.splice(world.boxes.indexOf(penBox), 1); world.bakeWalk(); sound.clank(new V(-26, 1, 19)); G.penSwing = 0; }
-closePen();
+// the start door belongs to the scene; the Director opens it
+function closePen() { world.closeStart(); }
+function openPen() { if (world.openStart()) sound.clank(world.startDoor.position.clone().add(new V(0, 1, 2))); }
 
 // ---------------------------------------------------------------- Cash
 const P = G.player = {
@@ -171,7 +160,7 @@ const hud = (() => {
       meter(g, 18, 82, 'NOISE', noise, noise > 0.6 ? '#ff5544' : '#7a8a96', 170);
       meter(g, 18, 142, 'HEALTH', Math.max(0, P.hp / 100), P.hp > 40 ? '#b23a2a' : '#ff2a1a', 170);
       g.fillStyle = '#e8d5a0'; g.font = 'bold 26px "Courier New", monospace';
-      g.fillText(G.director?.gate ? 'GATE OPEN' : `HOODS ${G.director?.kills || 0}/${G.director?.quota || 0}`, 22, 240);
+      g.fillText(G.director?.gate ? 'GATE OPEN' : `KILLS ${G.director?.kills || 0}/${G.director?.quota || 0}`, 22, 240);
       { const it = G.hands[0]?.item || G.hands[1]?.item; g.fillStyle = '#9aa2aa'; g.font = 'bold 22px "Courier New", monospace'; g.fillText(it ? WNAMES[it.kind] : 'BARE HANDS', 22, 206); }
       radar(g, 418, 128, 88); radar(rg, 80, 80, 74);
       tex.needsUpdate = true;
@@ -182,7 +171,7 @@ const hud = (() => {
       $('mLight').style.width = light * 100 + '%'; $('mLight').style.background = light > 0.35 ? '#ffdd66' : light > 0.15 ? '#a08a40' : '#3c4450';
       $('mNoise').style.width = noise * 100 + '%';
       $('mHp').style.width = Math.max(0, P.hp) + '%'; updateWeapon();
-      $('show').textContent = G.director?.gate ? 'THE GATE IS OPEN — EAST WALL' : `HOODS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
+      $('show').textContent = G.director?.gate ? 'THE GATE IS OPEN — EAST WALL' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
     },
   };
 })();
@@ -247,7 +236,7 @@ function populate() {
   G.director = new Director(G);
 }
 function teardown() {
-  for (const h of G.hunters) scene.remove(h.body.root);
+  for (const h of G.hunters) { scene.remove(h.body.root); h.saw?.(null, 0, true); }
   G.kit?.clear(); for (const h of [...dHands, ...vHands]) h.item = null;
   G.blood?.clear();
   for (const c of G.director?.cams || []) scene.remove(c.g);
@@ -255,9 +244,9 @@ function teardown() {
 }
 function resetScene(fromSave = false) {
   teardown();
-  world.gateOpen = false; if (!world.boxes.includes(world.gateBox)) world.boxes.push(world.gateBox); world.chain.visible = true; world.exitSign.material.color.set(0x333333);
+  world.closeGate();
   closePen();
-  P.pos.copy(world.start); P.yaw = world.startYaw; P.hp = 100; P.alive = true;
+  P.pos.copy(world.start); P.yaw = world.startYaw; P.hp = 100; P.alive = true; P.hurtT = -99;
   dolly.position.set(P.pos.x, 0, P.pos.z); dolly.rotation.y = P.yaw; eyeY = 1.68;
   populate(); hud.fadeTo(0); $('hud').hidden = false;
   G.state = 'play'; G.time = 0; if (!fromSave) G.director.intro();
@@ -268,30 +257,31 @@ function playIntro() {
 }
 // a five-second loading card between the tape and the level, with a tip
 const TIPS = [
-  'Stand perfectly still in the dark and you are invisible. Even a Hood standing next to you won\'t see you.',
+  'Stand perfectly still in the dark and you are invisible. Even a hunter standing next to you won\'t see you.',
   'Hold to charge an execution: grey is hasty, green is violent, red is gruesome. The Director pays for red.',
   'Running is loud. Watch the rings on your radar: that is how far your noise carries.',
-  'Tap on a wall or throw a bottle to lure a Hood away from his friends and into your shadow.',
+  'Tap on a wall or throw a bottle to lure a hunter away from his friends and into your shadow.',
   'Blue dots on the radar have no idea you are there. Yellow is suspicious. Red is coming for you.',
   'Fighting in the open is a good way to die. If two of them see you, run for the dark.',
-  'CCTV cameras report you to the Hoods. A crowbar or a brick will shut them up.',
+  'CCTV cameras report you to the hunters. A crowbar or a brick will shut them up.',
   'Painkillers patch you up. Look for the orange bottles.',
   'A glass bottle breaks into a shard. Keep it.',
-  'The gate only opens when every last Hood is dead.',
+  'The gate only opens when every last hunter is dead.',
 ];
 let loadT = 0, loadNext = null;
 const loadCanvas = document.createElement('canvas'); loadCanvas.width = 1024; loadCanvas.height = 512;
 const loadTex = new THREE.CanvasTexture(loadCanvas); loadTex.colorSpace = THREE.SRGBColorSpace;
 const loadRoom = new THREE.Scene(); loadRoom.background = new THREE.Color(0x030303);
 const loadPanel = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: loadTex, toneMapped: false })); loadRoom.add(loadPanel);
-function loadingThen(next) {
+function loadingThen(next, idx = world.idx) {
   G.state = 'loading'; loadT = 0; loadNext = next;
+  const sc = SCENES[idx]; document.querySelector('.lsScene').textContent = `SCENE ${idx + 1}`; document.querySelector('.lsTitle').textContent = sc.title;
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   $('lsTip').textContent = tip; $('loadScreen').hidden = false; $('hud').hidden = true;
   // VR: the same card on a panel in a dark room, 2.5 m ahead
   const g = loadCanvas.getContext('2d'); g.fillStyle = '#050505'; g.fillRect(0, 0, 1024, 512);
-  g.fillStyle = '#b2120c'; g.font = '500 26px Oswald, sans-serif'; g.fillText('S C E N E   1', 60, 90);
-  g.fillStyle = '#e6e0d2'; g.font = 'bold 96px Oswald, Impact, sans-serif'; g.fillText('THE PENS', 56, 190);
+  g.fillStyle = '#b2120c'; g.font = '500 26px Oswald, sans-serif'; g.fillText(`S C E N E   ${idx + 1}`, 60, 90);
+  g.fillStyle = '#e6e0d2'; g.font = 'bold 96px Oswald, Impact, sans-serif'; g.fillText(sc.title, 56, 190);
   g.fillStyle = '#b2120c'; g.fillRect(60, 240, 5, 130); g.font = '500 20px Oswald, sans-serif'; g.fillText('T I P', 82, 262);
   g.fillStyle = '#e6e0d2'; g.font = '28px "Courier New", monospace'; wrap(g, tip, 82, 302, 860, 36);
   loadTex.needsUpdate = true;
@@ -303,7 +293,7 @@ function loadingTick(dt) {
   if (loadT >= 5) { $('loadScreen').hidden = true; const n = loadNext; loadNext = null; n && n(); }
 }
 function die() {
-  P.alive = false; G.state = 'dead'; hud.fadeTo(0.85);
+  P.alive = false; G.state = 'dead'; hud.fadeTo(0.85); sound.score?.set('silent');
   G.director.any('dir_death', 0);
   $('banner').textContent = 'CUT.'; $('banner').hidden = false;
   setTimeout(() => { $('banner').hidden = true; if (!loadGame()) resetScene(); }, 7000);
@@ -313,7 +303,20 @@ function win() {
   const stars = G.director.rating();
   sound.say(stars >= 4 ? 'dir_rate_high' : stars >= 2 ? 'dir_rate_mid' : 'dir_rate_low'); sound.say('dir_win');
   $('banner').innerHTML = `SCENE COMPLETE<br><span class="stars">${'★'.repeat(stars)}<i>${'★'.repeat(5 - stars)}</i></span>`; $('banner').hidden = false;
-  setTimeout(() => { $('banner').hidden = true; if (renderer.xr.isPresenting) resetScene(); else { $('screen').hidden = false; G.state = 'menu'; document.exitPointerLock?.(); } }, 9000);
+  const next = world.idx + 1;
+  if (next < SCENES.length) {
+    // Manhunt saves at the end of every scene: the profile now starts at the next one
+    try { localStorage.setItem(slotKey(G.slot), JSON.stringify({ v: 2, scene: next, fresh: true, time: 0, savedAt: Date.now(), stars, quota: 0, dir: { kills: 0 } })); } catch (e) {}
+    setTimeout(() => { $('banner').hidden = true; loadingThen(() => { goScene(next); resetScene(); }, next); }, 9000);
+  } else setTimeout(() => { $('banner').innerHTML = 'THE END'; setTimeout(() => { $('banner').hidden = true; if (renderer.xr.isPresenting) renderer.xr.getSession().end(); $('screen').hidden = false; G.state = 'menu'; document.exitPointerLock?.(); }, 6000); }, 9000);
+}
+// swap the whole world for another scene
+function goScene(idx) {
+  teardown(); world.dispose();
+  world = new District(scene, idx); G.world = world; cut.world = world;
+  scene.fog.density = SCENES[idx].fog || 0.042; hemi.intensity = SCENES[idx].amb || 0.35;
+  populate();
+  P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
 }
 
 // ---------------------------------------------------------------- input
@@ -544,7 +547,6 @@ renderer.setAnimationLoop(() => {
     for (const h of G.hunters) h.update(dt, G.time);
     G.blood.update(dt);
     G.director.update(dt);
-    if (G.penOpen && G.penSwing < 1) { G.penSwing = Math.min(1, G.penSwing + dt * 0.6); pen.rotation.y = -G.penSwing * 1.6; }
     // tension score: how hunted are you?
     let hunted = 0; for (const h of G.hunters) if (h.alive) hunted = Math.max(hunted, h.aware() ? 1 : h.susp * 0.7);
     sound.tension(hunted); sound.tick(dt);
@@ -557,7 +559,7 @@ renderer.setAnimationLoop(() => {
       sound.score.set(st);
     }
     // escape
-    if (G.state === 'play' && world.gateOpen && P.pos.x > 35.4) win();
+    if (G.state === 'play' && world.atExit(P.pos)) win();
     // prompts (desktop) and control hints
     prompt(); if (G.state === 'play') tutor(dt);
   }
@@ -650,7 +652,7 @@ function pauseDo(a) {
 const dollyOf = () => dolly;
 function saveGame() {
   const data = {
-    v: 1, time: G.time, pen: !!G.penOpen,
+    v: 2, scene: world.idx, time: G.time, pen: !!world.startOpen,
     p: { x: P.pos.x, z: P.pos.z, yaw: P.yaw, hp: P.hp },
     dir: { kills: G.director.kills, points: G.director.points, spotted: G.director.spotted, gate: G.director.gate },
     hunters: G.hunters.map((h) => ({ alive: h.alive, x: h.pos.x, z: h.pos.z, yaw: h.yaw, wp: h.wp })),
@@ -664,8 +666,10 @@ function saveGame() {
 function loadGame() {
   const d = readSlot(G.slot);
   if (!d) return false;
+  if ((d.scene || 0) !== world.idx) goScene(d.scene || 0);
+  if (d.fresh) { resetScene(); return true; }
   resetScene(true);
-  G.time = d.time; if (d.pen) { openPen(); pen.rotation.y = -1.6; G.penSwing = 1; }
+  G.time = d.time; if (d.pen && world.openStart()) { world.startSwing = 1; world.startDoor.rotation.y = world.startBaseYaw - 1.6; }
   P.pos.set(d.p.x, 0, d.p.z); P.yaw = d.p.yaw; P.hp = d.p.hp; dolly.position.set(d.p.x, 0, d.p.z);
   Object.assign(G.director, { kills: d.dir.kills, points: d.dir.points, spotted: d.dir.spotted });
   if (d.dir.gate) { G.director.gate = true; world.openGate(); }
@@ -690,17 +694,18 @@ function vrPauseInput() {
 // [id, condition, desktop text, VR text]. Each shows once, for a few seconds.
 const TUTOR = [
   ['move', () => G.time > 2, 'Move with <b>W A S D</b>. Look with the <b>mouse</b>. <b>Shift</b> runs, <b>C</b> crouches.', 'Walk with the <b>left stick</b>, turn with the <b>right stick</b>. Click the left stick to sprint. Crouch for real, or press <b>B</b>.', () => G.walked > 3],
-  ['radar', () => G.time > 9 && G.hunters.some((h) => h.alive && h.pos.distanceTo(P.pos) < 25), 'The <b>radar</b> shows the Hoods. Blue: unaware. Yellow: suspicious. Red: hunting you.', 'The <b>radar on your left wrist</b> shows the Hoods. Blue: unaware. Yellow: suspicious. Red: hunting you.', null],
-  ['shadow', () => G.penOpen && P.light < 0.14 && G.time > 14, 'You are in <b>shadow</b>. Stand completely still in the dark and nobody can see you.', 'You are in <b>shadow</b>. Stand completely still in the dark and nobody can see you.', () => P.hidden && G.hiddenT > 1],
+  ['radar', () => G.time > 9 && G.hunters.some((h) => h.alive && h.pos.distanceTo(P.pos) < 25), 'The <b>radar</b> shows the hunters. Blue: unaware. Yellow: suspicious. Red: hunting you.', 'The <b>radar on your left wrist</b> shows the hunters. Blue: unaware. Yellow: suspicious. Red: hunting you.', null],
+  ['shadow', () => world.startOpen && P.light < 0.14 && G.time > 14, 'You are in <b>shadow</b>. Stand completely still in the dark and nobody can see you.', 'You are in <b>shadow</b>. Stand completely still in the dark and nobody can see you.', () => P.hidden && G.hiddenT > 1],
   ['pickup', () => G.kit.items.some((it) => !it.hand && !it.flying && Math.hypot(it.pos.x - P.pos.x, it.pos.z - P.pos.z) < 1.7), 'Press <b>E</b> to pick up weapons and junk.', 'Reach for it and squeeze <b>grip</b> to pick things up.', () => G.hands.some((h) => h.item)],
-  ['throw', () => G.hands.some((h) => h.item && (h.item.kind === 'bottle' || h.item.kind === 'brick')), 'Press <b>Q</b> or <b>right-click</b> to throw. Noise draws the Hoods to it.', 'Swing your arm and <b>let go of grip</b> to throw. Noise draws the Hoods to it.', () => G.thrown],
+  ['throw', () => G.hands.some((h) => h.item && (h.item.kind === 'bottle' || h.item.kind === 'brick')), 'Press <b>Q</b> or <b>right-click</b> to throw. Noise draws the hunters to it.', 'Swing your arm and <b>let go of grip</b> to throw. Noise draws the hunters to it.', () => G.thrown],
   ['exec', () => G.hands.some((h) => h.item && G.kit.candidate(h)), 'Behind him and unseen: <b>hold click</b> to charge an execution. Grey, green, red. Let go, then <b>click</b> to strike.', 'Behind him and unseen: <b>hold trigger</b> to charge an execution. Grey, green, red. Let go, then really strike.', () => G.kit.exec || G.kit.struggle],
-  ['bag', () => G.hands.some((h) => h.item && h.item.kind === 'bag'), 'The bag: get behind a Hood, charge with <b>click</b>, then <b>keep holding</b> while he struggles.', 'The bag: get behind a Hood, charge with <b>trigger</b>, then <b>hold grip and pull</b> while he struggles.', () => G.kit.struggle],
+  ['bag', () => G.hands.some((h) => h.item && h.item.kind === 'bag'), 'The bag: get behind a hunter, charge with <b>click</b>, then <b>keep holding</b> while he struggles.', 'The bag: get behind a hunter, charge with <b>trigger</b>, then <b>hold grip and pull</b> while he struggles.', () => G.kit.struggle],
   ['run', () => P.speed > 2.6, 'Running is <b>loud</b>. The rings on your radar show how far the noise carries.', 'Running is <b>loud</b>. The rings on your radar show how far the noise carries.', null],
-  ['knock', () => G.time > 75, 'Press <b>T</b> facing a wall to <b>tap on it</b> and lure a Hood toward you.', '<b>Knock on a wall</b> with your hand to lure a Hood toward you.', () => G.knocked],
+  ['knock', () => G.time > 75, 'Press <b>T</b> facing a wall to <b>tap on it</b> and lure a hunter toward you.', '<b>Knock on a wall</b> with your hand to lure a hunter toward you.', () => G.knocked],
   ['spotted', () => G.hunters.some((h) => h.alive && h.aware()), 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', 'You have been <b>seen</b>. Fighting in the open gets you killed. Break line of sight and get into the dark.', () => !G.hunters.some((h) => h.alive && h.aware())],
   ['pills', () => P.hp < 60, 'Find <b>painkillers</b> (orange bottles) to heal.', 'Find <b>painkillers</b> (orange bottles) to heal.', () => G.tookPills || P.hp >= 60],
-  ['cams', () => G.director.cams.some((c) => c.see > 0.4), '<b>CCTV</b> reports you to the Hoods. Smash cameras with a crowbar or a brick.', '<b>CCTV</b> reports you to the Hoods. Smash cameras with a crowbar or a brick.', () => G.director.cams.some((c) => !c.alive)],
+  ['cams', () => G.director.cams.some((c) => c.see > 0.4), '<b>CCTV</b> reports you to the hunters. Smash cameras with a crowbar or a brick.', '<b>CCTV</b> reports you to the hunters. Smash cameras with a crowbar or a brick.', () => G.director.cams.some((c) => !c.alive)],
+  ['piggsy', () => world.def.id === 'attic' && G.time > 6, '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', '<b>Piggsy</b> shrugs off hits. Get him to <b>charge</b> at you across the <b>rotten boards</b>. Three falls.', () => world.weak && world.weak.some((w) => w.broken)],
   ['pause', () => G.time > 40, 'Press <b>`</b> to pause, save or load.', 'Press <b>Y</b> to pause, save or load.', () => G.pausedOnce],
 ];
 const tutorDone = new Set(); let tutorT = 0, tutorCur = null;
@@ -758,6 +763,7 @@ function begin(vr) {
   $('screen').hidden = true; $('hud').hidden = false;
   if (S.mic && !mic) startMic();
   teardown(); populate(); P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
+  if (!readSlot(G.slot) && world.idx !== 0) goScene(0);
   if (readSlot(G.slot)) { $('hud').hidden = true; loadingThen(() => { if (!loadGame()) { resetScene(); } $('hud').hidden = false; }); }
   else playIntro();
 }
@@ -775,7 +781,7 @@ function showSlots(mode) {
     if (d) {
       const mins = Math.floor(d.time / 60), secs = String(Math.floor(d.time % 60)).padStart(2, '0');
       const when = d.savedAt ? new Date(d.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-      go.innerHTML = `<b>PROFILE ${n}</b>Scene 1: The Pens &middot; Hoods down ${d.dir.kills}/${d.quota || 5} &middot; ${mins}:${secs}<br>${'★'.repeat(d.stars || 0)}${'☆'.repeat(5 - (d.stars || 0))} &middot; saved ${when}`;
+      go.innerHTML = `<b>PROFILE ${n}</b>Scene ${(d.scene || 0) + 1}: ${SCENES[d.scene || 0]?.title || ''} &middot; ${d.fresh ? 'start of scene' : `kills ${d.dir.kills}/${d.quota || 0}`} &middot; ${mins}:${secs}<br>${'★'.repeat(d.stars || 0)}${'☆'.repeat(5 - (d.stars || 0))} &middot; saved ${when}`;
     } else go.innerHTML = `<b>PROFILE ${n}</b>Empty &middot; start a new game`;
     go.onclick = () => startSlot(n);
     const del = document.createElement('button'); del.className = 'del'; del.textContent = 'DELETE'; del.disabled = !d;

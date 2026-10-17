@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=4';
-import { Score } from './score.js?v=4';
+import { LINE, VOICES } from './lines.js?v=5';
+import { Score } from './score.js?v=5';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -156,12 +156,44 @@ export class Sound {
     mix.connect(lp); lp.connect(out); o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
     this.burst(out, { dur: dur * 0.8, f: muffled ? 500 : 1400, q: 1, gain: 0.08 * pain, attack: 0.01 }); // breath
   }
+  // Piggsy's chainsaw: an engine buzz that follows him and revs when he's after you
+  sawLoop() {
+    if (!this.ctx) return null;
+    const C = this.ctx, o = C.createOscillator(), o2 = C.createOscillator(), n = this.src(this.noise, true), bp = C.createBiquadFilter(), g = C.createGain(), pn = C.createPanner();
+    o.type = 'sawtooth'; o2.type = 'square'; o.frequency.value = 70; o2.frequency.value = 141; bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1;
+    pn.panningModel = 'HRTF'; pn.refDistance = 2; pn.rolloffFactor = 1.1; g.gain.value = 0;
+    const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 24; lg.gain.value = 18; lfo.connect(lg); lg.connect(o.frequency);
+    o.connect(bp); o2.connect(bp); n.connect(bp); bp.connect(g); g.connect(pn); pn.connect(this.sfx); o.start(); o2.start(); n.start(); lfo.start();
+    let dead = false;
+    return (p, rev, stop) => {
+      if (dead) return; if (stop) { dead = true; g.gain.setTargetAtTime(0, this.now(), 0.3); return; }
+      if (pn.positionX) { pn.positionX.value = p.x; pn.positionY.value = p.y; pn.positionZ.value = p.z; }
+      g.gain.setTargetAtTime(0.05 + rev * 0.12, this.now(), 0.1); o.frequency.setTargetAtTime(60 + rev * 60, this.now(), 0.15); bp.frequency.setTargetAtTime(700 + rev * 1400, this.now(), 0.15);
+    };
+  }
+  pig(at, id) {
+    if (!this.ctx) return; const now = this.now();
+    if (this.pigT && now - this.pigT < 1.2) return; this.pigT = now;
+    const out = at ? this.at(at) : this.sfx, squeal = id === 'piggsy_2';
+    for (let k = 0; k < (squeal ? 1 : 3); k++) {
+      const C = this.ctx, o = C.createOscillator(), g = C.createGain(), bp = C.createBiquadFilter(), t0 = now + k * 0.28;
+      o.type = 'sawtooth'; bp.type = 'bandpass'; bp.Q.value = 4;
+      if (squeal) { o.frequency.setValueAtTime(500, t0); o.frequency.exponentialRampToValueAtTime(1400, t0 + 0.35); o.frequency.exponentialRampToValueAtTime(900, t0 + 0.9); bp.frequency.value = 1800; }
+      else { o.frequency.setValueAtTime(110 + Math.random() * 30, t0); o.frequency.exponentialRampToValueAtTime(70, t0 + 0.22); bp.frequency.value = 500; }
+      const vib = C.createOscillator(), vg = C.createGain(); vib.frequency.value = squeal ? 30 : 45; vg.gain.value = squeal ? 80 : 25; vib.connect(vg); vg.connect(o.frequency);
+      const dur = squeal ? 1.0 : 0.25;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(squeal ? 0.5 : 0.6, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(bp); bp.connect(g); g.connect(out); o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
+      this.burst(out, { t: t0 - now, dur: dur * 0.7, f: squeal ? 2500 : 300, q: 1, gain: 0.15, attack: 0.01 });
+    }
+  }
   radio() { this.burst(this.sfx, { dur: 0.06, f: 2500, q: 0.6, gain: 0.12 }); this.burst(this.sfx, { dur: 0.35, f: 1800, q: 1, gain: 0.025, t: 0.05 }); }
 
   // ------------------------------------------------------------ voices
   // say(id, {at}) — queued per speaker so the Director never talks over himself
   say(id, opts = {}) {
     const L = LINE[id]; if (!L) return;
+    if (L.who === 'PIGGSY') { this.pig(opts.at, id); return; } // no words: snorts and squeals
     const who = L.who, isDir = who === 'DIRECTOR';
     if (!isDir && this.speaking && !this.speaking.isDir && !opts.force) { if (performance.now() - this.speaking.t < 1500) return; }
     this.queue.push({ L, opts, isDir });
