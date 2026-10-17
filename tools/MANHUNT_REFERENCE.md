@@ -53,3 +53,26 @@ Deliverance (Piggsy in the attic).
   metal grille partitions, a corridor of tiles; hunter in a red executioner hood.
 - 34:42 stairs up into dark brick; 35:06 out onto night streets: a white box truck, a full moon,
   a parked van with its headlights on, blue-white lamps down narrow alleys, crates/pallets.
+- 36:36–38:54 underground service tunnels: rough ochre/brown plaster walls streaked with dark grime,
+  bare hanging bulbs making pools of light, barred grilles, concrete stairs; corner-peek tutorial.
+- 39:00 CCTV static cut, then outside: brick-throw tutorial among tenements with lit windows.
+- 40:00–41:42 inside a gutted building: yellow plaster walls with rust-red damp rising from the floor,
+  empty door frames, fire-escape ladders; Hoods in the mint-green jacket and stocking mask.
+- 41:48–42:54 back out: blue-white street lamp, dumpsters full of junk, tenement facades, alleys.
+
+## Textures seen (to recreate procedurally, not ripped)
+- Plaster: ochre/yellow-green base, big soft dark blotches, rust-red damp band up to ~1 m.
+- Tiles (toilets): small cream-yellow tiles, dark grout, blood smears.
+- Brick: red-brown, soot-darkened, in blue moonlight looks blue-grey.
+
+## Hunter designs
+Full per-model outfit notes for every gang come from the Manhunt wiki's "Apparel" tables
+(Hoods, Skinz, Wardogs, Innocentz, Smileys, Cerberus); built in src/hunters.js GANG_SETS + src/gear.js.
+Gangs per scene: Hoods 1-3, Skinz 4-5, Wardogs 6-7 + Divided They Fall, Innocentz 8-10,
+Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill, Cerberus Border Patrol / Key Personnel.
+- 43:00–46:54 board-walled rooms (yellow-brown planks), rotten mottled walls, a courtyard with a parked
+  car, a street of tenements; the library cellar.
+- 47:01–48:58 stone-pillared passage, then concrete-and-brick back alleys with chalk scrawl, dumpsters,
+  crates; a railed gate at the end. 49:08 Cerberus van cutscene, then White Trash.
+- Wiki: Road to Ruin ("der2") reuses the Doorway Into Hell radar map: warehouse -> restroom -> alley ->
+  padlocked gate -> long corridor -> street -> library cellar (hung corpses) -> back alley -> gate.
