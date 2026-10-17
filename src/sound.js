@@ -1,0 +1,171 @@
+// sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
+// voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
+import { LINE, VOICES } from './lines.js?v=1';
+
+export class Sound {
+  constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; }
+
+  start() {
+    if (this.ctx) { this.ctx.resume(); return; }
+    const C = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = C.createGain(); this.master.gain.value = 0.9; this.master.connect(C.destination);
+    this.sfx = C.createGain(); this.sfx.connect(this.master);
+    this.amb = C.createGain(); this.amb.gain.value = 0.5; this.amb.connect(this.master);
+    // shared noise buffer
+    const n = C.sampleRate * 2, buf = C.createBuffer(1, n, C.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = buf;
+    // brown noise for rumble
+    const bb = C.createBuffer(1, n, C.sampleRate), bd = bb.getChannelData(0); let last = 0;
+    for (let i = 0; i < n; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; bd[i] = last * 3.5; }
+    this.brown = bb;
+    this.ambience();
+    this.heart = { next: 0, rate: 0 };
+  }
+
+  now() { return this.ctx.currentTime; }
+  src(buf, loop = false) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = loop; return s; }
+  // spatial output node at a world position
+  at(p) {
+    const C = this.ctx, pn = C.createPanner();
+    pn.panningModel = 'HRTF'; pn.distanceModel = 'inverse'; pn.refDistance = 1.2; pn.rolloffFactor = 1.3; pn.maxDistance = 60;
+    if (pn.positionX) { pn.positionX.value = p.x; pn.positionY.value = p.y; pn.positionZ.value = p.z; } else pn.setPosition(p.x, p.y, p.z);
+    pn.connect(this.sfx); return pn;
+  }
+  ear(pos, fwd, upv) {
+    if (!this.ctx) return; const L = this.ctx.listener;
+    if (L.positionX) { L.positionX.value = pos.x; L.positionY.value = pos.y; L.positionZ.value = pos.z; L.forwardX.value = fwd.x; L.forwardY.value = fwd.y; L.forwardZ.value = fwd.z; L.upX.value = upv.x; L.upY.value = upv.y; L.upZ.value = upv.z; }
+    else { L.setPosition(pos.x, pos.y, pos.z); L.setOrientation(fwd.x, fwd.y, fwd.z, upv.x, upv.y, upv.z); }
+  }
+
+  // filtered noise burst
+  burst(out, { dur = 0.1, f = 1000, q = 1, type = 'bandpass', gain = 0.5, attack = 0.003, decay = null, sweep = null, t = 0, buf = null } = {}) {
+    const C = this.ctx, s = this.src(buf || this.noise), fl = C.createBiquadFilter(), g = C.createGain(), t0 = this.now() + t;
+    fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    if (sweep) fl.frequency.exponentialRampToValueAtTime(sweep, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (decay ?? dur));
+    s.connect(fl); fl.connect(g); g.connect(out);
+    s.start(t0, Math.random() * 1.5); s.stop(t0 + (decay ?? dur) + 0.05);
+  }
+  tone(out, { f = 200, f2 = null, dur = 0.2, type = 'sine', gain = 0.3, t = 0, attack = 0.005 } = {}) {
+    const C = this.ctx, o = C.createOscillator(), g = C.createGain(), t0 = this.now() + t;
+    o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + attack); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+
+  // ------------------------------------------------------------ ambience
+  ambience() {
+    const C = this.ctx;
+    // city rumble
+    const r = this.src(this.brown, true), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 160;
+    const g = C.createGain(); g.gain.value = 0.35; r.connect(lp); lp.connect(g); g.connect(this.amb); r.start();
+    // wind through the wire
+    const w = this.src(this.noise, true), bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 4;
+    const wg = C.createGain(); wg.gain.value = 0.03; w.connect(bp); bp.connect(wg); wg.connect(this.amb); w.start();
+    const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 0.07; lg.gain.value = 300; lfo.connect(lg); lg.connect(bp.frequency); lfo.start();
+    // the drone: two detuned low saws through a slow filter — the score
+    const dg = C.createGain(); dg.gain.value = 0.05; const df = C.createBiquadFilter(); df.type = 'lowpass'; df.frequency.value = 220; df.Q.value = 6;
+    for (const f of [41.2, 41.6, 61.7]) { const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(df); o.start(); }
+    const l2 = C.createOscillator(), l2g = C.createGain(); l2.frequency.value = 0.05; l2g.gain.value = 120; l2.connect(l2g); l2g.connect(df.frequency); l2.start();
+    df.connect(dg); dg.connect(this.amb); this.drone = dg; this.droneF = df;
+    // distant sirens and dogs, now and then
+    const later = () => { setTimeout(() => { if (Math.random() < 0.5) this.siren(); else this.dog(); later(); }, 14000 + Math.random() * 22000); };
+    later();
+  }
+  siren() {
+    const C = this.ctx, o = C.createOscillator(), g = C.createGain(), lp = C.createBiquadFilter(), t0 = this.now();
+    lp.type = 'lowpass'; lp.frequency.value = 900; o.type = 'triangle';
+    for (let k = 0; k < 8; k++) { o.frequency.setValueAtTime(620, t0 + k * 1.1); o.frequency.linearRampToValueAtTime(950, t0 + k * 1.1 + 0.55); o.frequency.linearRampToValueAtTime(620, t0 + k * 1.1 + 1.1); }
+    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.012, t0 + 3); g.gain.linearRampToValueAtTime(0.0001, t0 + 8.8);
+    o.connect(lp); lp.connect(g); g.connect(this.amb); o.start(t0); o.stop(t0 + 9);
+  }
+  dog() { for (let k = 0; k < 3 + Math.random() * 3; k++) this.burst(this.amb, { t: k * 0.45, dur: 0.12, f: 500, q: 3, gain: 0.03, sweep: 300 }); }
+  tension(level) { // 0 calm .. 1 hunted: opens the drone filter and speeds the heart
+    if (!this.ctx) return; const t = this.now();
+    this.droneF.frequency.setTargetAtTime(200 + level * 900, t, 0.8);
+    this.drone.gain.setTargetAtTime(0.045 + level * 0.07, t, 0.8);
+    this.heart.rate = level;
+  }
+  tick(dt) {
+    if (!this.ctx) return;
+    const h = this.heart; if (h.rate < 0.15) return;
+    h.next -= dt;
+    if (h.next <= 0) { h.next = 60 / (70 + h.rate * 80); const g = 0.12 + h.rate * 0.3; this.tone(this.sfx, { f: 58, f2: 40, dur: 0.14, gain: g }); this.tone(this.sfx, { f: 52, f2: 38, dur: 0.14, gain: g * 0.7, t: 0.17 }); }
+  }
+
+  // ------------------------------------------------------------ effects
+  step(p, kind = 'walk', surface = 'asphalt', who = 'npc') {
+    if (!this.ctx) return; const out = who === 'me' ? this.sfx : this.at(p);
+    const loud = kind === 'run' ? 0.5 : kind === 'sneak' ? 0.06 : 0.22;
+    const f = surface === 'gravel' ? 2400 : surface === 'metal' ? 1800 : 900;
+    this.burst(out, { dur: 0.07, f, q: 0.8, gain: loud * (who === 'me' ? 0.35 : 1), decay: 0.09 });
+    this.burst(out, { dur: 0.05, f: 180, q: 1, type: 'lowpass', gain: loud * 0.8 * (who === 'me' ? 0.4 : 1) });
+    if (surface === 'gravel') this.burst(out, { dur: 0.12, f: 4000, q: 2, gain: loud * 0.3, t: 0.02 });
+  }
+  glass(p) { const o = this.at(p); this.burst(o, { dur: 0.5, f: 5200, q: 2, gain: 0.7, decay: 0.45 }); for (let k = 0; k < 7; k++) this.tone(o, { f: 2500 + Math.random() * 4000, dur: 0.15 + Math.random() * 0.3, gain: 0.08, t: Math.random() * 0.15, type: 'triangle' }); }
+  thud(p, big = 1) { const o = this.at(p); this.burst(o, { dur: 0.15, f: 140, type: 'lowpass', gain: 0.6 * big }); this.burst(o, { dur: 0.06, f: 1200, gain: 0.15 * big }); }
+  clank(p) { const o = this.at(p); this.tone(o, { f: 820, dur: 0.6, type: 'triangle', gain: 0.18 }); this.tone(o, { f: 1290, dur: 0.4, type: 'triangle', gain: 0.1 }); this.burst(o, { dur: 0.05, f: 3000, gain: 0.3 }); }
+  whoosh(p) { this.burst(p ? this.at(p) : this.sfx, { dur: 0.22, f: 600, sweep: 1800, q: 2, gain: 0.25, attack: 0.08 }); }
+  stab(p, deep = 1) { const o = this.at(p); this.burst(o, { dur: 0.12, f: 320, q: 3, gain: 0.5 * deep, sweep: 160 }); this.burst(o, { dur: 0.25, f: 700, q: 6, gain: 0.12 * deep, t: 0.05, sweep: 300 }); }
+  crunch(p) { const o = this.at(p); this.burst(o, { dur: 0.18, f: 260, type: 'lowpass', gain: 0.9 }); for (let k = 0; k < 5; k++) this.burst(o, { dur: 0.03, f: 1800 + k * 300, q: 4, gain: 0.25, t: k * 0.015 }); }
+  rustle(p, dur = 0.4) { const o = p ? this.at(p) : this.sfx; for (let k = 0; k < dur * 30; k++) this.burst(o, { dur: 0.02, f: 5000 + Math.random() * 3000, q: 1.5, gain: 0.04 + Math.random() * 0.05, t: k / 30 + Math.random() * 0.02 }); }
+  gurgle(p) { const o = this.at(p); for (let k = 0; k < 8; k++) this.tone(o, { f: 90 + Math.random() * 60, f2: 60, dur: 0.12, type: 'sawtooth', gain: 0.05, t: k * 0.13 }); this.burst(o, { dur: 0.9, f: 400, q: 8, gain: 0.08, sweep: 200 }); }
+  hurt() { this.burst(this.sfx, { dur: 0.2, f: 180, type: 'lowpass', gain: 0.8 }); this.tone(this.sfx, { f: 3000, dur: 1.2, gain: 0.03 }); }
+  camBeep(p) { this.tone(this.at(p), { f: 1800, dur: 0.08, type: 'square', gain: 0.04 }); }
+  spark(p) { const o = this.at(p); this.burst(o, { dur: 0.3, f: 6000, q: 0.7, gain: 0.3 }); this.tone(o, { f: 120, dur: 0.4, type: 'square', gain: 0.05 }); }
+  stinger() { // a hit of the score when something big happens
+    const C = this.ctx, t0 = this.now();
+    for (const f of [55, 82.4, 116.5]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sawtooth'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.2); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 2.3); }
+    this.burst(this.master, { dur: 1.6, f: 3000, q: 0.5, gain: 0.08, attack: 0.01, sweep: 400 });
+  }
+  radio() { this.burst(this.sfx, { dur: 0.06, f: 2500, q: 0.6, gain: 0.12 }); this.burst(this.sfx, { dur: 0.35, f: 1800, q: 1, gain: 0.025, t: 0.05 }); }
+
+  // ------------------------------------------------------------ voices
+  // say(id, {at}) — queued per speaker so the Director never talks over himself
+  say(id, opts = {}) {
+    const L = LINE[id]; if (!L) return;
+    const who = L.who, isDir = who === 'DIRECTOR';
+    if (!isDir && this.speaking && !this.speaking.isDir && !opts.force) { if (performance.now() - this.speaking.t < 1500) return; }
+    this.queue.push({ L, opts, isDir });
+    if (!this.busy) this.next();
+  }
+  async next() {
+    const it = this.queue.shift(); if (!it) { this.busy = false; this.speaking = null; return; }
+    this.busy = true; this.speaking = { isDir: it.isDir, t: performance.now() };
+    const { L, opts } = it;
+    this.subs(L, true);
+    if (it.isDir && this.ctx) this.radio();
+    const done = () => { this.subs(L, false); setTimeout(() => this.next(), 250); };
+    const buf = await this.loadVO(L.id);
+    if (buf && this.ctx) {
+      const s = this.src(buf); let out = opts.at ? this.at(opts.at) : this.sfx;
+      if (it.isDir) { // earpiece: bandpass and a touch of grit
+        const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 0.7;
+        const ws = this.ctx.createWaveShaper(); const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 2.2); } ws.curve = c;
+        s.connect(bp); bp.connect(ws); ws.connect(this.sfx);
+      } else s.connect(out);
+      s.onended = done; s.start(); return;
+    }
+    if ('speechSynthesis' in window) {
+      const v = VOICES[L.who], u = new SpeechSynthesisUtterance(L.text);
+      u.pitch = v.pitch; u.rate = v.rate; u.volume = it.isDir ? 0.95 : 0.8;
+      const vs = speechSynthesis.getVoices().filter((x) => /^en/i.test(x.lang));
+      if (vs.length) u.voice = vs[(L.who.charCodeAt(L.who.length - 1)) % vs.length];
+      let ended = false; const fin = () => { if (!ended) { ended = true; done(); } };
+      u.onend = fin; u.onerror = fin; setTimeout(fin, 1500 + L.text.length * 90);
+      speechSynthesis.speak(u);
+    } else setTimeout(done, 1200 + L.text.length * 60);
+  }
+  async loadVO(id) {
+    if (id in this.vo) return this.vo[id];
+    this.vo[id] = null;
+    try {
+      const r = await fetch(`vo/${id}.mp3`);
+      if (r.ok && this.ctx) this.vo[id] = await this.ctx.decodeAudioData(await r.arrayBuffer());
+    } catch (e) {}
+    return this.vo[id];
+  }
+  hush() { this.queue.length = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+}
