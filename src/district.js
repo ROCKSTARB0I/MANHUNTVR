@@ -3,7 +3,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=3';
+import { T, seeded } from './paint.js?v=4';
 
 const V = THREE.Vector3;
 export const BOUNDS = { x0: -36, x1: 36, z0: -26, z1: 26 };

@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=3';
-import { District } from './district.js?v=3';
-import { spawnHunters } from './hunters.js?v=3';
-import { Kit, LEVELS } from './kit.js?v=3';
-import { Blood } from './blood.js?v=3';
-import { Director } from './director.js?v=3';
-import { Sound } from './sound.js?v=3';
-import { makeHand, Person, BONE } from './body.js?v=3';
-import { VHS } from './vhs.js?v=3';
-import { Cutscene } from './cutscene.js?v=3';
+import { paintAll, T } from './paint.js?v=4';
+import { District } from './district.js?v=4';
+import { spawnHunters } from './hunters.js?v=4';
+import { Kit, LEVELS } from './kit.js?v=4';
+import { Blood } from './blood.js?v=4';
+import { Director } from './director.js?v=4';
+import { Sound } from './sound.js?v=4';
+import { makeHand, Person, BONE } from './body.js?v=4';
+import { VHS } from './vhs.js?v=4';
+import { Cutscene } from './cutscene.js?v=4';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -362,7 +362,7 @@ addEventListener('mousemove', (e) => {
 const swings = [];
 function swing(hand) {
   const k = hand.item?.kind;
-  if (!k || k === 'bag') return;
+  if (k === 'bag') return;
   swings.push({ hand, t: 0, kind: k === 'crowbar' || k === 'brick' || k === 'bottle' ? 'arc' : 'thrust' });
 }
 function updateSwings(dt) {

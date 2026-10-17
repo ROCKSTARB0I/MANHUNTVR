@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=3';
+import { T } from './paint.js?v=4';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V();
@@ -161,9 +161,48 @@ export class Kit {
   throwFrom(hand, dir) { if (!hand.item || hand.item.kind === 'bag') return; this.drop(hand, dir.clone().multiplyScalar(10).add(new V(0, 2.2, 0))); this.game.sound.whoosh(null); }
 
   // ------------------------------------------------------------ violence
+  // bare fists: the knuckles hurt when they're moving fast enough through a man
+  punches(dt) {
+    const G = this.game;
+    for (const hand of G.hands) {
+      hand.punchCool = (hand.punchCool || 0) - dt;
+      if (hand.item || hand.punchCool > 0) continue;
+      hand.obj.updateMatrixWorld(true);
+      const k = hand.obj.localToWorld(_a.set(hand.side === 'L' ? -0.01 : 0.01, -0.035, 0));
+      hand.kPrev = hand.kPrev || k.clone();
+      const v = _b.copy(k).sub(hand.kPrev).divideScalar(Math.max(dt, 1e-3)); hand.kPrev.copy(k);
+      hand.kSpeed = (hand.kSpeed || 0) * 0.5 + v.length() * 0.5;
+      const fast = hand.desktop ? (hand === G.hands[0] && G.swingHot) : hand.kSpeed > 2.3;
+      if (!fast) continue;
+      for (const h of G.hunters) {
+        if (!h.alive || h.pos.distanceTo(G.player.pos) > 2.2) continue;
+        for (const part of h.parts()) {
+          const d = hand.desktop ? segDist(part.p, G.player.head, G.lookDir, 1.1) : k.distanceTo(part.p);
+          if (d > part.r + 0.05) continue;
+          this.punch(hand, h, part, k.clone(), v.clone().normalize()); hand.punchCool = hand.desktop ? 0.4 : 0.3; break;
+        }
+        if (hand.punchCool > 0) break;
+      }
+    }
+  }
+  punch(hand, h, part, at, dir) {
+    const G = this.game, unaware = !h.aware() && h.state !== 'bagged' && h.state !== 'executed';
+    if (this.exec && this.exec.h === h) return; // executions need the weapon
+    let dmg = part.name === 'head' ? 20 : part.name === 'neck' ? 16 : 10;
+    if (unaware && h.behind(G.player.pos)) dmg *= 1.5;
+    G.sound.thud(at, 1.1); G.sound.grunt(h.eye(new V()), 1); hand.haptic?.(1, 90);
+    if (part.name === 'head' && Math.random() < 0.6) G.blood.spray(at, dir, 12, 0.8);
+    this.bloodyHands(hand, 0.02);
+    if (!h.hitsTaken) { h.hitsTaken = 0; h.firstHit = G.time; h.stealthStart = unaware; }
+    h.hitsTaken++;
+    h.damage(dmg, part.name, dir, at, 'fists');
+    G.noise(at, 5, 'player');
+  }
+
   update(dt) {
     const G = this.game;
     this.startCharges();
+    this.punches(dt);
     for (const hand of G.hands) {
       const it = hand.item; if (!it) continue;
       it.mesh.updateMatrixWorld(true);
@@ -181,6 +220,12 @@ export class Kit {
       if (it.hitCool > 0 || !fast) continue;
       // cameras
       if (it.kind === 'crowbar' || it.kind === 'brick') for (const c of G.director.cams) if (c.alive && tip.distanceTo(c.p) < 0.4) { G.director.smash(c); it.hitCool = 0.4; hand.haptic?.(1, 80); }
+      // desktop executions: each click lands on the victim (he's held down; the camera can't be aimed at a kneeling man easily)
+      if (hand.desktop && this.exec && this.exec.hand === hand) {
+        const h = this.exec.h, parts = h.parts(), part = parts.find((p) => p.name === (it.kind === 'crowbar' || it.kind === 'brick' ? 'head' : 'neck')) || parts[0];
+        it.tipVel.copy(part.p).sub(G.player.head).normalize().multiplyScalar(4);
+        this.hit(hand, it, h, part, part.p.clone()); it.hitCool = 0.4; continue;
+      }
       for (const h of G.hunters) {
         if (!h.alive || h.pos.distanceTo(tip) > 2.2) continue;
         for (const part of h.parts()) {
@@ -291,8 +336,8 @@ export class Kit {
     // the bag sucks in and out with his breathing, slower as he fades
     const br = Math.sin(G.time * (14 - S.t / S.need * 10)) * 0.08 * (1 - S.t / S.need);
     S.it.mesh.scale.set(1.18 + br, 1.2, 1.18 + br);
-    S.pulse -= dt; if (S.pulse < 0) { S.pulse = 0.18; hand.haptic?.(0.5 + Math.random() * 0.5, 60); if (Math.random() < 0.4) G.sound.rustle(head, 0.15); if (Math.random() < 0.45) G.sound.grunt(head, 1 - S.t / S.need * 0.6, true); }
-    h.body.anim.struggle = Math.max(0.2, 1 - S.t / (S.need * 1.2)); G.vhs.hot = Math.max(G.vhs.hot, 0.25 + S.level * 0.2);
+    S.pulse -= dt; if (S.pulse < 0) { S.pulse = 0.18; hand.haptic?.(0.5 + Math.random() * 0.5, 60); if (Math.random() < 0.4) G.sound.rustle(head, 0.15); if (Math.random() < 0.45 + S.level * 0.2) G.sound.grunt(head, (1 - S.t / S.need * 0.6) * (1 + S.level * 0.3), true); }
+    h.body.anim.struggle = Math.max(0.2, 1 - S.t / (S.need * 1.2)) * (1 + S.level * 0.4); if (S.level === 2) h.body.anim.crouch = Math.min(0.9, S.t / S.need * 1.4); G.vhs.hot = Math.max(G.vhs.hot, 0.25 + S.level * 0.2);
     if (S.slip > 0.6) { // he tore free
       this.struggle = null;
       headBoneDrop(this, S.it, h);
@@ -358,7 +403,7 @@ export class Kit {
     G.sound.stinger(); this.killOn(h); G.sound.grunt(h.eye(new V()), 0.8, it.kind === 'bag');
     if (it.kind === 'bag') { this.startBag(hand, it, h, level); return; }
     this.exec = { h, hand, it, level, need: (NEED[it.kind] || [1, 2, 3])[level], done: 0, t: 0 };
-    h.body.anim.struggle = 0.4;
+    h.body.anim.struggle = 0.4; if (level === 2) h.body.anim.crouch = 0.85; // forced to his knees
   }
   execStrike(hand, it, h, part, at, dir) {
     const G = this.game, E = this.exec;
@@ -375,19 +420,32 @@ export class Kit {
     G.blood.spray(at, dir.clone().negate().add(new V(0, 0.6, 0)), 10 + E.level * 12, 0.8); // back-spatter toward Cash
     if (part.name === 'neck' || part.name === 'head') G.blood.splat(new V(h.pos.x + dir.x * 0.6, 0, h.pos.z + dir.z * 0.6), 0.4 + E.level * 0.2);
     G.sound.grunt(h.eye(new V()), 1 + E.level * 0.3);
-    if (E.level === 2 || Math.random() < 0.3) this.lensBlood(2 + E.level * 2);
+    if (E.level === 2 || Math.random() < 0.3) this.lensBlood(1 + E.level);
     this.bloodyHands(hand, 0.08 + E.level * 0.04);
+    if (E.level >= 1) { // the wound keeps pumping
+      const bone = h.body.bones[part.name === 'head' ? 4 : part.name === 'neck' ? 3 : 2];
+      G.blood.spurt(bone, bone.worldToLocal(at.clone()), dir.clone().negate(), E.level === 2 ? 7 : 3.5, E.level === 2 ? 1.4 : 0.8);
+    }
+    if (E.level === 2) { for (let k = 0; k < 3; k++) G.blood.splat(new V(h.pos.x + (Math.random() - 0.5) * 1.4, 0, h.pos.z + (Math.random() - 0.5) * 1.4), 0.3 + Math.random() * 0.5); h.body.anim.stagger = 1.4; }
     if (it.kind === 'bottle' && !last) { const hd = it.hand; this.remove(it); const s = this.spawn('shard', at); this.grab(hd, s); E.it = s; }
     if (!last) { h.body.anim.stagger = 1; if (Math.random() < 0.6) h.say('hurt'); return; }
     this.exec = null;
     h.kill(dir.clone().multiplyScalar(2.2 + E.level * 1.4), at, it.kind);
-    G.blood.spray(at, dir, 60 + E.level * 50, 1.5 + E.level * 0.4); if (E.level === 2) { this.lensBlood(6); G.vhs.hot = 1.2; }
+    G.blood.spray(at, dir, 60 + E.level * 50, 1.5 + E.level * 0.4);
+    if (E.level === 2) {
+      this.lensBlood(5); G.vhs.hot = 1.3; this.bloodyHands(hand, 0.2);
+      G.blood.spray(at, new V(0, 1, 0), 90, 1.8); G.blood.pool(h.pos.clone(), 2.2);
+      for (const b of ['neck', 'chest', 'spine']) h.body.wound(b, h.body.bonePos(b, new V()).add(new V((Math.random() - 0.5) * 0.1, 0, 0.1)), 1.8);
+      const nb = h.body.bones[3]; G.blood.spurt(nb, new V(0, 0.05, 0.06), dir, 9, 1.6);
+      G.sound.gurgle(at); G.sound.crunch(at);
+    }
     if (it.kind === 'shard' && !it.gone && Math.random() < 0.5) { G.sound.glass(at); this.remove(it); }
   }
   killOn(h) { this.killGlow = Math.max(this.killGlow, 0.6); }
   // blood on the lens: a few drops stuck to the camera that slowly run and fade
   lensBlood(n) {
     const cam = this.game.camera; if (!cam) return;
+    n = Math.min(n, 14 - this.lens.length); // never more than a few drops: you still have to see
     for (let k = 0; k < n; k++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.blood[Math.floor(Math.random() * 3)], color: 0xaa1010, transparent: true, opacity: 0.85, depthTest: false }));
       s.renderOrder = 1500; const r = 0.006 + Math.random() * 0.02; s.scale.set(r, r, 1);
@@ -406,7 +464,7 @@ export class Kit {
     E.t += dt;
     h.body.anim.struggle = 0.35 + Math.sin(G.time * 7) * 0.1;
     if (E.t > 8 + E.level * 2) { // took too long: he gets loose
-      this.exec = null; h.execLevel = null; h.state = 'hunt'; h.susp = 1; h.last.copy(G.player.pos); h.lostT = 0; h.say('spot'); G.director.event('spotted', h);
+      this.exec = null; h.execLevel = null; h.body.anim.crouch = 0; h.state = 'hunt'; h.susp = 1; h.last.copy(G.player.pos); h.lostT = 0; h.say('spot'); G.director.event('spotted', h);
     }
   }
 }

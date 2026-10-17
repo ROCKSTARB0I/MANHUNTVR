@@ -1,7 +1,7 @@
 // blood.js — droplets thrown by wounds (instanced, ballistic), splats where
 // they land, and pools that spread slowly under the dead.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=3';
+import { T } from './paint.js?v=4';
 
 const V = THREE.Vector3, MAX = 400;
 export class Blood {
@@ -10,7 +10,7 @@ export class Blood {
     this.drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 5, 4), new THREE.MeshStandardMaterial({ color: 0x5a0306, roughness: 0.2 }), MAX);
     this.drops.frustumCulled = false; this.drops.count = 0; scene.add(this.drops);
     this.p = []; this.v = []; this.n = 0;
-    this.splats = []; this.pools = [];
+    this.splats = []; this.pools = []; this.spurts = [];
     this.m = new THREE.Matrix4();
   }
   spray(at, dir, count = 30, power = 1) {
@@ -32,7 +32,18 @@ export class Blood {
     m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.006, p.z); m.scale.setScalar(0.01);
     this.scene.add(m); this.pools.push({ m, size, t: 0 });
   }
+  // a wound that keeps pumping in pulses, following the body part it's on
+  spurt(bone, local, dir, secs = 4, power = 1) { this.spurts.push({ bone, local: local.clone(), dir: dir.clone().normalize(), t: 0, secs, power, next: 0 }); }
   update(dt) {
+    for (const s of this.spurts) {
+      s.t += dt; s.next -= dt;
+      if (s.next <= 0) {
+        s.next = 0.32 + s.t * 0.05; // the pulse slows as he bleeds out
+        const at = s.bone.localToWorld(s.local.clone()), fade = Math.max(0.2, 1 - s.t / s.secs);
+        this.spray(at, s.dir.clone().add(new V(0, 0.4, 0)), Math.round(14 * s.power * fade), 0.9 * s.power * fade);
+      }
+    }
+    this.spurts = this.spurts.filter((s) => s.t < s.secs);
     const g = 9.8 * dt;
     let w = 0;
     for (let i = 0; i < this.p.length; i++) {
@@ -47,6 +58,7 @@ export class Blood {
     for (const P of this.pools) if (P.t < 1) { P.t = Math.min(1, P.t + dt / 25); const s = P.size * Math.sqrt(P.t) * 2; P.m.scale.set(s, s, 1); }
   }
   clear() {
+    this.spurts = [];
     for (const s of this.splats) this.scene.remove(s); for (const P of this.pools) this.scene.remove(P.m);
     this.splats = []; this.pools = []; this.p = []; this.v = [];
   }
