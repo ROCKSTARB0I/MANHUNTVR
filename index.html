@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <canvas id="view" tabindex="0"></canvas>
@@ -25,7 +25,7 @@
     <div class="m"><span>HEALTH</span><i><b id="mHp"></b></i></div>
   </div>
   <div id="show"></div>
-  <div id="weapon"><canvas id="wIcon" width="96" height="96"></canvas><span id="wName">BARE HANDS</span></div>
+  <div id="weapon"><canvas id="wIcon" width="96" height="96"></canvas><span id="wName">BARE HANDS</span><div id="wList"></div></div>
   <div class="rec"><span class="dot"></span>REC</div>
   <canvas id="radar" width="160" height="160"></canvas>
 </div>
@@ -88,13 +88,13 @@
       <p><b>Stay in the shadows.</b> Stand perfectly still in the dark and nobody can see you, even right next to you. Your wrist (or the meters on screen) says HIDDEN when you are.</p>
       <p><b>Listen.</b> Running is loud and shows as rings on your radar. Tap a wall, or throw a bottle or brick, to lure a Hood out of his route. Radar dots: blue = unaware, yellow = suspicious, red = hunting you.</p>
       <p><b>Executions.</b> Get behind an unaware Hood with a weapon and a reticle appears. Hold to charge it from <span style="color:#9c9c9c">GREY</span> to <span style="color:#39c84a">GREEN</span> to <span style="color:#e2231a">RED</span>, then let go and act it out: more strikes, or a longer hold with the bag, the higher you charged. Fighting in the open gets you killed.</p>
-      <p><b>Quest.</b> Left stick walks (click to sprint), right stick turns, grip picks up and throws, <b>trigger</b> charges executions, B crouches (or really crouch). Knock on walls with your hand. Any button skips the opening tape.</p>
-      <p><b>Desktop.</b> WASD, mouse, Shift run, C crouch, E pick up, hold click to charge / click to strike, Q throw, T tap a wall, G drop, F swap hands, V third-person camera, N free camera.</p>
+      <p><b>Quest.</b> Left stick walks (click to sprint), right stick turns, grip picks up and throws, <b>A</b> switches between the weapons you carry, <b>trigger</b> charges executions, B crouches (or really crouch). Knock on walls with your hand. Any button skips the opening tape.</p>
+      <p><b>Desktop.</b> WASD, mouse, Shift run, C crouch, E pick up, hold click to charge / click to strike, Q throw, T tap a wall, G drop, 1–4 / mouse wheel switch weapons (X: bare hands), F swap hands, V third-person camera, N free camera.</p>
       <p><b>The Director</b> wants every Hood dead before he opens the gate, and he rates you out of five stars: brutal and quick is what he pays for. Painkillers heal. CCTV cameras sell you out; smash them.</p>
     </div>
   </div>
 </div>
 
-<script type="module" src="src/main.js?v=5"></script>
+<script type="module" src="src/main.js?v=7"></script>
 </body>
 </html>
