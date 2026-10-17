@@ -1,9 +1,17 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=1';
+import { LINE, VOICES } from './lines.js?v=2';
+import { Score } from './score.js?v=2';
 
 export class Sound {
-  constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; }
+  constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
+  // how open a speaker's mouth should be right now (0..1)
+  mouth(who) {
+    const s = this.voiceOn[who]; if (!s) return 0;
+    if (s.an) { s.an.getFloatTimeDomainData(s.buf); let e = 0; for (const x of s.buf) e += x * x; return Math.min(1, Math.sqrt(e / s.buf.length) * 9); }
+    const t = performance.now() / 1000, p = this.pulse[who] || 0; this.pulse[who] = p * 0.9;
+    return Math.max(0, 0.25 + Math.sin(t * 17) * 0.22 + Math.sin(t * 7.3) * 0.18 + p * 0.4);
+  }
 
   start() {
     if (this.ctx) { this.ctx.resume(); return; }
@@ -21,6 +29,7 @@ export class Sound {
     this.brown = bb;
     this.ambience();
     this.heart = { next: 0, rate: 0 };
+    this.score = new Score(this); this.score.start();
   }
 
   now() { return this.ctx.currentTime; }
@@ -66,7 +75,7 @@ export class Sound {
     const wg = C.createGain(); wg.gain.value = 0.03; w.connect(bp); bp.connect(wg); wg.connect(this.amb); w.start();
     const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 0.07; lg.gain.value = 300; lfo.connect(lg); lg.connect(bp.frequency); lfo.start();
     // the drone: two detuned low saws through a slow filter — the score
-    const dg = C.createGain(); dg.gain.value = 0.05; const df = C.createBiquadFilter(); df.type = 'lowpass'; df.frequency.value = 220; df.Q.value = 6;
+    const dg = C.createGain(); dg.gain.value = 0.015; const df = C.createBiquadFilter(); df.type = 'lowpass'; df.frequency.value = 220; df.Q.value = 6;
     for (const f of [41.2, 41.6, 61.7]) { const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(df); o.start(); }
     const l2 = C.createOscillator(), l2g = C.createGain(); l2.frequency.value = 0.05; l2g.gain.value = 120; l2.connect(l2g); l2g.connect(df.frequency); l2.start();
     df.connect(dg); dg.connect(this.amb); this.drone = dg; this.droneF = df;
@@ -85,7 +94,7 @@ export class Sound {
   tension(level) { // 0 calm .. 1 hunted: opens the drone filter and speeds the heart
     if (!this.ctx) return; const t = this.now();
     this.droneF.frequency.setTargetAtTime(200 + level * 900, t, 0.8);
-    this.drone.gain.setTargetAtTime(0.045 + level * 0.07, t, 0.8);
+    this.drone.gain.setTargetAtTime(0.012 + level * 0.02, t, 0.8);
     this.heart.rate = level;
   }
   tick(dt) {
@@ -120,6 +129,32 @@ export class Sound {
     for (const f of [55, 82.4, 116.5]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sawtooth'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.2); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 2.3); }
     this.burst(this.master, { dur: 1.6, f: 3000, q: 0.5, gain: 0.08, attack: 0.01, sweep: 400 });
   }
+  lock(lvl) { // the execution meter ticking up a level
+    const f = [520, 780, 1170][lvl] || 520;
+    this.tone(this.sfx, { f, dur: 0.12, type: 'square', gain: 0.05 }); this.tone(this.sfx, { f: f * 1.5, dur: 0.1, type: 'square', gain: 0.03, t: 0.05 });
+    if (lvl === 2) this.burst(this.sfx, { dur: 0.4, f: 200, type: 'lowpass', gain: 0.25 });
+  }
+  pills() { for (let k = 0; k < 6; k++) this.tone(this.sfx, { f: 2400 + Math.random() * 1500, dur: 0.05, type: 'triangle', gain: 0.04, t: k * 0.04 + Math.random() * 0.02 }); }
+  knock(p) { // two raps of the knuckles: a dull thump and a hard click
+    for (const [t, g] of [[0, 1], [0.17, 0.85]]) {
+      this.burst(this.sfx, { t, dur: 0.07, f: 220, type: 'lowpass', gain: 0.9 * g, attack: 0.001 });
+      this.burst(this.sfx, { t, dur: 0.035, f: 1600, q: 3, gain: 0.55 * g, attack: 0.001 });
+      this.tone(this.sfx, { t, f: 180, f2: 120, dur: 0.06, type: 'triangle', gain: 0.35 * g, attack: 0.001 });
+    }
+  }
+  // a man's grunt: a buzzy voice through two formants, pitch falling. muffled = through a plastic bag
+  grunt(p, pain = 1, muffled = false) {
+    const C = this.ctx, out = p ? this.at(p) : this.sfx, t0 = this.now(), dur = 0.18 + Math.random() * 0.25 * pain;
+    const o = C.createOscillator(); o.type = 'sawtooth'; const f0 = 95 + Math.random() * 45 + pain * 20;
+    o.frequency.setValueAtTime(f0 * 1.25, t0); o.frequency.exponentialRampToValueAtTime(f0 * 0.75, t0 + dur);
+    const vib = C.createOscillator(), vg = C.createGain(); vib.frequency.value = 18 + Math.random() * 10; vg.gain.value = 6 * pain; vib.connect(vg); vg.connect(o.frequency);
+    const mix = C.createGain(); mix.gain.value = 0;
+    for (const [f, q, a] of [[600 + Math.random() * 200, 5, 1], [1150 + Math.random() * 250, 7, 0.6], [2500, 6, 0.25]]) { const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * (muffled ? 0.7 : 1); bp.Q.value = q; const g = C.createGain(); g.gain.value = a; o.connect(bp); bp.connect(g); g.connect(mix); }
+    const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = muffled ? 650 : 4000;
+    mix.gain.setValueAtTime(0.0001, t0); mix.gain.exponentialRampToValueAtTime(0.5 * Math.min(1.4, pain), t0 + 0.02); mix.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    mix.connect(lp); lp.connect(out); o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
+    this.burst(out, { dur: dur * 0.8, f: muffled ? 500 : 1400, q: 1, gain: 0.08 * pain, attack: 0.01 }); // breath
+  }
   radio() { this.burst(this.sfx, { dur: 0.06, f: 2500, q: 0.6, gain: 0.12 }); this.burst(this.sfx, { dur: 0.35, f: 1800, q: 1, gain: 0.025, t: 0.05 }); }
 
   // ------------------------------------------------------------ voices
@@ -137,7 +172,7 @@ export class Sound {
     const { L, opts } = it;
     this.subs(L, true);
     if (it.isDir && this.ctx) this.radio();
-    const done = () => { this.subs(L, false); setTimeout(() => this.next(), 250); };
+    const done = () => { this.subs(L, false); delete this.voiceOn[L.who]; setTimeout(() => this.next(), 250); };
     const buf = await this.loadVO(L.id);
     if (buf && this.ctx) {
       const s = this.src(buf); let out = opts.at ? this.at(opts.at) : this.sfx;
@@ -146,16 +181,26 @@ export class Sound {
         const ws = this.ctx.createWaveShaper(); const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 2.2); } ws.curve = c;
         s.connect(bp); bp.connect(ws); ws.connect(this.sfx);
       } else s.connect(out);
+      const an = this.ctx.createAnalyser(); an.fftSize = 512; s.connect(an); this.voiceOn[L.who] = { an, buf: new Float32Array(512) };
       s.onended = done; s.start(); return;
     }
     if ('speechSynthesis' in window) {
-      const v = VOICES[L.who], u = new SpeechSynthesisUtterance(L.text);
-      u.pitch = v.pitch; u.rate = v.rate; u.volume = it.isDir ? 0.95 : 0.8;
-      const vs = speechSynthesis.getVoices().filter((x) => /^en/i.test(x.lang));
-      if (vs.length) u.voice = vs[(L.who.charCodeAt(L.who.length - 1)) % vs.length];
+      const v = VOICES[L.who];
+      // speak sentence by sentence: browsers drop long utterances partway through
+      const parts = L.text.match(/[^.!?]+[.!?]*\s*/g) || [L.text];
+      const pick = castVoice(L.who);
       let ended = false; const fin = () => { if (!ended) { ended = true; done(); } };
-      u.onend = fin; u.onerror = fin; setTimeout(fin, 1500 + L.text.length * 90);
-      speechSynthesis.speak(u);
+      const say = (i) => {
+        if (i >= parts.length) { fin(); return; }
+        const u = new SpeechSynthesisUtterance(parts[i].trim());
+        u.pitch = v.pitch; u.rate = v.rate; u.volume = it.isDir ? 0.95 : 0.8;
+        if (pick) { u.voice = pick.voice; u.pitch = pick.pitch; u.rate = pick.rate; }
+        let next = false; const go = () => { if (!next) { next = true; say(i + 1); } };
+        u.onend = go; u.onerror = go; setTimeout(go, 2500 + parts[i].length * 110); // safety net if onend never fires
+        u.onstart = () => { this.voiceOn[L.who] = {}; }; u.onboundary = () => { this.pulse[L.who] = 1; };
+        speechSynthesis.speak(u);
+      };
+      say(0);
     } else setTimeout(done, 1200 + L.text.length * 60);
   }
   async loadVO(id) {
@@ -167,5 +212,37 @@ export class Sound {
     } catch (e) {}
     return this.vo[id];
   }
+  idle() { return !this.busy && !this.queue.length; }
   hush() { this.queue.length = 0; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 }
+
+// ------------------------------------------------------------ casting
+// Speech voices stand in until Nathan's recordings exist. Only plain male
+// English voices; never the macOS novelty voices (Cellos, Organ, Good News...)
+// that sing their lines.
+const NOVELTY = /bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|junior|grandma|grandpa/i;
+const FEMALE = /samantha|karen|kathy|moira|tessa|flo\b|flo |sandy|shelley|victoria|fiona|zira|susan|serena|martha|catherine|allison|ava|joanna|kate|female|woman|google us english|google uk english female/i;
+const CAST = {
+  NEWS: { prefer: [/^fred/i, /reed \(english \(united states/i, /aaron/i, /alex/i], lang: /en-us/i, pitch: 1.0, rate: 1.02 },
+  // a calm, educated British voice in your ear
+  DIRECTOR: { prefer: [/^daniel/i, /arthur/i, /reed \(english \(united kingdom/i, /google uk english male/i, /oliver/i, /george/i, /rocko \(english \(united kingdom/i], lang: /en-gb/i, pitch: 0.92, rate: 0.9 },
+  // a tired American man
+  CASH: { prefer: [/reed \(english \(united states/i, /aaron/i, /alex/i, /tom/i, /rocko \(english \(united states/i, /eddy \(english \(united states/i, /fred/i], lang: /en-us/i, pitch: 0.85, rate: 0.95 },
+  HUNTER_A: { prefer: [/rocko \(english \(united states/i, /ralph/i, /eddy \(english \(united states/i, /fred/i], lang: /en-us/i, pitch: 0.9, rate: 1.05 },
+  HUNTER_B: { prefer: [/ralph/i, /rocko \(english \(united kingdom/i, /fred/i], lang: /en/i, pitch: 0.8, rate: 0.95 },
+  HUNTER_C: { prefer: [/eddy \(english \(united states/i, /eddy/i, /rocko/i, /reed/i], lang: /en-us/i, pitch: 1.05, rate: 1.12 },
+};
+const castCache = {};
+function castVoice(who) {
+  if (castCache[who]) return castCache[who];
+  const all = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang) && !NOVELTY.test(v.name));
+  if (!all.length) return null;
+  const c = CAST[who] || CAST.HUNTER_A, male = all.filter((v) => !FEMALE.test(v.name));
+  let voice = null;
+  for (const re of c.prefer) { voice = male.find((v) => re.test(v.name)); if (voice) break; }
+  // unknown platform (Quest): any non-female voice in the right accent, else any; drop the pitch a touch so it reads as a man
+  let pitch = c.pitch;
+  if (!voice) { voice = male.find((v) => c.lang.test(v.lang)) || male[0] || all[0]; pitch = Math.min(pitch, 0.82); }
+  return (castCache[who] = { voice, pitch, rate: c.rate });
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { for (const k in castCache) delete castCache[k]; };

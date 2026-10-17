@@ -79,7 +79,9 @@ export class Loft {
     const I = this.I.slice();
     if (mirror) for (let i = 0; i < I.length; i += 3) { const t = I[i + 1]; I[i + 1] = I[i + 2]; I[i + 2] = t; }
     g.setAttribute('position', new THREE.BufferAttribute(P, 3));
-    g.setAttribute('color', new THREE.BufferAttribute(Float32Array.from(this.C), 3));
+    // colours are authored as sRGB (what you'd pick on screen); vertex colours are linear
+    const C = Float32Array.from(this.C, (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    g.setAttribute('color', new THREE.BufferAttribute(C, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(Float32Array.from(this.UV), 2));
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(this.SI, 4));
     g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(this.SW, 4));

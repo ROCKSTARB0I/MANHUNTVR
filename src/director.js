@@ -1,14 +1,14 @@
-// director.js — the voice in Josh's ear and the cameras he watches through.
+// director.js — the voice in Cash's ear and the cameras he watches through.
 // Runs the scene: intro, reactions with cooldowns, the kill quota that opens
 // the gate, and the CCTV that sells you out to the hunters.
 import * as THREE from '../vendor/three.module.js';
 
 const V = THREE.Vector3;
-export const QUOTA = 3;
 
 export class Director {
   constructor(game) {
-    this.game = game; this.cool = {}; this.kills = 0; this.idle = 0; this.gate = false;
+    this.game = game; this.cool = {}; this.kills = 0; this.idle = 0; this.gate = false; this.points = 0; this.spotted = 0;
+    this.quota = game.hunters.length; // Manhunt kill box: every last one of them
     this.cams = game.world.cams.map((c, i) => this.makeCam(c, i));
   }
 
@@ -24,20 +24,19 @@ export class Director {
     this.game.sound.say(k === 1 ? base : `${base}_${k}`);
   }
 
+  // after the opening tape (or a skip): last instruction, then the pen opens
   intro() {
     const S = this.game.sound;
-    setTimeout(() => S.say('josh_wake'), 1500);
-    setTimeout(() => { ['dir_intro_1', 'dir_intro_2'].forEach((id) => S.say(id)); }, 3800);
-    setTimeout(() => S.say('josh_reply'), 15000);
-    setTimeout(() => { ['dir_intro_3', 'dir_intro_4'].forEach((id) => S.say(id)); }, 16500);
-    setTimeout(() => { this.game.openPen(); S.say('dir_gate_open'); }, 33000);
+    setTimeout(() => S.say('dir_intro_4'), 800);
+    this.penT = setTimeout(() => { this.game.openPen(); S.say('dir_gate_open'); }, 9000);
   }
 
   event(kind, arg) {
     const G = this.game;
     this.idle = 0;
     if (kind === 'pickup') { const m = { bag: 'dir_pickup_bag', shard: 'dir_pickup_shard', crowbar: 'dir_pickup_crowbar', bottle: 'dir_pickup_throw', brick: 'dir_pickup_throw' }; this.line(m[arg], 999); }
-    if (kind === 'spotted') { this.any('dir_spotted', 25); if (Math.random() < 0.4) setTimeout(() => G.sound.say('josh_spotted'), 600); G.sound.stinger(); }
+    if (kind === 'spotted') { this.spotted++; }
+    if (kind === 'spotted') { this.any('dir_spotted', 25); if (Math.random() < 0.4) setTimeout(() => G.sound.say('cash_spotted'), 600); G.sound.stinger(); }
     if (kind === 'lost') { if (!G.hunters.some((h) => h.aware())) this.line('dir_lost', 30); }
     if (kind === 'distract') this.line('dir_distract', 30);
     if (kind === 'noise') this.line('dir_noise', 40);
@@ -48,16 +47,28 @@ export class Director {
   onKill(h, cause) {
     const G = this.game;
     this.kills++;
+    this.points += h.execLevel === 2 ? 3 : h.execLevel === 1 ? 2 : h.execLevel === 0 ? 1 : h.stealthStart ? 0.5 : 0;
     const took = G.time - (h.firstHit || G.time), stealth = h.stealthStart;
     setTimeout(() => {
-      if (cause === 'bag') this.line('dir_kill_bag', 20);
-      else if (!stealth) this.line('dir_kill_fight', 20);
-      else if (took > 2.5 || h.hitsTaken > 2) this.any('dir_kill_brutal', 12);
-      else this.any('dir_kill_quiet', 12);
-      if (Math.random() < 0.35) G.sound.say(Math.random() < 0.5 ? 'josh_kill' : 'josh_kill_2');
-      if (this.kills === QUOTA - 1) this.line('dir_one_left', 999);
-      if (this.kills >= QUOTA && !this.gate) { this.gate = true; G.world.openGate(); this.line('dir_gate', 999); setTimeout(() => G.sound.say('josh_gate'), 9000); }
+      // he congratulates every takedown; executions are graded by how far you charged them
+      const lvl = h.execLevel;
+      if (lvl === 2) this.any('dir_exec_red', 0, 3);
+      else if (lvl === 1) this.any('dir_exec_green', 0, 3);
+      else if (lvl === 0) this.any('dir_exec_grey', 0, 3);
+      else if (!stealth) this.any('dir_kill_fight', 0, 2);
+      else this.any('dir_kill_quiet', 0, 2);
+      if (Math.random() < 0.35) G.sound.say(Math.random() < 0.5 ? 'cash_kill' : 'cash_kill_2');
+      if (this.kills === this.quota - 1) this.line('dir_one_left', 999);
+      if (this.kills >= this.quota && !this.gate) { this.gate = true; G.world.openGate(); this.line('dir_gate', 999); setTimeout(() => G.sound.say('cash_gate'), 9000); }
     }, 1400);
+  }
+
+  // the Director's 5 stars: brutality first, then speed; he hates clean and quick
+  rating() {
+    const per = this.points / Math.max(1, this.kills);           // 0..3
+    const mins = this.game.time / 60;
+    let s = per * 1.2 + (mins < 8 ? 1 : mins < 14 ? 0.5 : 0) + (this.spotted === 0 ? 0.5 : 0);
+    return Math.max(1, Math.min(5, Math.round(s)));
   }
 
   // ------------------------------------------------------------ CCTV

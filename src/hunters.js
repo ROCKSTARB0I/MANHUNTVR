@@ -1,8 +1,8 @@
-// hunters.js — the men paid to kill Josh. They see by the light you stand in,
+// hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=1';
-import { T } from './paint.js?v=1';
+import { Person, BONE, SKIN_TONES } from './body.js?v=2';
+import { T } from './paint.js?v=2';
 
 const V = THREE.Vector3;
 const GANGS = [
@@ -50,9 +50,9 @@ export class Hunter {
   say(kind) { if (this.alive) this.game.sound.say(`h${this.gang.g}_${kind}`, { at: this.eye(_c).clone() }); }
 
   // ------------------------------------------------------------ senses
-  // how strongly does this hunter see Josh right now (0..~1.5)?
+  // how strongly does this hunter see Cash right now (0..~1.5)?
   look(dt) {
-    const P = this.game.player; if (!P.alive) return 0;
+    const P = this.game.player; if (!P.alive || P.hidden) return 0;
     const eye = this.eye(_a), tgt = _b.copy(P.chest);
     const d = eye.distanceTo(tgt); if (d > 26) return 0;
     const f = this.forward(_c), dir = tgt.clone().sub(eye).setY(0).normalize();
@@ -66,7 +66,7 @@ export class Hunter {
   }
 
   hear(n) {
-    if (!this.alive || this.state === 'bagged') return;
+    if (!this.alive || this.state === 'bagged' || this.state === 'executed') return;
     const d = this.pos.distanceTo(n.p); let r = n.r;
     if (!this.game.world.clear(this.eye(_a), _b.copy(n.p).setY(1.0))) r *= 0.55;
     if (d > r) return;
@@ -88,6 +88,7 @@ export class Hunter {
     const A = this.body.anim;
     if (!this.alive) { this.body.animate(dt, t); return; }
     if (this.state === 'bagged') { A.speed = 0; A.struggle = Math.min(1, A.struggle + dt * 4); this.body.animate(dt, t); return; }
+    if (this.state === 'executed') { A.speed = 0; this.speed = 0; this.place(); this.body.animate(dt, t); return; }
     A.struggle = Math.max(0, A.struggle - dt * 3);
     if (this.stun > 0) { this.stun -= dt; A.speed = 0; this.body.animate(dt, t); this.place(); return; }
     const P = this.game.player;
@@ -169,7 +170,7 @@ export class Hunter {
     if (this.speed > 0.05) {
       const f = this.forward(_c);
       this.pos.addScaledVector(f, this.speed * dt);
-      // keep apart from other hunters and from Josh's body
+      // keep apart from other hunters and from Cash's body
       for (const h of this.game.hunters) if (h !== this && h.alive) { const d = this.pos.distanceTo(h.pos); if (d < 0.7 && d > 1e-4) this.pos.addScaledVector(_b.copy(this.pos).sub(h.pos).normalize(), (0.7 - d) * 0.5); }
       const dp = this.pos.distanceTo(P.pos); if (dp < 0.55) this.pos.addScaledVector(_b.copy(this.pos).sub(P.pos).setY(0).normalize(), 0.55 - dp);
       this.game.world.collide(this.pos, 0.3);
@@ -225,7 +226,7 @@ export class Hunter {
       { name: 'gut', bone: 'spine', p: b.bonePos('spine', new V()), r: 0.17 },
     ];
   }
-  // is Josh behind this man (for executions)?
+  // is Cash behind this man (for executions)?
   behind(p) { const f = this.forward(_c), d = _b.copy(p).sub(this.pos).setY(0).normalize(); return f.dot(d) < -0.15; }
 
   damage(n, part, dir, at, cause) {
@@ -234,7 +235,7 @@ export class Hunter {
     this.body.wound(part === 'head' ? 'head' : part === 'neck' ? 'neck' : part === 'chest' ? 'chest' : 'spine', at, n > 50 ? 1.6 : 1);
     this.game.blood.spray(at, dir, n > 50 ? 70 : 30, part === 'neck' ? 1.4 : 1);
     if (this.hp <= 0) { this.kill(dir.clone().multiplyScalar(n > 60 ? 3.2 : 1.8), at, cause); return true; }
-    this.say('hurt'); this.body.anim.stagger = 1; this.stun = 0.45;
+    this.say('hurt'); this.game.sound.grunt(this.eye(new V()), 1); this.body.anim.stagger = 1; this.stun = 0.45;
     if (!this.aware()) { this.susp = 1; this.state = 'hunt'; this.last.copy(this.game.player.pos); this.lostT = 0; this.game.noise(this.pos, 12, 'shout', this); }
     return false;
   }

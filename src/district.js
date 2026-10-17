@@ -3,7 +3,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=1';
+import { T, seeded } from './paint.js?v=2';
 
 const V = THREE.Vector3;
 export const BOUNDS = { x0: -36, x1: 36, z0: -26, z1: 26 };
@@ -234,7 +234,7 @@ export class District {
     // holding pen in the SW corner, chain link
     this.fence(-35.9, 14, -26, 14); this.fence(-26, 14, -26, 17.5); this.fence(-26, 21.5, -26, 25.9);
     this.prop('mattress', -33, 22, 0.3); this.prop('barrel', -34.8, 15.2);
-    this.lamp(-30, 24.8, { h: 3.4, r: 7, i: 0.55, col: 0xd8e8ff, arm: 'none', flicker: 1 });
+    this.lamp(-30, 24.8, { h: 3.4, r: 7, i: 0.55, col: 0xf2ead8, arm: 'none', flicker: 1 });
 
     // warehouse: hollow shell with door gaps; inside is dark
     const corr = this.mat('corr', { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 });
@@ -262,7 +262,7 @@ export class District {
     const camBox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.4), this.mat('cbody', { color: 0x111111 })); camBox.position.set(12.8, 1.55, 17); camBox.rotation.y = -1.2; this.root.add(camBox);
     this.lamp(14.5, 17.5, { h: 3.0, r: 5, i: 0.8, col: 0xfff1d0, arm: 'none', flicker: 1 });
     for (let k = 0; k < 3; k++) { const d = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), new THREE.MeshStandardMaterial({ map: T.blood[k], transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 })); d.rotation.x = -Math.PI / 2; d.rotation.z = k * 2; d.position.set(14.3 + k * 0.4, 0.011 + k * 0.001, 17.8 - k * 0.3); this.root.add(d); }
-    this.lamp(3, 11.5, { h: 5.6, r: 7, i: 0.45, col: 0xbfd8ff, arm: 'none', flicker: 3 });
+    this.lamp(3, 11.5, { h: 5.6, r: 7, i: 0.45, col: 0xe8e2d0, arm: 'none', flicker: 3 });
 
     // south-east lot: burnt cars, the van, a fire barrel
     this.prop('car', 23, 12, 0.3); this.prop('car', 28.5, 19, -1.2); this.prop('van', 30, 8.5, Math.PI / 2 + 0.1);
@@ -321,6 +321,11 @@ export class District {
     this.items.push({ kind: 'bottle', p: new V(19.8, 0.95, 6.5) });
     this.items.push({ kind: 'brick', p: new V(2, 0.06, 6.8) });
     this.items.push({ kind: 'shard', p: new V(15.2, 0.03, 13.2) });
+    // painkillers
+    this.items.push({ kind: 'pills', p: new V(-34.6, 0.05, 24.4) });
+    this.items.push({ kind: 'pills', p: new V(-8.6, 0.05, 21.8) });
+    this.items.push({ kind: 'pills', p: new V(22.4, 0.05, -10.2) });
+    this.items.push({ kind: 'pills', p: new V(29, 0.05, 23.2) });
 
     // patrols
     this.routes.push([[-20, -1], [-6, -2], [-6, 2.5], [-20, 2.5]]);
