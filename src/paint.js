@@ -48,30 +48,63 @@ function pixels(g, n, m, f) {
 const clamp = (v, a = 0, b = 255) => v < a ? a : v > b ? b : v;
 
 // ---------------------------------------------------------------- brick
-function brickPattern(g, n, rows, per, ox = 0, oy = 0, w = n, h = n, rr = R) {
-  const rh = h / rows, bw = w / per;
-  g.fillStyle = '#5b5550'; g.fillRect(ox, oy, w, h);
-  for (let r = 0; r < rows; r++) {
-    const off = (r % 2) * bw / 2;
-    for (let b = -1; b < per + 1; b++) {
-      const x = ox + b * bw + off, y = oy + r * rh;
-      const k = rr(); const base = k < 0.08 ? [70, 38, 30] : k < 0.2 ? [118, 62, 44] : [96 + rr() * 30, 46 + rr() * 16, 34 + rr() * 12];
-      g.fillStyle = `rgb(${base[0] | 0},${base[1] | 0},${base[2] | 0})`;
-      g.fillRect(x + 1.2, y + 1.2, bw - 2.4, rh - 2.4);
-    }
-  }
-}
+// Real proportions: the texture tiles every 4 m, so 52 courses (77 mm) of 18
+// bricks (222 mm) in running bond with ~10 mm recessed mortar. Each brick gets
+// its own fired colour, sand speckle, chipped arrises; some are spalled or
+// burnt; then the whole wall is aged: soot, rain streaks, salt bloom, damp.
+function hash2(a, b) { let h = Math.imul(a * 374761393 + b * 668265263 | 0, 1274126177); h ^= h >>> 13; h = Math.imul(h, 1103515245); return ((h ^ h >>> 16) >>> 0) / 4294967296; }
+const FIRED = [[132, 60, 42], [146, 72, 48], [118, 52, 38], [154, 86, 60], [104, 48, 36], [126, 68, 52], [140, 64, 40], [112, 60, 48]];
 function makeBrick(n) {
-  const [c, g] = cnv(n); brickPattern(g, n, 24, 9);
-  const nz = field(n, 8, 5, 3), nz2 = field(n, 32, 3, 4);
-  const [hc, hg] = cnv(n); hg.drawImage(c, 0, 0);
+  const rows = 52, per = 18, rh = n / rows, bw = n / per, mort = Math.max(1.6, n * 0.0024);
+  const fine = field(n, 128, 2, 31), mid = field(n, 32, 3, 32), big = field(n, 4, 4, 33), damp = field(n, 6, 3, 34);
+  // rain streaks: a smooth 1-D noise across the wall, stretched down it
+  const col = new Float32Array(n), cr = seeded(35), cells = 48, g1 = Array.from({ length: cells }, () => cr());
+  for (let x = 0; x < n; x++) { const f = x / n * cells, i = Math.floor(f), t = f - i, s = t * t * (3 - 2 * t); col[x] = g1[i % cells] + (g1[(i + 1) % cells] - g1[i % cells]) * s; }
+  const H = new Float32Array(n * n);
+  const [c, g] = cnv(n);
   pixels(g, n, n, (x, y, i, p) => {
-    const grime = nz[i] * 0.55 + nz2[i] * 0.25, streak = Math.sin(x * 0.21 + nz[i] * 6) * 0.5 + 0.5;
-    const s = 0.62 + grime * 0.55 - streak * 0.08 * nz[i];
-    p[0] = clamp(p[0] * s - 6); p[1] = clamp(p[1] * s - 4); p[2] = clamp(p[2] * s - 2);
+    const r = Math.floor(y / rh), off = (r % 2) * bw / 2;
+    const bx = Math.floor(((x - off) % n + n) % n / bw), id = (r % rows) * 97 + bx;
+    const u = (((x - off) % n + n) % n) - bx * bw, v = y - r * rh;
+    const k = hash2(id, 1), k2 = hash2(id, 2), k3 = hash2(id, 3);
+    // distance into the brick from its edge, with chipped, uneven arrises
+    const edge = Math.min(u, bw - u, v, rh - v) - mort / 2 - (mid[i] - 0.5) * 2.2 - (fine[i] > 0.82 ? 1.2 : 0);
+    let h, cR, cG, cB;
+    if (edge <= 0) { // mortar: sandy grey, crumbly, recessed
+      const m = 0.82 + fine[i] * 0.3 - mid[i] * 0.12;
+      cR = 128 * m; cG = 121 * m; cB = 110 * m; h = 0.18 + fine[i] * 0.12;
+    } else {
+      const base = k < 0.06 ? [64, 38, 32] : FIRED[Math.floor(k2 * FIRED.length)];
+      const tone = 0.86 + k3 * 0.26 + (mid[i] - 0.5) * 0.18 + (fine[i] - 0.5) * 0.16;
+      cR = base[0] * tone; cG = base[1] * tone; cB = base[2] * tone;
+      // fired skin darker toward the arrises, sand specks and black grog
+      const rim = Math.min(1, edge / 3); cR *= 0.88 + rim * 0.12; cG *= 0.88 + rim * 0.12; cB *= 0.9 + rim * 0.1;
+      const sp = hash2(x * 7 + 3, y * 13 + 5); if (sp > 0.985) { cR *= 0.45; cG *= 0.45; cB *= 0.45; } else if (sp < 0.012) { cR += 30; cG += 22; cB += 14; }
+      h = 0.62 + Math.min(1, edge / 2.4) * 0.3 + (fine[i] - 0.5) * 0.08 - (sp > 0.985 ? 0.1 : 0);
+      // spalled face: frost has blown the skin off, exposing paler, rougher clay
+      if (hash2(id, 4) < 0.07 && mid[i] + (hash2(id, 5) - 0.5) * 0.4 > 0.5 && edge > 1) { cR = 150 * tone + 10; cG = 92 * tone; cB = 66 * tone; h = 0.42 + fine[i] * 0.14; }
+    }
+    // weathering over the whole wall (big noise tiles, so it never seams)
+    const soot = Math.max(0, big[i] - 0.45) * 1.3, streak = Math.pow(col[x], 3) * (0.4 + damp[i] * 0.6);
+    let d = 1 - soot * 0.55 - streak * 0.35 - fine[i] * 0.05;
+    cR *= d; cG *= d; cB *= d * 0.97;
+    const salt = Math.max(0, damp[i] - 0.6) * 2.4 * (edge <= 0 ? 1 : 0.45 + Math.max(0, 0.6 - edge / 6));
+    cR += (178 - cR) * salt * 0.55; cG += (172 - cG) * salt * 0.55; cB += (160 - cB) * salt * 0.55;
+    const wet = Math.max(0, 0.42 - damp[i]) * 1.4; cR *= 1 - wet * 0.3; cG *= 1 - wet * 0.26; cB *= 1 - wet * 0.22; // damp, faintly green-black
+    p[0] = clamp(cR); p[1] = clamp(cG); p[2] = clamp(cB); p[3] = 255;
+    H[i] = h;
   });
-  pixels(hg, n, n, (x, y, i, p) => { const mortar = p[0] > 85 && p[1] > 80 && Math.abs(p[0] - p[2]) < 15; const v = mortar ? 60 : 190 + nz2[i] * 60; p[0] = p[1] = p[2] = clamp(v); });
-  return { map: tex(c), bump: tex(hc, { srgb: false }), canvas: c };
+  // height -> tangent-space normal map (canvas y runs down = -v)
+  const [nc, ng] = cnv(n), s = 3.2;
+  pixels(ng, n, n, (x, y, i, p) => {
+    const hx = H[y * n + (x + 1) % n] - H[y * n + (x - 1 + n) % n], hy = H[((y + 1) % n) * n + x] - H[((y - 1 + n) % n) * n + x];
+    let nx = -hx * s, ny = hy * s, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+    p[0] = (nx * 0.5 + 0.5) * 255; p[1] = (ny * 0.5 + 0.5) * 255; p[2] = (nz * 0.5 + 0.5) * 255; p[3] = 255;
+  });
+  const [hc, hg] = cnv(n); pixels(hg, n, n, (x, y, i, p) => { p[0] = p[1] = p[2] = H[i] * 255; p[3] = 255; });
+  // mortar and spalls are dull; fired brick skin a touch less so
+  const [rc, rg] = cnv(n); pixels(rg, n, n, (x, y, i, p) => { const v = H[i] < 0.5 ? 1 : 0.86 - (H[i] - 0.6) * 0.3; p[0] = p[1] = p[2] = clamp(v * 255); p[3] = 255; });
+  return { map: tex(c), bump: tex(hc, { srgb: false }), normal: tex(nc, { srgb: false }), rough: tex(rc, { srgb: false }), canvas: c };
 }
 
 // facade bay: 4 m wide x 3.6 m tall of brick with one window
@@ -307,7 +340,7 @@ function makeLabel(text, bg, fg, w = 256, h = 128) {
 
 export function paintAll(low) {
   const n = low ? 256 : 512;
-  const brick = makeBrick(n);
+  const brick = makeBrick(1024);
   T.brick = brick;
   T.facade = ['dark', 'dark', 'boarded', 'lit', 'broken', 'dark'].map((k) => makeFacade(n, k, brick.canvas));
   T.asphalt = makeAsphalt(n);

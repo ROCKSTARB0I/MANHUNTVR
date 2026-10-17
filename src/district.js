@@ -4,7 +4,7 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=10';
+import { T, seeded } from './paint.js?v=11';
 
 const V = THREE.Vector3;
 const CELL = 0.5;
@@ -63,7 +63,7 @@ export class District {
 
   // a building: brick facade shell (solid) with facade bays painted on the street side
   building(x0, x1, z0, z1, h, face) {
-    const brick = this.mat('brick', { map: rep(T.brick.map, 1, 1), bumpMap: rep(T.brick.bump, 1, 1), bumpScale: 0.04, roughness: 0.95 });
+    const brick = this.mat('brick', brickMat());
     this.box(x0, x1, z0, z1, 0, h, brick);
     // facade bays on the given face ('n','s','e','w')
     const bays = (face === 'n' || face === 's') ? Math.floor((x1 - x0) / 4) : Math.floor((z1 - z0) / 4);
@@ -215,7 +215,7 @@ export class District {
     this.box(B.x0, B.x1, 4.5, 4.65, 0, 0.14, curb, { solid: false, shadow: false });
 
     // ---- the perimeter: tall blank walls and buildings seal the block
-    const wallM = this.mat('wall', { map: rep(T.brick.map, 1, 1), bumpMap: rep(T.brick.bump, 1, 1), bumpScale: 0.04, roughness: 0.95, color: 0x8a8580 });
+    const wallM = this.mat('wall', brickMat(0x9a958e));
     this.box(B.x0 - 1, B.x0, B.z0, B.z1, 0, 7, wallM);          // west
     this.box(B.x0, B.x1, B.z1, B.z1 + 1, 0, 7, wallM);          // south
     this.box(B.x0, B.x1, B.z0 - 1, B.z0, 0, 7, wallM);          // north
@@ -604,7 +604,7 @@ export class District {
   buildStreets() {
     const B = this.B, v = this.def.variant || 'alleys', R = seeded(100 + this.idx);
     this.ground(T.asphalt, 20, 14, { roughness: 0.85 });
-    const wallM = this.mat('wall', { map: rep(T.brick.map, 1, 1), bumpMap: rep(T.brick.bump, 1, 1), bumpScale: 0.04, roughness: 0.95, color: 0x8a8580 });
+    const wallM = this.mat('wall', brickMat(0x9a958e));
     this.perimeter(7, wallM);
     // blocks: a grid with gaps of varying width for streets and alleys
     const xs = [B.x0 + 6, -14, 2, 18], zs = [B.z0 + 5, -4, 9];
@@ -657,7 +657,7 @@ export class District {
   buildZoo() {
     const B = this.B, R = seeded(500 + this.idx), indoor = this.def.variant === 'house';
     this.ground(indoor ? T.slab : T.concrete, 20, 14, { roughness: 0.9, color: indoor ? 0x8a8a7a : 0x7a7a6a });
-    const wallM = this.mat('zoowall', { map: rep(T.brick.map, 1, 1), color: 0x9a8a70, roughness: 0.95 });
+    const wallM = this.mat('zoowall', brickMat(0xa89a80));
     this.perimeter(indoor ? 5 : 4, wallM);
     if (indoor) this.ceiling(5, 0x14140f);
     const bars = this.mat('bars', { color: 0x4a4440, metalness: 0.8, roughness: 0.5 });
@@ -1002,6 +1002,8 @@ export class District {
   }
 }
 
+// brick walls: colour, normal and roughness maps from paint.js
+function brickMat(color = 0xffffff) { return { map: rep(T.brick.map, 1, 1), normalMap: rep(T.brick.normal, 1, 1), normalScale: new THREE.Vector2(1, 1), roughnessMap: rep(T.brick.rough, 1, 1), roughness: 1, color }; }
 function rep(t, x, y) { const c = t.clone(); c.needsUpdate = true; c.repeat.set(x, y); return c; }
 function slab() { return true; }
 function clip(o, d, lo, hi, t0, t1) {

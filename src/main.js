@@ -1,17 +1,17 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=10';
-import { District, SCENES } from './district.js?v=10';
-import { spawnHunters } from './hunters.js?v=10';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=10';
-import { Blood } from './blood.js?v=10';
-import { Director } from './director.js?v=10';
-import { Sound } from './sound.js?v=10';
-import { makeHand, Person, BONE } from './body.js?v=10';
-import { VHS } from './vhs.js?v=10';
-import { Grime } from './grime.js?v=10';
-import { Cutscene } from './cutscene.js?v=10';
+import { paintAll, T } from './paint.js?v=11';
+import { District, SCENES } from './district.js?v=11';
+import { spawnHunters } from './hunters.js?v=11';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=11';
+import { Blood } from './blood.js?v=11';
+import { Director } from './director.js?v=11';
+import { Sound } from './sound.js?v=11';
+import { makeHand, Person, BONE } from './body.js?v=11';
+import { VHS } from './vhs.js?v=11';
+import { Grime } from './grime.js?v=11';
+import { Cutscene } from './cutscene.js?v=11';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -353,6 +353,7 @@ function goScene(idx) {
   renderer.toneMappingExposure = 1.5 * S.exposure * (later ? 1.25 : 1);
   populate();
   P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
+  tutorCur = null; $('tip').hidden = true; tipMesh.visible = false;
 }
 
 // ---------------------------------------------------------------- input
@@ -771,6 +772,7 @@ function tutor(dt) {
     return;
   }
   if (tutorT < 0) { tutorT += dt; return; } // a short gap between hints
+  if (world.idx > 0) return; // tutorial hints are Born Again only
   for (const [id, cond, desk, vr, done] of TUTOR) {
     if (tutorDone.has(id)) continue;
     let ok = false; try { ok = cond(); } catch (e) {}
