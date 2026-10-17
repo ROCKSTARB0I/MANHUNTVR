@@ -89,3 +89,14 @@ Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill,
 ## Story cutscenes to add after the levels (in order)
 - Born Again intro (execution chamber), Road to Ruin outro (Cerberus van grabs Cash),
   White Trash intro (Ramirez and the Skinz; Cash dumped from the van) ... keep logging per level.
+
+## Fuelled By Hate (video 66:20–108:13) — the far end of the Dentons City junkyard (not a mall)
+- Containers area: rows of open rusted containers (shadows inside), three Skinz, gate opens when they die.
+- Yard with a raised wooden guard hut on stilts and stairs; a Skin inside watching porn on TV; punch the
+  fuse box to bring him down.
+- A crane with no fuel parked across the road to the crusher; gasoline in the Quonset hangar; four more
+  Skinz arrive when it's taken; refuel, the crane clears the path, two more rush out.
+- Crusher yard: big black scrap mounds, green crate stacks, the green crusher with a conveyor belt and
+  stairs (one Skin on top), five around it; then a second crane clears the way to the exit doors.
+- Muddy tyre tracks, timber stacks, an orange excavator, fire barrels, chain-link fences, moon.
+- Outro (cutscene list): the Cerberus ambush Cash in the street and carry him to the Securicar again.
