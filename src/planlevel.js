@@ -6,9 +6,9 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=19';
-import { PLANS } from './plans.js?v=19';
-import { SETS } from './sets.js?v=19';
+import { T, seeded } from './paint.js?v=20';
+import { PLANS } from './plans.js?v=20';
+import { SETS } from './sets.js?v=20';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -64,7 +64,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=19';
+import { makeKit } from './setkit.js?v=20';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
@@ -79,7 +79,7 @@ export function buildPlan(D, matFor) {
   const isRamp = (i, j) => rampAt(i + 0.5, j + 0.5) !== null;
   if (SET.zones || SET.ramps) D.hf = (x, z) => Hc(x / m + W / 2, z / m + H / 2);
   const lowest = Math.min(0, ...(SET.zones || []).map((z) => z.h), ...(SET.ramps || []).map((r) => Math.min(r.h0, r.h1))) - 0.5;
-  const walkable = (c) => c === '.' || c === ',';
+  const walkable = (c) => c === '.' || c === ',' || c === 'i'; // i: indoors (roofed)
 
   // ---------- open doorways so every sizable area is reachable
   const comp = new Int32Array(W * H).fill(-1), sizes = []; let nc = 0;
@@ -139,7 +139,7 @@ export function buildPlan(D, matFor) {
   const B = (k) => (batches[k] = batches[k] || new Batch());
   const solid = (x0, x1, z0, z1, h, see = true) => D.boxes.push({ x0, x1, z0, z1, y0: 0, y1: h, see, plan: true }); // plan walls: the walk grid doesn't pad these (narrow passages stay open)
   // floors
-  const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't';
+  const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't' || at(i, j) === 'i';
   const levels = [...new Set([0, ...(SET.zones || []).map((z) => z.h)])];
   for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv)) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (floorish(i, j) && isRamp(i, j)) B('floor').quad4(X(i), X(i + 1), Z(j), Z(j + 1), Hc(i, j), Hc(i + 1, j), Hc(i, j + 1), Hc(i + 1, j + 1), 3.6);
@@ -164,7 +164,8 @@ export function buildPlan(D, matFor) {
   // walls and fences on the plan's lines
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === '#')) {
     const outer = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === ' ');
-    const wh = outer ? S.facade[0] : S.wallH;
+    const inner = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === 'i');
+    const wh = outer ? S.facade[0] : inner ? Math.max(S.wallH, 3.8) : S.wallH;
     const base = Hc(i + w / 2, j + h / 2);
     B(outer ? 'facade' : 'wall').box(X(i), X(i + w), lowest, wh + Math.max(0, base), Z(j), Z(j + h), outer && S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
   }
@@ -183,7 +184,12 @@ export function buildPlan(D, matFor) {
   for (const k in batches) { const mesh = batches[k].mesh(mats[k] || mats.wall); if (mesh) { mesh.castShadow = k !== 'floor'; D.root.add(mesh); } }
   if (S.ceil) { const c = new Batch(); for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) !== ' ')) c.quad(X(i), X(i + w), Z(j), Z(j + h), 0, 3.6); const cm = c.mesh(mats.ceil); cm.rotation.x = Math.PI; cm.position.y = S.ceil; D.root.add(cm); }
   // the walk grid treats the void as solid
-  D.planVoid = (x, z) => { const i = Math.floor(x / m + W / 2), j = Math.floor(z / m + H / 2); const c = at(i, j); return !(c === '.' || c === ','); };
+  D.planVoid = (x, z) => { const i = Math.floor(x / m + W / 2), j = Math.floor(z / m + H / 2); return !walkable(at(i, j)); };
+  // indoors: a ceiling at 3.4 m with a roof slab over it, and the walls round indoor rooms carried up to it
+  { const ceil = new Batch(), roof = new Batch(), indoorish = (i, j) => at(i, j) === 'i' || (at(i, j) === '#' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => at(i + a, j + b) === 'i'));
+    for (const [i, j, w, h] of rects(W, H, indoorish)) { const y = Hc(i + w / 2, j + h / 2) + 3.4; ceil.quad(X(i), X(i + w), Z(j), Z(j + h), y, 3.6); roof.box(X(i), X(i + w), y, y + 0.35, Z(j), Z(j + h), 3.6); }
+    const cm = ceil.mesh(mats.ceil); if (cm) D.root.add(cm); // the ceiling material is double-sided
+    const rm = roof.mesh(mats.building); if (rm) D.root.add(rm); }
 
   // ---------- exit gate across the route at the far end
   { const [ei, ej] = toward(eCell, 0), ex = X(ei + 0.5), ez = Z(ej + 0.5);

@@ -1,42 +1,80 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=19';
-import { T } from './paint.js?v=19';
+import { Person, BONE, SKIN_TONES } from './body.js?v=20';
+import { T } from './paint.js?v=20';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
-const GANG_SETS = {
-  hoods: { vp: 'h', members: [
-    { g: 'A', mask: 'hockey', weapon: 'bat', top: [0.32, 0.12, 0.10], legs: [0.16, 0.2, 0.3] },
-    { g: 'B', mask: 'skull', weapon: 'machete', top: [0.08, 0.08, 0.09], legs: [0.1, 0.1, 0.11] },
-    { g: 'C', mask: 'knit', weapon: 'pipe', top: [0.22, 0.24, 0.17], legs: [0.24, 0.22, 0.18] },
+// Outfits follow the real hunter models (three body types x three textures per gang):
+// colours are linear vertex colours; maps come from paint.js T.cloth.
+const WHITE = [0.7, 0.52, 0.42], PALE = [0.62, 0.44, 0.34], TAN = [0.55, 0.4, 0.3], BROWN = [0.48, 0.32, 0.23], DARK = [0.3, 0.2, 0.14];
+const BLK = [0.035, 0.035, 0.038], JEANS = [0.62, 0.66, 0.8], BOOT = [0.05, 0.04, 0.035], LEATH = [0.07, 0.065, 0.06];
+export const GANG_SETS = {
+  hoods: { vp: 'h', members: [ // Carcer Market street thugs: stockings, executioner hoods and balaclavas
+    { g: 'A', mask: 'stocking', weapon: 'blackjack', skin: WHITE, top: LEATH, topMap: 'leather', inner: [0.03, 0.06, 0.14], openW: 0.3, legs: JEANS, gear: [{ t: 'knot' }, { t: 'print', side: 'back', text: 'H', fg: '#b8b0a0', w: 0.2 }] },
+    { g: 'B', mask: 'execRed', weapon: 'bat', skin: PALE, top: LEATH, topMap: 'leather', sleeves: 'none', inner: PALE, openW: 0.45, legs: [0.2, 0.13, 0.08], legsMap: 'fleece', gloves: null, gear: [{ t: 'print', side: 'back', text: 'H', fg: '#c8c0b0', w: 0.2 }, { t: 'print', bone: 'chest', side: 'front', text: 'IIII I', fg: '#d8d0c0', w: 0.08, x: 0.09, y: 0.06 }] },
+    { g: 'C', mask: 'balaBlue', weapon: 'crowbar', skin: WHITE, top: BLK, legs: [0.18, 0.13, 0.08], legsMap: 'fleece' },
+    { g: 'A', mask: 'stocking', weapon: 'bat', skin: WHITE, top: [0.36, 0.04, 0.03], inner: [0.07, 0.05, 0.16], openW: 0.3, legs: [0.36, 0.3, 0.18], legsMap: 'fleece', boots: [0.7, 0.7, 0.68], sole: [0.75, 0.75, 0.72], stubble: true, gear: [{ t: 'knot' }, { t: 'print', side: 'back', text: 'Furys', fg: '#d8b030', font: 'italic bold 100px Georgia, serif', w: 0.26 }] },
+    { g: 'B', mask: 'gimp', weapon: 'crowbar', skin: PALE, top: LEATH, topMap: 'leather', sleeves: 'none', inner: [0.12, 0.14, 0.05], openW: 0.35, legs: JEANS, gloves: BLK, gear: [{ t: 'print', side: 'back', text: 'FUCKER', fg: '#d8d0c0', w: 0.26 }] },
+    { g: 'C', mask: 'balaBlack', weapon: 'blackjack', skin: WHITE, top: [0.13, 0.08, 0.045], legs: JEANS, gloves: BLK, boots: BLK },
+    { g: 'A', mask: 'stocking', weapon: 'crowbar', skin: DARK, top: [0.2, 0.32, 0.24], inner: [0.5, 0.4, 0.25], openW: 0.3, legs: [0.07, 0.11, 0.3], legsMap: 'fleece', boots: [0.08, 0.12, 0.06], gear: [{ t: 'knot' }] },
+    { g: 'B', mask: 'execBlack', weapon: 'bat', skin: DARK, top: [0.3, 0.03, 0.02], inner: [0.75, 0.74, 0.7], openW: 0.4, legs: JEANS, gloves: BLK, gear: [{ t: 'print', side: 'back', text: 'FUCK YOU UP', fg: '#e0d8c8', w: 0.3 }, { t: 'print', side: 'front', text: 'PIG', fg: '#e0d8c8', w: 0.1, x: -0.1, y: 0.07 }] },
+    { g: 'C', mask: 'balaRed', weapon: 'bat', skin: DARK, top: [0.05, 0.1, 0.3], legs: [0.1, 0.12, 0.06], legsMap: 'fleece', gloves: BLK, boots: [0.18, 0.1, 0.05], gear: [{ t: 'print', side: 'front', text: 'Furys', fg: '#d8d0c0', font: 'italic bold 100px Georgia, serif', w: 0.2, y: 0.02 }] },
   ] },
-  skinz: { vp: 's', bulk: 1.12, members: [ // shaved heads, bomber jackets, bleached jeans
-    { g: 'A', mask: null, weapon: 'bat', top: [0.2, 0.24, 0.15], legs: [0.34, 0.38, 0.46], stubble: true },
-    { g: 'B', mask: null, weapon: 'pipe', top: [0.07, 0.07, 0.07], legs: [0.3, 0.33, 0.42], stubble: true },
-    { g: 'C', mask: null, weapon: 'machete', top: [0.42, 0.1, 0.08], legs: [0.12, 0.12, 0.14], stubble: true },
+  skinz: { vp: 's', bulk: 1.05, members: [ // Dentons City skinheads: hockey masks, braces, boots
+    { g: 'A', mask: 'gorilla', weapon: 'metalbat', skin: WHITE, bulk: 1.25, top: BLK, sleeves: 'none', legs: JEANS, gloves: BLK, gear: [{ t: 'print', side: 'front', text: 'HATE', fg: '#d8d0c0', w: 0.16, y: 0.05 }] },
+    { g: 'B', mask: 'hockeyBloody', weapon: 'metalbat', skin: WHITE, bulk: 1.15, top: [0.25, 0.25, 0.25], sleeves: 'none', legs: [0.3, 0.3, 0.32], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'armband', col: [0.04, 0.04, 0.04] }] },
+    { g: 'C', mask: null, weapon: 'knife', skin: WHITE, bulk: 0.92, top: [0.75, 0.74, 0.7], sleeves: 'none', legs: [0.75, 0.8, 0.95], boots: [0.4, 0.04, 0.03], gear: [{ t: 'suspenders', col: [0.45, 0.04, 0.03] }] },
+    { g: 'A', mask: 'puppet', weapon: 'nailgun', skin: WHITE, bulk: 1.25, top: BLK, sleeves: 'short', legs: [0.3, 0.3, 0.32], legsMap: 'fleece', boots: [0.4, 0.06, 0.05], gloves: BLK, gear: [{ t: 'suspenders', col: [0.45, 0.04, 0.03] }] },
+    { g: 'B', mask: 'hockeyRed', weapon: 'knife', skin: WHITE, bulk: 1.15, top: [0.05, 0.05, 0.06], sleeves: 'short', legs: [0.9, 0.9, 0.9], legsMap: 'camoUrban', boots: [0.4, 0.04, 0.03], gloves: BLK, gear: [{ t: 'armband', col: [0.45, 0.04, 0.03] }] },
+    { g: 'C', mask: null, weapon: 'nailgun', skin: WHITE, bulk: 0.92, top: [0.08, 0.14, 0.4], sleeves: 'short', legs: [0.75, 0.8, 0.95], boots: BOOT, gear: [{ t: 'suspenders', col: [0.06, 0.1, 0.35] }] },
+    { g: 'A', mask: 'gorilla', weapon: 'metalbat', skin: WHITE, bulk: 1.25, shirtless: true, legs: [0.3, 0.3, 0.32], legsMap: 'fleece', boots: [0.4, 0.06, 0.05], gloves: BLK, gear: [{ t: 'bandolier' }, { t: 'print', side: 'front', text: 'HATE', fg: 'rgba(20,30,50,0.85)', w: 0.08, x: 0.17, y: 0.1 }] },
+    { g: 'B', mask: 'hockeyCracked', weapon: 'metalbat', skin: WHITE, bulk: 1.15, top: BLK, sleeves: 'short', legs: JEANS, gloves: BLK, gear: [{ t: 'armband', col: [0.04, 0.04, 0.04] }, { t: 'print', side: 'front', text: 'FIRST TO GO', fg: '#d8d0c0', w: 0.22, y: 0.04 }] },
+    { g: 'C', mask: null, weapon: 'knife', skin: WHITE, bulk: 0.95, top: [0.07, 0.1, 0.05], legs: [0.75, 0.8, 0.95], boots: BOOT, stubble: true, gear: [{ t: 'suspenders', col: [0.45, 0.04, 0.03] }] },
   ] },
-  innocentz: { vp: 'i', bulk: 0.9, members: [ // pale painted faces, filthy whites
-    { g: 'C', mask: 'skull', weapon: 'machete', top: [0.7, 0.68, 0.62], legs: [0.2, 0.18, 0.16] },
-    { g: 'A', mask: 'hockey', weapon: 'machete', top: [0.62, 0.6, 0.55], legs: [0.16, 0.15, 0.14] },
-    { g: 'B', mask: 'skull', weapon: 'pipe', top: [0.5, 0.46, 0.4], legs: [0.24, 0.2, 0.18] },
+  wardogs: { vp: 'w', bulk: 1.08, torch: 'all', sharp: true, members: [ // the zoo's ex-military: camo, vests, ghillie suits
+    { g: 'A', mask: null, weapon: 'machete', skin: WHITE, top: [0.18, 0.2, 0.1], sleeves: 'none', legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gear: [{ t: 'bandanaCap', map: 'camoForest' }, { t: 'vest', map: 'camoForest' }, { t: 'bandolier' }, { t: 'thighPouch', map: 'camoForest' }] },
+    { g: 'B', mask: 'wrapCamo', weapon: 'machete', skin: WHITE, top: [0.9, 0.9, 0.9], topMap: 'camoForest', legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gloves: [0.12, 0.13, 0.06], gear: [{ t: 'ghillie' }, { t: 'pouches', col: [0.1, 0.1, 0.05] }] },
+    { g: 'C', mask: 'bandanaLow', weapon: 'machete', skin: WHITE, top: [0.9, 0.9, 0.9], topMap: 'camoUrban', inner: [0.45, 0.36, 0.22], openW: 0.2, legs: [0.9, 0.9, 0.9], legsMap: 'camoDesert', boots: [0.35, 0.26, 0.15], gear: [{ t: 'cap', map: 'camoUrban' }, { t: 'vest', map: 'camoForest', pouches: false, h: 0.3 }, { t: 'pouches', map: 'camoForest' }] },
+    { g: 'A', mask: null, weapon: 'machete', skin: WHITE, stubble: true, top: [0.22, 0.14, 0.08], sleeves: 'short', legs: [0.9, 0.9, 0.9], legsMap: 'camoUrban', gloves: BLK, gear: [{ t: 'bandanaCap', map: 'camoUrban' }, { t: 'vest', map: 'camoUrban' }, { t: 'bandolier' }, { t: 'thighPouch', map: 'camoUrban' }] },
+    { g: 'B', mask: 'wrapCamo', weapon: 'machete', skin: WHITE, top: [0.9, 0.9, 0.9], topMap: 'camoUrban', legs: [0.9, 0.9, 0.9], legsMap: 'camoUrban', boots: [0.2, 0.2, 0.1], gear: [{ t: 'ghillie', cols: [[0.3, 0.3, 0.28], [0.18, 0.18, 0.17], [0.45, 0.44, 0.4], [0.1, 0.1, 0.1]] }, { t: 'pouches', col: [0.15, 0.15, 0.14] }] },
+    { g: 'C', mask: 'bandanaCamo', weapon: 'machete', skin: WHITE, top: [0.3, 0.3, 0.3], inner: [0.1, 0.18, 0.06], openW: 0.2, legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gear: [{ t: 'cap', col: [0.04, 0.08, 0.3], print: 'TROJAN' }, { t: 'vest', map: 'plaidRed', pouches: false, h: 0.3 }, { t: 'pouches', col: [0.1, 0.1, 0.06] }] },
+    { g: 'A', mask: null, weapon: 'machete', skin: DARK, top: [0.05, 0.1, 0.3], sleeves: 'short', legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gloves: BLK, gear: [{ t: 'bandanaCap', col: [0.4, 0.04, 0.03] }, { t: 'vest', map: 'camoForest' }, { t: 'thighPouch', map: 'camoForest' }] },
+    { g: 'C', mask: 'bandanaCamo', weapon: 'machete', skin: DARK, top: [0.9, 0.9, 0.9], topMap: 'camoForest', legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', boots: [0.12, 0.13, 0.06], gear: [{ t: 'cap', map: 'camoForest' }, { t: 'vest', col: [0.03, 0.03, 0.03] }, { t: 'print', side: 'front', text: 'KILLER', fg: '#d8d0c0', bg: '#202018', w: 0.08, x: 0.09, y: 0.08 }, { t: 'pouches', col: [0.1, 0.1, 0.06] }] },
+  ] },
+  innocentz: { vp: 'i', bulk: 1, members: [ // Babyfaces in doll masks, Skullys in shrouds and face paint
+    { g: 'A', mask: 'doll', weapon: 'machete', skin: WHITE, bulk: 1.28, top: [0.9, 0.9, 0.9], topMap: 'hawaiianBlue', inner: WHITE, openW: 0.5, legs: JEANS, boots: [0.7, 0.7, 0.68], sole: [0.75, 0.75, 0.72] },
+    { g: 'B', mask: 'skullCrimson', weapon: 'sickle', skin: BROWN, top: [0.32, 0.03, 0.03], hood: 'up', legs: JEANS, gloves: [0.35, 0.03, 0.03], gear: [{ t: 'cloak', col: [0.32, 0.03, 0.03] }, { t: 'cone', col: [0.32, 0.03, 0.03] }] },
+    { g: 'C', mask: 'skullPaint', weapon: 'knife', skin: BROWN, shirtless: true, legs: [0.04, 0.07, 0.3], legsMap: 'fleece', gloves: BLK, boots: [0.6, 0.2, 0.03], sole: [0.8, 0.8, 0.8], gear: [{ t: 'print', side: 'front', text: 'INNOCENTZ', fg: 'rgba(20,24,30,0.8)', w: 0.24, y: 0.07 }] },
+    { g: 'A', mask: 'babyface', weapon: 'machete', skin: WHITE, bulk: 1.28, stubble: true, top: [0.9, 0.9, 0.9], topMap: 'plaidRed', inner: [0.7, 0.68, 0.62], openW: 0.45, legs: [0.22, 0.14, 0.08], legsMap: 'fleece', boots: [0.7, 0.7, 0.68], sole: [0.75, 0.75, 0.72] },
+    { g: 'B', mask: 'pazuzu', weapon: 'sickle', skin: BROWN, top: [0.04, 0.035, 0.035], hood: 'up', legs: [0.3, 0.32, 0.45], gloves: [0.6, 0.58, 0.55], gear: [{ t: 'cloak', col: [0.04, 0.035, 0.035] }, { t: 'cone', col: [0.04, 0.035, 0.035] }, { t: 'print', side: 'back', text: 'MALOS', fg: '#a8a090', w: 0.22, y: 0.0 }] },
+    { g: 'C', mask: 'skullPaint', weapon: 'knife', skin: BROWN, top: [0.78, 0.76, 0.72], sleeves: 'none', legs: [0.25, 0.03, 0.05], legsMap: 'fleece', boots: BLK, sole: [0.8, 0.8, 0.8] },
+    { g: 'A', mask: 'doll', weapon: 'machete', skin: BROWN, bulk: 1.28, top: [0.9, 0.9, 0.9], topMap: 'hawaiianBlack', inner: BROWN, openW: 0.5, legs: [0.55, 0.6, 0.75], legsMap: 'fleece' },
+    { g: 'B', mask: 'flayed', weapon: 'sickle', skin: BROWN, top: [0.35, 0.22, 0.06], hood: 'up', legs: [0.12, 0.14, 0.06], legsMap: 'fleece', gloves: [0.3, 0.3, 0.3], gear: [{ t: 'cloak', col: [0.35, 0.22, 0.06] }, { t: 'cone', col: [0.35, 0.22, 0.06] }] },
+    { g: 'C', mask: 'skullPaint', weapon: 'machete', skin: BROWN, shirtless: true, legs: [0.06, 0.08, 0.2], boots: [0.75, 0.75, 0.72], gear: [{ t: 'print', side: 'front', text: 'MUERTE', fg: 'rgba(20,24,30,0.8)', w: 0.2, y: 0.07 }, { t: 'print', bone: 'spine', side: 'front', text: '187', fg: 'rgba(20,24,30,0.8)', w: 0.12, y: 0.0 }] },
   ] },
   piggsy: { vp: 'p', boss: true, bulk: 1.5, members: [{ g: 'A', mask: 'pig', weapon: 'chainsaw', top: [0.42, 0.38, 0.32], legs: [0.18, 0.16, 0.14] }] },
-  smileys: { vp: 'y', bulk: 0.95, members: [ // painted smiley masks, straitjacket rags
-    { g: 'C', mask: 'smiley', weapon: 'machete', top: [0.62, 0.6, 0.52], legs: [0.3, 0.28, 0.24] },
-    { g: 'A', mask: 'smiley', weapon: 'pipe', top: [0.5, 0.48, 0.42], legs: [0.22, 0.2, 0.18] },
-    { g: 'B', mask: 'smiley', weapon: 'bat', top: [0.58, 0.54, 0.46], legs: [0.26, 0.24, 0.2] },
+  smileys: { vp: 'y', bulk: 1, members: [ // asylum inmates: smiley masks and paint, overalls, mohawks
+    { g: 'A', mask: 'smileyPaint', weapon: 'pipe', skin: WHITE, bulk: 1.12, shirtless: true, legs: [0.05, 0.05, 0.06], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'mohawk' }, { t: 'bracer' }, { t: 'print', side: 'front', text: 'KILL KILL', fg: 'rgba(20,24,30,0.8)', w: 0.24, y: 0.04 }] },
+    { g: 'B', mask: 'smiley', weapon: 'crowbar', skin: WHITE, bulk: 1.1, top: [0.06, 0.12, 0.32], legs: BLK, legsMap: 'fleece', gloves: [0.25, 0.14, 0.06], gear: [{ t: 'bib', col: BLK }] },
+    { g: 'C', mask: 'smileyCracked', weapon: 'machete', skin: WHITE, top: BLK, sleeves: 'none', legs: [0.3, 0.3, 0.3], gloves: BLK, gear: [{ t: 'skirt', col: [0.3, 0.3, 0.3] }] },
+    { g: 'A', mask: 'smileyPaint', weapon: 'pipe', skin: WHITE, bulk: 1.12, shirtless: true, legs: JEANS, gloves: BLK, gear: [{ t: 'mohawk', col: [0.2, 0.04, 0.3] }, { t: 'bracer' }, { t: 'print', side: 'front', text: 'FILLED WITH HATE', fg: 'rgba(120,6,4,0.9)', w: 0.26, y: 0.04 }] },
+    { g: 'B', mask: 'smileyFrown', weapon: 'crowbar', skin: WHITE, bulk: 1.1, shirtless: true, legs: [0.06, 0.12, 0.35], legsMap: 'fleece', gloves: [0.25, 0.14, 0.06], stains: 1.6, gear: [{ t: 'bib', col: [0.06, 0.12, 0.35] }] },
+    { g: 'C', mask: 'smileyCracked', weapon: 'machete', skin: WHITE, top: BLK, sleeves: 'none', legs: [0.2, 0.2, 0.2], gear: [{ t: 'skirt', map: 'plaidBrown' }] },
+    { g: 'A', mask: 'smileyPaint', weapon: 'pipe', skin: DARK, bulk: 1.12, shirtless: true, legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gloves: BLK, gear: [{ t: 'mohawk', col: [0.5, 0.04, 0.3] }, { t: 'bracer' }, { t: 'print', side: 'front', text: 'DRUG SLUT', fg: 'rgba(200,190,170,0.85)', w: 0.22, y: 0.04 }] },
+    { g: 'B', mask: 'smileyPlease', weapon: 'crowbar', skin: WHITE, bulk: 1.1, top: [0.9, 0.9, 0.9], topMap: 'plaidOrange', legs: BLK, legsMap: 'fleece', gloves: [0.05, 0.1, 0.35], gear: [{ t: 'bib', col: BLK, print: 'DIE', printCol: '#c8b020' }] },
+    { g: 'C', mask: 'smileyFrown', weapon: 'machete', skin: DARK, top: [0.7, 0.66, 0.6], sleeves: 'short', legs: JEANS, stains: 1.6 },
   ] },
-  cerberus: { vp: 'c', bulk: 1.15, torch: 'all', sharp: true, guns: true, members: [ // the Director's private SWAT
-    { g: 'B', mask: 'swat', weapon: 'rifle', top: [0.07, 0.07, 0.075], legs: [0.08, 0.08, 0.085] },
-    { g: 'A', mask: 'swat', weapon: 'rifle', top: [0.08, 0.08, 0.08], legs: [0.07, 0.07, 0.075] },
-    { g: 'C', mask: 'swat', weapon: 'rifle', top: [0.06, 0.06, 0.065], legs: [0.08, 0.08, 0.08] },
+  swat: { vp: 'c', bulk: 1.12, torch: 'all', sharp: true, guns: true, members: [ // Carcer City SWAT: helmets, balaclavas, vests
+    { g: 'B', mask: 'swat', weapon: 'rifle', top: [0.03, 0.035, 0.05], legs: [0.03, 0.035, 0.05], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'vest', col: [0.03, 0.03, 0.035] }, { t: 'print', side: 'back', text: 'SWAT', fg: '#e8e4d8', w: 0.24, y: 0.04 }, 'kneepad', { t: 'pouches', col: BLK }] },
+    { g: 'A', mask: 'swat', weapon: 'shotgun', top: [0.03, 0.035, 0.05], legs: [0.03, 0.035, 0.05], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'vest', col: [0.03, 0.03, 0.035] }, { t: 'print', side: 'back', text: 'POLICE', fg: '#e8e4d8', w: 0.24, y: 0.04 }, 'kneepad', { t: 'thighPouch', col: BLK }] },
+    { g: 'C', mask: 'swat', weapon: 'rifle', top: [0.03, 0.035, 0.05], legs: [0.03, 0.035, 0.05], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'vest', col: [0.03, 0.03, 0.035] }, { t: 'print', side: 'back', text: 'SWAT', fg: '#e8e4d8', w: 0.24, y: 0.04 }, 'kneepad', { t: 'pouches', col: BLK }] },
   ] },
-  wardogs: { vp: 'w', bulk: 1.1, torch: 'all', sharp: true, members: [ // ex-military: balaclavas and fatigues
-    { g: 'B', mask: 'knit', weapon: 'machete', top: [0.24, 0.27, 0.18], legs: [0.22, 0.24, 0.17] },
-    { g: 'A', mask: 'knit', weapon: 'pipe', top: [0.2, 0.22, 0.15], legs: [0.24, 0.26, 0.18] },
-    { g: 'C', mask: 'knit', weapon: 'bat', top: [0.26, 0.28, 0.2], legs: [0.2, 0.22, 0.16] },
+  cerberus: { vp: 'c', bulk: 1.15, torch: 'all', sharp: true, guns: true, members: [ // the Director's private army: gas masks with red lenses, riot vests
+    { g: 'B', mask: 'gasHood', weapon: 'shotgun', top: [0.035, 0.035, 0.04], inner: [0.04, 0.06, 0.16], openW: 0.12, legs: [0.035, 0.035, 0.04], legsMap: 'fleece', gloves: BLK, gear: ['gasmask', 'riot', { t: 'backpack', col: [0.03, 0.03, 0.03] }, { t: 'armband', col: [0.4, 0.03, 0.03] }, 'kneepad', { t: 'pouches', col: BLK }] },
+    { g: 'A', mask: 'gasHood', weapon: 'shotgun', top: [0.035, 0.035, 0.04], legs: [0.9, 0.9, 0.9], legsMap: 'camoBlack', gloves: BLK, gear: ['gasmask', 'riot', { t: 'backpack', col: [0.03, 0.03, 0.03] }, { t: 'armband', col: [0.25, 0.2, 0.02] }, 'kneepad', { t: 'pouches', col: BLK }] },
+    { g: 'C', mask: 'gasHood', weapon: 'rifle', top: [0.035, 0.035, 0.04], legs: [0.035, 0.035, 0.04], legsMap: 'fleece', gloves: BLK, gear: ['gasmask', 'riot', { t: 'backpack', col: [0.03, 0.03, 0.03] }, { t: 'armband', col: [0.25, 0.2, 0.02] }, 'kneepad', { t: 'bandolier', col: [0.04, 0.04, 0.04] }] },
   ] },
 };
 const NAMES = ['Ricky', 'Dwayne', 'Lonnie', 'Cutter', 'Moss', 'Tully', 'Boone', 'Vic'];
@@ -47,7 +85,7 @@ export class Hunter {
     this.game = game; this.idx = idx; this.name = NAMES[idx % NAMES.length];
     const set = this.set = GANG_SETS[game.world.def.gang] || GANG_SETS.hoods;
     const G = this.gang = set.members[idx % set.members.length];
-    this.body = new Person({ mask: G.mask, weapon: G.weapon, top: G.top, legs: G.legs, stubble: G.stubble, hood: G.mask === 'hockey' || G.mask === 'skull' ? 'up' : false, dirt: 1, stains: idx % 2 ? 0.8 : 0.3, seed: idx + 1, skin: SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: (set.bulk || 1) * (0.95 + (idx % 3) * 0.08) });
+    this.body = new Person(Object.assign({ hood: false, dirt: 1, stains: idx % 2 ? 0.8 : 0.3 }, G, { seed: idx + 1, skin: G.skin || SKIN_TONES[(idx * 3 + 1) % SKIN_TONES.length], bulk: (set.bulk || 1) * (G.bulk || 1) * (0.97 + (idx % 3) * 0.04) }));
     game.scene.add(this.body.root);
     this.route = route; this.wp = 0;
     this.boss = !!set.boss; if (this.boss) { this.hp = 300; this.saw = game.sound.sawLoop?.(); }

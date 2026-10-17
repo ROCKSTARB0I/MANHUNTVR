@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=19';
+import { T } from './paint.js?v=20';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -40,8 +40,8 @@ export function makeKit(D, { X, Z, Hc, m }) {
     fence: (i0, j0, i1, j1, h = 3.2) => { const n0 = D.root.children.length, b0 = D.boxes.length; D.fence(wx(i0), wz(j0), wx(i1), wz(j1), h); const y = fy((i0 + i1) / 2, (j0 + j1) / 2); if (y) { for (let k = n0; k < D.root.children.length; k++) D.root.children[k].position.y += y; for (let k = b0; k < D.boxes.length; k++) { D.boxes[k].y0 += y; D.boxes[k].y1 += y; } } },
     // a painted sign on a wall: text on a plate, optionally lit
     sign: (text, i, j, ry, { w = 3, h = 0.7, y = 3, bg = '#d8d2c0', fg = '#1a1a1a', font = 'bold 64px Arial', lit = false, border = null } = {}) => {
-      const t = canvasTex(Math.round(256 * w / h), 256, (g, cw, ch) => { g.fillStyle = bg; g.fillRect(0, 0, cw, ch); if (border) { g.strokeStyle = border; g.lineWidth = 14; g.strokeRect(7, 7, cw - 14, ch - 14); } g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; const lines = text.split('\n'); lines.forEach((l, k) => g.fillText(l, cw / 2, ch / 2 + (k - (lines.length - 1) / 2) * 70)); for (let k = 0; k < 300; k++) { g.fillStyle = `rgba(40,30,20,${Math.random() * 0.12})`; g.fillRect(Math.random() * cw, Math.random() * ch, 3 + Math.random() * 20, 2); } });
-      const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, emissive: lit ? 0xffffff : 0x000000, emissiveMap: lit ? t : null, emissiveIntensity: lit ? 0.7 : 0, polygonOffset: true, polygonOffsetFactor: -2 }));
+      const t = canvasTex(Math.round(256 * w / h), 256, (g, cw, ch) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, cw, ch); } if (border) { g.strokeStyle = border; g.lineWidth = 14; g.strokeRect(7, 7, cw - 14, ch - 14); } g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; const lines = text.split('\n'); lines.forEach((l, k) => g.fillText(l, cw / 2, ch / 2 + (k - (lines.length - 1) / 2) * 70)); for (let k = 0; k < 300; k++) { g.fillStyle = `rgba(40,30,20,${Math.random() * 0.12})`; g.fillRect(Math.random() * cw, Math.random() * ch, 3 + Math.random() * 20, 2); } });
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, transparent: !bg, depthWrite: !!bg, emissive: lit ? 0xffffff : 0x000000, emissiveMap: lit ? t : null, emissiveIntensity: lit ? 0.7 : 0, polygonOffset: true, polygonOffsetFactor: -2 }));
       s.position.set(wx(i), y + fy(i, j), wz(j)); s.rotation.y = ry; D.root.add(s); return s;
     },
     // neon shop sign: glowing letters and a coloured light
@@ -58,6 +58,15 @@ export function makeKit(D, { X, Z, Hc, m }) {
     },
     // a canvas shop awning sticking out of a wall
     awning: (i, j, ry, w = 4, col = 0x7a1a14) => { const g = new THREE.Group(); const a = new THREE.Mesh(box(w, 0.08, 1.4), mat('awn' + col, { color: col, roughness: 0.9 })); a.position.set(0, 3.0, 0.7); a.rotation.x = 0.35; g.add(a); return place(g, i, j, ry); },
+    // an air-conditioning unit bolted to a wall
+    ac: (i, j, ry, y = 3.2) => { const g = new THREE.Group(); const b = new THREE.Mesh(box(0.9, 0.55, 0.6), mat('ac', { map: T.van.map, color: 0xb8b4a8, roughness: 0.6, metalness: 0.4 })); b.position.set(0, y, 0.3); g.add(b); const grille = new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), mat('acg', { color: 0x222222 })); grille.position.set(0.15, y, 0.61); g.add(grille); return place(g, i, j, ry); },
+    // a heap of brick rubble
+    rubble: (i, j, r = 1.6, h = 1.0) => { const g = new THREE.Group(); const brk = mat('rub', { map: T.brick.map, color: 0x8a7a6a, roughness: 1 }); for (let k = 0; k < 9; k++) { const c = new THREE.Mesh(new THREE.DodecahedronGeometry(r * (0.35 + Math.random() * 0.4), 0), brk); c.position.set((Math.random() - 0.5) * r, h * (0.2 + Math.random() * 0.3), (Math.random() - 0.5) * r); c.scale.y = 0.55; c.rotation.set(Math.random(), Math.random(), Math.random()); g.add(c); } return place(g, i, j, Math.random() * 6, r * 1.4, r * 1.4, h); },
+    // blood on the floor (the cellar)
+    blood: (i, j, s = 1.6) => { const k = Math.floor(Math.random() * 8), t = T.blood[k]; const d = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: 0.15, polygonOffset: true, polygonOffsetFactor: -3 })); d.rotation.x = -Math.PI / 2; d.rotation.z = Math.random() * 6; d.position.set(wx(i), fy(i, j) + 0.015, wz(j)); D.root.add(d); },
+    // a bare bulb hanging indoors
+    bulb: (i, j, o = {}) => D.lamp(wx(i), wz(j), { h: 3.0, r: 7, i: 0.8, arm: 'none', col: 0xffe2a0, ...o }),
+    tree: (i, j, size = 3) => D.tree(wx(i), wz(j), size),
     // ---- vehicles
     boxTruck: (i, j, ry = 0) => { // the white box truck with the blue stripe (Born Again's car park)
       const g = new THREE.Group(); const bt = bodyTex('#2a4a9a');

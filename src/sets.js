@@ -58,4 +58,37 @@ export const SETS = {
       K.fire(13, 129.5); K.fire(13, 136.5);
     },
   },
+  // ---------------------------------------------------------- 2. DOORWAY INTO HELL
+  // Out of the mall's chute into the back alleys; a Hood steps out of a derelict
+  // house to piss; through the house; out into the barricaded street of rubble,
+  // rusted cars and the FOR LEASE billboard, an abandoned house in the middle;
+  // the crowbar in the next house; the yellow yard ("Hide yo shit"); the cellar.
+  'doorway': {
+    start: [26, 118, -PI / 2], exit: [243, 61],
+    patrols: [[[40, 88], [40, 90]], [[34, 102], [52, 101]], [[90, 30], [90, 82]], [[86, 118], [96, 146]], [[70, 68], [70, 63]], [[168, 58], [198, 46]], [[206, 74], [212, 70]]],
+    dress(K) {
+      // the mall wall and the chute they came out of
+      K.sign('CARCER MALL', 21.2, 105, PI / 2, { w: 4, h: 0.8, y: 4.2, bg: '#b8201a', fg: '#f4efe2' }); K.doorway(21.3, 118, PI / 2, 1.4, 1.6);
+      K.prop('dumpster', 29, 128, PI / 2); K.prop('trash', 28, 110, 0.5); K.bins(28.8, 96, PI / 2, 2);
+      // back alleys: air-con units, weeds, a pissing Hood's corner
+      for (const [i, j, r] of [[56.6, 90, -PI / 2], [56.6, 112, -PI / 2], [29.4, 132, PI / 2], [74.4, 52, -PI / 2]]) K.ac(i, j, r);
+      K.graffiti(57, 100, -PI / 2, 2); K.graffiti(29.3, 86, PI / 2, 2);
+      // the barricaded street: rubble, rusted cars, sawhorse barricades, the billboard
+      for (const [i, j] of [[80, 14], [100, 38], [78, 92], [102, 110], [84, 138], [97, 72]]) K.rubble(i, j, 2.2, 1.2);
+      K.car(98, 22, 0.3); K.car(79, 60, 2.9); K.car(100, 98, 1.4); K.car(81, 126, 0.1); K.van(98, 132, 3.0);
+      K.fence(75, 6, 105, 6, 2.2); K.fence(75, 149, 105, 149, 2.2);
+      K.sign('FOR LEASE\ncall today\n555-7625  555-5440', 106.5, 24, -PI / 2, { w: 7, h: 3.2, y: 8, bg: '#ece8dc', fg: '#c01c14', font: 'bold 72px Arial' });
+      K.lamp(77, 22, { h: 5.4, r: 13, col: 0xc8d4e0 }); K.lamp(103, 62, { h: 5.4, r: 13, col: 0xc8d4e0 }); K.lamp(77, 104, { h: 5.4, r: 13, col: 0xc8d4e0 }); K.lamp(103, 142, { h: 5.4, r: 13, col: 0xc8d4e0 });
+      K.tree(70, 145, 3.5); K.tree(108, 8, 3); K.tree(205, 90, 3.5); K.tree(240, 22, 3);
+      // houses: bare bulbs, a mattress and the crowbar message upstairs
+      K.bulb(42, 100); K.bulb(68, 66); K.bulb(112, 56); K.bulb(170, 64);
+      K.prop('mattress', 66, 70, 0.3); K.sign('GET THE\nCROWBAR', 61.4, 66, PI / 2, { w: 1.8, h: 1, y: 1.8, bg: null, fg: '#7a120c', font: 'bold 70px Arial' });
+      // the yellow yard
+      K.sign('Hide yo\nshit', 157.4, 36, PI / 2, { w: 2.6, h: 1.6, y: 1.9, bg: null, fg: '#b0140e', font: 'italic bold 92px Georgia' });
+      K.ac(157.4, 46, PI / 2, 2.9); K.ac(157.4, 50, PI / 2, 2.9); K.prop('dumpster', 165, 30, 0); K.prop('dumpster', 172, 30, 0.1);
+      // the cellar: blood everywhere
+      for (let k = 0; k < 9; k++) K.blood(202 + Math.random() * 12, 68 + Math.random() * 14, 1.2 + Math.random() * 1.6);
+      K.bulb(207, 75, { col: 0xff9a7a, flicker: 1 });
+    },
+  },
 };

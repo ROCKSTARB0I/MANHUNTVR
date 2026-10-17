@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=19';
-import { buildPlan } from './planlevel.js?v=19';
+import { T, seeded } from './paint.js?v=20';
+import { buildPlan } from './planlevel.js?v=20';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1100,10 +1100,10 @@ export const SCENES = [
   { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', planWip: 'madness', style: 'asylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
   { id: 'doing-time', title: 'DOING TIME', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 7 },
   { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPrison', variant: 'yard', B: { x0: -34, x1: 34, z0: -20, z1: 20 }, gang: 'smileys', fog: 0.045, hunters: 8, rabbit: true },
-  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 8 },
-  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'cerberus', fog: 0.05, amb: 0.7, hunters: 7 },
-  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
-  { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'wardogs', fog: 0.045, hunters: 9 },
+  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.6, hunters: 8 },
+  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'swat', fog: 0.05, amb: 0.7, hunters: 7 },
+  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'swat', fog: 0.045, hunters: 8 },
+  { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'swat', fog: 0.045, hunters: 9 },
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildEstate', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildMansion', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'cerberus', fog: 0.055, amb: 0.65, hunters: 8 },
   { id: 'deliverance', title: 'DELIVERANCE', area: 'Wapona Hills', build: 'buildAttic', B: { x0: -18, x1: 18, z0: -12, z1: 12 }, gang: 'piggsy', fog: 0.07, amb: 0.6 },

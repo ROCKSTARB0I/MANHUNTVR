@@ -1,7 +1,7 @@
 // blood.js — droplets thrown by wounds (instanced, ballistic), splats where
 // they land, and pools that spread slowly under the dead.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=19';
+import { T } from './paint.js?v=20';
 
 const V = THREE.Vector3, MAX = 400;
 export class Blood {

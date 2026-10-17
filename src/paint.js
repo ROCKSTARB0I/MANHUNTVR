@@ -503,6 +503,186 @@ function makeLabel(text, bg, fg, w = 256, h = 128) {
   return tex(c, { repeat: false });
 }
 
+
+// ---------------------------------------------------------------- gang masks
+// Each gang's head gear, painted from the descriptions of the real hunters.
+// 'wrap' kinds go all the way round the head (512 wide, the face in the middle
+// third); the rest are face plates (256, eyes at 88/168, mouth at ~178).
+export const WRAP = new Set(['stocking', 'execRed', 'execBlack', 'gimp', 'balaBlue', 'balaBlack', 'balaRed', 'wrapCamo', 'gasHood', 'swat']);
+const maskCache = {};
+const rgbS = (c, k = 1) => `rgb(${clamp(Math.pow(c[0], 1 / 2.2) * 255 * k)},${clamp(Math.pow(c[1], 1 / 2.2) * 255 * k)},${clamp(Math.pow(c[2], 1 / 2.2) * 255 * k)})`;
+export function gangMask(kind, skin = [0.55, 0.4, 0.3]) {
+  const key = kind + (/Paint$/.test(kind) ? skin.join() : ''); if (maskCache[key]) return maskCache[key];
+  if (T.mask && T.mask[kind] && !WRAP.has(kind)) return (maskCache[key] = T.mask[kind]);
+  const wrap = WRAP.has(kind), W = wrap ? 512 : 256, H = 256, cx = W / 2;
+  const [c, g] = cnv(W, H); const rr = seeded(kind.length * 31 + kind.charCodeAt(0));
+  const ex = wrap ? 37 : 40, ey = wrap ? 124 : 104, my = wrap ? 185 : 178; // eye spread / eye row / mouth row
+  const cloth = (base, cells, amp, seed) => { const a = field(W, cells, 3, seed); g.fillStyle = base; g.fillRect(0, 0, W, H); pixels(g, W, H, (x, y, i, p) => { const v = 1 + (a[i] - 0.5) * amp; p[0] = clamp(p[0] * v); p[1] = clamp(p[1] * v); p[2] = clamp(p[2] * v); }); };
+  const knit = (r, gg, b) => pixels(g, W, H, (x, y, i, p) => { const k = (Math.sin(x * 1.6) * Math.sin(y * 0.8 + (x % 8 < 4 ? 1.5 : 0))) * 0.5 + 0.5, v = 0.75 + k * 0.4 + (rr() - 0.5) * 0.1; p[0] = clamp(r * v); p[1] = clamp(gg * v); p[2] = clamp(b * v); p[3] = 255; });
+  const skinC = rgbS(skin), skinD = rgbS(skin, 0.55);
+  const eyeHoles = (w, h, rim) => { for (const s of [-1, 1]) { g.fillStyle = skinD; g.beginPath(); g.ellipse(cx + s * ex, ey, w + 3, h + 3, -s * 0.12, 0, 7); g.fill(); g.fillStyle = '#0c0807'; g.beginPath(); g.ellipse(cx + s * ex, ey, w, h, -s * 0.12, 0, 7); g.fill(); if (rim) { g.strokeStyle = rim; g.lineWidth = 2.5; g.stroke(); } } };
+  const blood = (n, y0 = 0, y1 = H) => { for (let k = 0; k < n; k++) { const x = cx + (rr() - 0.5) * W * (wrap ? 0.4 : 0.8), y = y0 + rr() * (y1 - y0); g.fillStyle = `rgba(${70 + rr() * 50},${4 + rr() * 8},${4 + rr() * 6},${0.55 + rr() * 0.4})`; g.beginPath(); g.ellipse(x, y, 2 + rr() * 9, 2 + rr() * 7, rr() * 3, 0, 7); g.fill(); if (rr() < 0.5) g.fillRect(x - 1, y, 2 + rr() * 2, 10 + rr() * 40); } };
+  const scuff = (n, col) => { for (let k = 0; k < n; k++) { g.fillStyle = col.replace('A', (0.06 + rr() * 0.18).toFixed(2)); g.beginPath(); g.ellipse(rr() * W, rr() * H, 4 + rr() * 20, 3 + rr() * 12, rr() * 3, 0, 7); g.fill(); } };
+  const text = (t, x, y, size, col, font = 'Impact, sans-serif', rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = col; g.font = `bold ${size}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, 0, 0); g.restore(); };
+  const plate = (fill) => { // a hockey-style face plate: shaped, with breathing holes and eye holes cut through
+    g.fillStyle = fill; g.beginPath(); g.ellipse(128, 128, 112, 124, 0, 0, 7); g.fill();
+    const a = field(256, 8, 4, 81); pixels(g, 256, 256, (x, y, i, p) => { const v = 0.84 + a[i] * 0.22; p[0] = clamp(p[0] * v); p[1] = clamp(p[1] * v); p[2] = clamp(p[2] * v); });
+  };
+  const cut = (holes = true) => { g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.ellipse(88, 104, 22, 14, -0.15, 0, 7); g.ellipse(168, 104, 22, 14, 0.15, 0, 7); g.fill(); if (holes) for (let k = 0; k < 14; k++) { g.beginPath(); g.arc(98 + (k % 5) * 15, 182 + Math.floor(k / 5) * 13, 3.5, 0, 7); g.fill(); } g.globalCompositeOperation = 'source-over'; };
+  const crack = (x, y, n, len, col = 'rgba(30,24,20,0.85)', w = 1.6) => { g.strokeStyle = col; g.lineWidth = w; for (let k = 0; k < n; k++) { g.beginPath(); let px = x, py = y; g.moveTo(px, py); const a0 = rr() * 6.28; for (let s = 0; s < 6; s++) { px += Math.cos(a0 + (rr() - 0.5)) * len / 6; py += Math.sin(a0 + (rr() - 0.5)) * len / 6; g.lineTo(px, py); } g.stroke(); } };
+
+  switch (kind) {
+    case 'stocking': { // tan nylon pulled over the head: features squashed flat, runs and torn holes
+      cloth('#7e6450', 24, 0.3, 501);
+      const gr = g.createRadialGradient(cx, 150, 10, cx, 150, 110); gr.addColorStop(0, 'rgba(255,230,200,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      for (const s of [-1, 1]) { g.fillStyle = 'rgba(40,24,16,0.55)'; g.beginPath(); g.ellipse(cx + s * ex, ey, 20, 11, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(10,6,4,0.8)'; g.beginPath(); g.ellipse(cx + s * ex, ey, 9, 5, 0, 0, 7); g.fill(); }
+      g.fillStyle = 'rgba(60,36,24,0.35)'; g.beginPath(); g.ellipse(cx, 156, 12, 16, 0, 0, 7); g.fill(); // flattened nose
+      g.fillStyle = 'rgba(70,20,16,0.6)'; g.fillRect(cx - 22, my - 2, 44, 5); // lips pressed under the nylon
+      g.strokeStyle = 'rgba(60,40,28,0.5)'; g.lineWidth = 1; for (let k = 0; k < 10; k++) { const x = cx + (rr() - 0.5) * 220; g.beginPath(); g.moveTo(x, rr() * 80); g.lineTo(x + (rr() - 0.5) * 6, 120 + rr() * 130); g.stroke(); } // ladders
+      for (let k = 0; k < 5; k++) { const x = cx + (rr() - 0.5) * 160, y = 60 + rr() * 150; g.fillStyle = skinD; g.beginPath(); g.ellipse(x, y, 5 + rr() * 9, 3 + rr() * 6, rr() * 3, 0, 7); g.fill(); } // torn holes
+      g.strokeStyle = 'rgba(20,10,8,0.8)'; g.lineWidth = 2; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(cx - ex - 24 + k * 6, ey - 26); g.lineTo(cx - ex - 6 + k * 6, ey + 10); g.stroke(); } // claw tear by the left eye
+      break; }
+    case 'execRed': case 'execBlack': { // a medieval executioner's hood
+      const red = kind === 'execRed'; cloth(red ? '#6e1410' : '#151313', 16, 0.35, 511);
+      for (let k = 0; k < 14; k++) { g.strokeStyle = `rgba(0,0,0,${0.15 + rr() * 0.2})`; g.lineWidth = 2 + rr() * 4; const x = rr() * W; g.beginPath(); g.moveTo(x, 0); g.quadraticCurveTo(x + (rr() - 0.5) * 40, 128, x + (rr() - 0.5) * 30, 256); g.stroke(); } // folds
+      if (red) text('HATE', cx, 62, 40, '#120a08', 'Impact, sans-serif');
+      else { g.fillStyle = '#7a120e'; g.fillRect(cx - 12, 0, 24, 256); g.fillRect(cx - 70, 52, 140, 22); }
+      for (const s of [-1, 1]) { g.fillStyle = '#050403'; g.beginPath(); g.moveTo(cx + s * (ex - 22), ey); g.quadraticCurveTo(cx + s * ex, ey - 16, cx + s * (ex + 22), ey - 2); g.quadraticCurveTo(cx + s * ex, ey + 12, cx + s * (ex - 22), ey); g.fill(); }
+      blood(red ? 6 : 3, 150, 256); break; }
+    case 'gimp': { // stitched leather, an X cut into the forehead, a zipped mouth
+      cloth('#1c1714', 10, 0.3, 521);
+      const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(255,255,255,0.08)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.02)'); gr.addColorStop(1, 'rgba(0,0,0,0.2)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(120,100,80,0.6)'; g.setLineDash([3, 4]); g.lineWidth = 1.5; for (const x of [cx, cx - 90, cx + 90, 40, W - 40]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 256); g.stroke(); } g.setLineDash([]);
+      eyeHoles(13, 9, '#8a8478');
+      g.strokeStyle = skinD; g.lineWidth = 5; g.beginPath(); g.moveTo(cx - 16, 36); g.lineTo(cx + 16, 68); g.moveTo(cx + 16, 36); g.lineTo(cx - 16, 68); g.stroke();
+      g.fillStyle = '#6a6a66'; g.fillRect(cx - 28, my - 3, 56, 6); g.fillStyle = '#2a2a28'; for (let x = -26; x < 28; x += 4) g.fillRect(cx + x, my - 3, 2, 6);
+      break; }
+    case 'balaBlue': case 'balaBlack': case 'balaRed': { // knitted balaclava, one wide eye opening and a mouth hole
+      const col = { balaBlue: [40, 60, 120], balaBlack: [26, 26, 28], balaRed: [120, 22, 18] }[kind]; knit(...col);
+      g.fillStyle = skinC; g.beginPath(); g.ellipse(cx, ey, ex + 26, 17, 0, 0, 7); g.fill();
+      g.strokeStyle = `rgb(${col.map((v) => v * 0.6).join()})`; g.lineWidth = 4; g.stroke();
+      for (const s of [-1, 1]) { g.fillStyle = '#efe6dc'; g.beginPath(); g.ellipse(cx + s * ex, ey, 9, 5, 0, 0, 7); g.fill(); g.fillStyle = '#1a120c'; g.beginPath(); g.arc(cx + s * ex, ey, 4, 0, 7); g.fill(); }
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(cx - ex - 20, ey - 18, 2 * ex + 40, 5); // brow shadow
+      g.fillStyle = skinD; g.beginPath(); g.ellipse(cx, my, 18, 10, 0, 0, 7); g.fill(); g.fillStyle = '#3a1410'; g.fillRect(cx - 12, my - 1, 24, 3);
+      if (kind === 'balaBlack') { g.strokeStyle = skinD; g.lineWidth = 3; g.beginPath(); g.moveTo(cx - ex - 30, ey - 22); g.lineTo(cx - ex - 6, ey + 4); g.stroke(); }
+      for (let k = 0; k < 4; k++) { g.fillStyle = skinD; g.beginPath(); g.ellipse(cx + (rr() - 0.5) * 240, 40 + rr() * 200, 3 + rr() * 6, 2 + rr() * 4, rr() * 3, 0, 7); g.fill(); }
+      break; }
+    case 'swat': { knit(22, 22, 24); g.fillStyle = skinC; g.beginPath(); g.ellipse(cx, ey, ex + 20, 13, 0, 0, 7); g.fill(); for (const s of [-1, 1]) { g.fillStyle = '#0c0807'; g.beginPath(); g.ellipse(cx + s * ex, ey, 8, 5, 0, 0, 7); g.fill(); } break; }
+    case 'gasHood': { cloth('#121214', 12, 0.3, 531); break; }
+    case 'wrapCamo': { // strips of camo cloth wound round the whole head, a slit to see through
+      cloth('#4a4a34', 14, 0.5, 541); for (let k = 0; k < 26; k++) { g.fillStyle = ['#2c3020', '#5a4c32', '#1c1c16', '#6a6646'][k % 4]; g.save(); g.translate(rr() * W, rr() * H); g.rotate(-0.4 + rr() * 0.8); g.fillRect(-60, -6, 120, 8 + rr() * 8); g.restore(); }
+      g.fillStyle = '#080706'; g.fillRect(cx - ex - 16, ey - 5, 2 * ex + 32, 10); break; }
+    case 'gorilla': { // a hockey mask painted as an ape's face
+      plate('#2a221c'); g.fillStyle = '#4a3a30'; g.beginPath(); g.ellipse(128, 160, 70, 64, 0, 0, 7); g.fill();
+      g.fillStyle = '#16100c'; g.beginPath(); g.ellipse(128, 82, 96, 20, 0, 0, 7); g.fill(); // heavy brow
+      g.fillStyle = '#0c0806'; g.beginPath(); g.ellipse(112, 150, 10, 7, 0.4, 0, 7); g.ellipse(144, 150, 10, 7, -0.4, 0, 7); g.fill();
+      g.fillStyle = '#d8d0b8'; for (let k = 0; k < 8; k++) g.fillRect(96 + k * 8.5, 196, 6, 10); g.fillStyle = '#5a1810'; g.fillRect(92, 192, 72, 4);
+      scuff(30, 'rgba(0,0,0,A)'); cut(false); break; }
+    case 'puppet': { // a ventriloquist dummy's face on a hockey mask
+      plate('#d9c6a8'); g.fillStyle = 'rgba(190,60,50,0.55)'; g.beginPath(); g.arc(70, 150, 22, 0, 7); g.arc(186, 150, 22, 0, 7); g.fill();
+      g.strokeStyle = '#2a1a12'; g.lineWidth = 3; g.beginPath(); g.moveTo(92, 170); g.lineTo(92, 236); g.moveTo(164, 170); g.lineTo(164, 236); g.stroke(); // hinged jaw
+      g.fillStyle = '#7a1810'; g.beginPath(); g.ellipse(128, 172, 32, 8, 0, 0, 7); g.fill();
+      g.strokeStyle = '#2a1a12'; g.lineWidth = 4; g.beginPath(); g.arc(88, 80, 22, 3.6, 5.8); g.arc(168, 80, 22, 3.6, 5.8); g.stroke();
+      scuff(30, 'rgba(60,40,20,A)'); blood(4, 120, 240); cut(false); break; }
+    case 'hockeyBloody': case 'hockeyRed': case 'hockeyCracked': {
+      plate(kind === 'hockeyRed' ? '#8a1c16' : '#d4cebe'); scuff(26, 'rgba(50,36,24,A)');
+      if (kind === 'hockeyBloody') { blood(40); g.fillStyle = 'rgba(90,6,4,0.7)'; g.beginPath(); g.ellipse(150, 150, 60, 80, 0.3, 0, 7); g.fill(); }
+      if (kind === 'hockeyCracked') { crack(128, 60, 4, 120, 'rgba(20,16,12,0.9)', 2.2); crack(80, 200, 3, 80); }
+      cut(); break; }
+    case 'doll': { // a porcelain doll's face: red lipstick, painted blue eyes, a stitched tear in the forehead
+      const gr = g.createRadialGradient(128, 128, 20, 128, 128, 130); gr.addColorStop(0, '#f2ece2'); gr.addColorStop(1, '#cfc4b4'); g.fillStyle = gr; g.beginPath(); g.ellipse(128, 128, 110, 124, 0, 0, 7); g.fill();
+      g.fillStyle = 'rgba(220,110,110,0.4)'; g.beginPath(); g.arc(68, 150, 22, 0, 7); g.arc(188, 150, 22, 0, 7); g.fill();
+      for (const x of [88, 168]) { g.fillStyle = '#f8f6f0'; g.beginPath(); g.ellipse(x, 104, 18, 12, 0, 0, 7); g.fill(); g.fillStyle = '#3a6ab0'; g.beginPath(); g.arc(x, 104, 8, 0, 7); g.fill(); g.fillStyle = '#080808'; g.beginPath(); g.arc(x, 104, 3.5, 0, 7); g.fill(); g.strokeStyle = '#141010'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, 104, 18, 12, 0, 3.3, 6.1); g.stroke(); }
+      g.fillStyle = '#b0141a'; g.beginPath(); g.moveTo(104, 176); g.quadraticCurveTo(128, 162, 152, 176); g.quadraticCurveTo(128, 194, 104, 176); g.fill();
+      g.strokeStyle = '#3a2620'; g.lineWidth = 2; g.beginPath(); g.moveTo(96, 40); g.lineTo(130, 62); g.lineTo(150, 50); g.stroke(); for (let k = 0; k < 7; k++) { const x = 100 + k * 7; g.beginPath(); g.moveTo(x, 38 + k * 3.5); g.lineTo(x + 4, 50 + k * 3.5); g.stroke(); }
+      crack(60, 70, 3, 50, 'rgba(70,60,50,0.6)', 1); blood(8, 150, 256); cut(false); g.globalCompositeOperation = 'source-over'; break; }
+    case 'babyface': { // a stretched puppet face, torn round the edges
+      g.fillStyle = '#c8a688'; g.beginPath(); g.ellipse(128, 128, 108, 120, 0, 0, 7); g.fill(); scuff(40, 'rgba(90,50,30,A)');
+      g.fillStyle = 'rgba(200,90,80,0.4)'; g.beginPath(); g.arc(70, 150, 20, 0, 7); g.arc(186, 150, 20, 0, 7); g.fill();
+      g.strokeStyle = '#2a1810'; g.lineWidth = 3; g.beginPath(); g.moveTo(100, 180); g.quadraticCurveTo(128, 196, 156, 180); g.stroke();
+      g.globalCompositeOperation = 'destination-out'; for (let k = 0; k < 24; k++) { const a = rr() * 6.28; g.beginPath(); g.arc(128 + Math.cos(a) * 112, 128 + Math.sin(a) * 124, 6 + rr() * 12, 0, 7); g.fill(); } g.globalCompositeOperation = 'source-over';
+      cut(false); break; }
+    case 'skullCrimson': case 'pazuzu': case 'flayed': {
+      g.fillStyle = '#0a0808'; g.fillRect(0, 0, 256, 256);
+      const face = { skullCrimson: '#d6d0bc', pazuzu: '#6a5a3c', flayed: '#7a2418' }[kind];
+      g.fillStyle = face; g.beginPath(); g.ellipse(128, 104, 80, 82, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(70, 150); g.quadraticCurveTo(128, 250, 186, 150); g.fill();
+      if (kind === 'pazuzu') { for (let k = 0; k < 30; k++) { g.strokeStyle = 'rgba(20,14,8,0.5)'; g.lineWidth = 1.5; g.beginPath(); const y = 40 + rr() * 170; g.moveTo(60 + rr() * 40, y); g.quadraticCurveTo(128, y + (rr() - 0.5) * 20, 196 - rr() * 40, y); g.stroke(); } g.fillStyle = '#e0d8b8'; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(128 + s * 26, 186); g.lineTo(128 + s * 18, 220); g.lineTo(128 + s * 10, 186); g.fill(); } }
+      if (kind === 'flayed') { scuff(50, 'rgba(160,40,30,A)'); g.strokeStyle = 'rgba(230,200,180,0.5)'; g.lineWidth = 2; for (let k = 0; k < 12; k++) { g.beginPath(); g.moveTo(70 + rr() * 116, 40 + rr() * 40); g.lineTo(70 + rr() * 116, 200); g.stroke(); } }
+      g.fillStyle = '#050404'; g.beginPath(); g.ellipse(90, 104, 22, 24, 0.2, 0, 7); g.fill(); if (kind !== 'flayed') { g.beginPath(); g.ellipse(166, 104, 22, 24, -0.2, 0, 7); g.fill(); } else { g.fillStyle = '#d8d0c0'; g.beginPath(); g.arc(166, 104, 12, 0, 7); g.fill(); g.fillStyle = '#100808'; g.beginPath(); g.arc(166, 104, 4, 0, 7); g.fill(); }
+      g.fillStyle = '#050404'; g.beginPath(); g.moveTo(128, 128); g.lineTo(116, 154); g.lineTo(140, 154); g.fill();
+      if (kind === 'skullCrimson') { g.fillStyle = '#050404'; g.fillRect(92, 176, 72, 26); g.fillStyle = face; for (let k = 0; k < 7; k++) g.fillRect(94 + k * 10, 176, 7, 26); }
+      break; }
+    case 'skullPaint': { // a skull painted on bare skin
+      g.fillStyle = skinC; g.fillRect(0, 0, 256, 256);
+      g.fillStyle = '#e8e2d6'; g.beginPath(); g.ellipse(128, 100, 84, 70, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(66, 130); g.quadraticCurveTo(128, 236, 190, 130); g.fill();
+      g.fillStyle = '#0a0808'; g.beginPath(); g.ellipse(88, 106, 26, 22, 0.2, 0, 7); g.ellipse(168, 106, 26, 22, -0.2, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(128, 128); g.lineTo(116, 152); g.lineTo(140, 152); g.fill();
+      g.strokeStyle = '#0a0808'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(84, 182); g.lineTo(172, 182); g.stroke(); for (let k = 0; k < 9; k++) { g.beginPath(); g.moveTo(88 + k * 10, 170); g.lineTo(88 + k * 10, 196); g.stroke(); }
+      blood(5, 150, 256); for (const x of [88, 168]) { g.fillStyle = '#e8e0d4'; g.beginPath(); g.ellipse(x, 106, 7, 4, 0, 0, 7); g.fill(); g.fillStyle = '#1a120c'; g.beginPath(); g.arc(x, 106, 3, 0, 7); g.fill(); }
+      break; }
+    case 'smileyPaint': { // a yellow smiley painted straight onto the face, red smeared over it
+      g.fillStyle = skinC; g.fillRect(0, 0, 256, 256); g.fillStyle = '#d6b01e'; g.beginPath(); g.ellipse(128, 132, 100, 112, 0, 0, 7); g.fill();
+      g.fillStyle = 'rgba(150,20,14,0.6)'; for (let k = 0; k < 10; k++) { g.beginPath(); g.ellipse(60 + rr() * 140, 60 + rr() * 150, 8 + rr() * 22, 4 + rr() * 10, rr() * 3, 0, 7); g.fill(); }
+      g.fillStyle = '#100c06'; g.beginPath(); g.ellipse(88, 104, 12, 18, 0, 0, 7); g.ellipse(168, 104, 12, 18, 0, 0, 7); g.fill();
+      g.strokeStyle = '#100c06'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.arc(128, 132, 62, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+      g.fillStyle = '#f0f0f0'; g.beginPath(); g.arc(112, 40, 4, 0, 7); g.arc(144, 40, 4, 0, 7); g.fill(); break; }
+    case 'smileyFrown': case 'smileyPlease': case 'smileyCracked': {
+      g.fillStyle = '#d8b424'; g.fillRect(0, 0, 256, 256); scuff(50, 'rgba(60,44,10,A)');
+      g.fillStyle = '#141008'; g.beginPath(); g.ellipse(92, 100, 12, 22, 0, 0, 7); g.ellipse(164, 100, 12, 22, 0, 0, 7); g.fill();
+      g.strokeStyle = '#141008'; g.lineWidth = 11; g.lineCap = 'round'; g.beginPath();
+      if (kind === 'smileyFrown') g.arc(128, 222, 60, 1.25 * Math.PI, 1.75 * Math.PI); else g.arc(128, 128, 64, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+      if (kind === 'smileyPlease') { blood(30); text('PLEASE', 128, 34, 30, 'rgba(110,8,6,0.9)', 'Impact, sans-serif', -0.05); text('STOP ME', 128, 232, 30, 'rgba(110,8,6,0.9)', 'Impact, sans-serif', 0.04); }
+      if (kind === 'smileyCracked') { g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(80, 90); g.lineTo(40, 20); g.lineTo(70, 0); g.lineTo(110, 0); g.lineTo(100, 80); g.fill(); g.globalCompositeOperation = 'source-over'; crack(92, 100, 5, 70, 'rgba(20,14,6,0.9)', 2); blood(8); }
+      break; }
+    case 'bandanaLow': case 'bandanaCamo': { // a bandana tied over nose and mouth; the top half is see-through
+      g.clearRect(0, 0, 256, 256);
+      if (kind === 'bandanaLow') { g.fillStyle = '#7a6438'; g.fillRect(0, 120, 256, 136); g.strokeStyle = 'rgba(40,28,14,0.6)'; g.lineWidth = 3; for (let k = 0; k < 256; k += 18) { g.beginPath(); g.moveTo(k, 120); g.lineTo(k, 256); g.stroke(); g.beginPath(); g.moveTo(0, 120 + k * 0.53); g.lineTo(256, 120 + k * 0.53); g.stroke(); } }
+      else { g.fillStyle = '#4a4a30'; g.fillRect(0, 120, 256, 136); for (let k = 0; k < 30; k++) { g.fillStyle = ['#2a3020', '#6a5a38', '#1a1a12'][k % 3]; g.beginPath(); g.ellipse(rr() * 256, 130 + rr() * 120, 10 + rr() * 20, 5 + rr() * 10, rr() * 3, 0, 7); g.fill(); } }
+      g.globalCompositeOperation = 'destination-in'; g.beginPath(); g.moveTo(0, 124); g.quadraticCurveTo(128, 112, 256, 124); g.lineTo(256, 256); g.lineTo(0, 256); g.fill(); g.globalCompositeOperation = 'source-over';
+      break; }
+    default: return T.mask.knit;
+  }
+  return (maskCache[key] = tex(c, { repeat: false }));
+}
+
+// cloth prints: camo, plaid, Hawaiian, leather. Mapped on lofted cloth (u round the limb, v = 6/m along it).
+function makeCamo(n, cols, seed, blot = 1) {
+  const [c, g] = cnv(n); g.fillStyle = cols[0]; g.fillRect(0, 0, n, n); const r = seeded(seed);
+  for (let L = 1; L < cols.length; L++) for (let k = 0; k < 26; k++) { g.fillStyle = cols[L]; const x = r() * n, y = r() * n; g.beginPath(); for (let a = 0; a < 6.28; a += 0.5) { const R = (14 + r() * 26) * blot; g.lineTo(x + Math.cos(a) * R * 1.4, y + Math.sin(a) * R * 0.6); } g.fill(); }
+  const a = field(n, 32, 2, seed + 3); pixels(g, n, n, (x, y, i, p) => { const v = 0.85 + a[i] * 0.3 + (((x + y) % 3) ? 0 : -0.06); p[0] = clamp(p[0] * v); p[1] = clamp(p[1] * v); p[2] = clamp(p[2] * v); });
+  return tex(c);
+}
+function makePlaid(n, base, lines) {
+  const [c, g] = cnv(n); g.fillStyle = base; g.fillRect(0, 0, n, n);
+  for (const [col, w, step] of lines) { g.fillStyle = col; for (let k = 0; k < n; k += step) { g.globalAlpha = 0.55; g.fillRect(k, 0, w, n); g.fillRect(0, k, n, w); } } g.globalAlpha = 1;
+  const a = field(n, 32, 2, 77); pixels(g, n, n, (x, y, i, p) => { const tw = ((x + y) % 4 < 2) ? 1 : 0.85; const v = tw * (0.85 + a[i] * 0.3); p[0] = clamp(p[0] * v); p[1] = clamp(p[1] * v); p[2] = clamp(p[2] * v); });
+  return tex(c);
+}
+function makeHawaiian(n, base, petal, leaf) {
+  const [c, g] = cnv(n); g.fillStyle = base; g.fillRect(0, 0, n, n); const r = seeded(91);
+  for (let k = 0; k < 18; k++) { const x = r() * n, y = r() * n; g.fillStyle = leaf; g.beginPath(); g.ellipse(x + 12, y + 8, 18, 6, r() * 3, 0, 7); g.fill(); g.fillStyle = petal; for (let p = 0; p < 5; p++) { const a = p * 1.256; g.beginPath(); g.ellipse(x + Math.cos(a) * 9, y + Math.sin(a) * 9, 8, 5, a, 0, 7); g.fill(); } g.fillStyle = '#e8d040'; g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); }
+  return tex(c);
+}
+function makeLeather(n) {
+  const [c, g] = cnv(n); const a = field(n, 24, 3, 61), b = field(n, 6, 3, 62);
+  pixels(g, n, n, (x, y, i, p) => { const v = 120 + a[i] * 70 - b[i] * 40; p[0] = p[1] = p[2] = clamp(v); p[3] = 255; }); return tex(c);
+}
+export function paintCloth(n = 256) {
+  T.cloth = {
+    camoForest: makeCamo(n, ['#4e5a34', '#2c3a22', '#6a5a3a', '#1a1c14'], 201),
+    camoUrban: makeCamo(n, ['#8a8a86', '#5a5a58', '#c0c0ba', '#2a2a2a'], 202),
+    camoDesert: makeCamo(n, ['#b8a07a', '#8a6e4a', '#d6c6a0', '#6a5a40'], 203, 1.3),
+    camoBlack: makeCamo(n, ['#262626', '#121212', '#3a3a3a'], 204),
+    plaidRed: makePlaid(n, '#8a1c18', [['#1a1010', 14, 40], ['#d8c8a0', 3, 40]]),
+    plaidBrown: makePlaid(n, '#7a6438', [['#2a2014', 12, 36], ['#b89a5a', 4, 36]]),
+    plaidOrange: makePlaid(n, '#b0602a', [['#3a2010', 10, 34], ['#e8c080', 3, 34]]),
+    hawaiianBlue: makeHawaiian(n, '#d8d4c4', '#3a60b0', '#2a6a3a'),
+    hawaiianBlack: makeHawaiian(n, '#141414', '#d070a0', '#3a7a40'),
+    leather: makeLeather(n),
+  };
+  for (const t of Object.values(T.cloth)) t.repeat.set(2, 0.34); // u wraps the limb, v runs 6/m: square-ish prints
+}
+
 export function paintAll(low) {
   const n = low ? 256 : 512;
   const brick = makeBrick(1024);
@@ -525,6 +705,7 @@ export function paintAll(low) {
   T.blood = [0, 1, 2, 3, 4, 5, 6, 7].map(makeBlood);
   T.wound = [0, 1, 2, 3].map(makeWound);
   T.mask = { hockey: makeMask('hockey'), skull: makeMask('skull'), knit: makeMask('knit'), pig: makeMask('pig'), smiley: makeMask('smiley'), swat: makeMask('swat') };
+  paintCloth(n / 2);
   T.knit = makeKnit(n / 2, 121); T.fleece = makeKnit(n / 2, 131);
   T.denim = makeDenim(n / 2);
   T.skin = makeSkinDetail(256);

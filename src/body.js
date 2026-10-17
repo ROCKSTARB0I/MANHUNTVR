@@ -3,8 +3,9 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=19';
-import { T } from './paint.js?v=19';
+import { Loft, ring, blend } from './loft.js?v=20';
+import { T, gangMask, WRAP } from './paint.js?v=20';
+import { addGear } from './gear.js?v=20';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -41,9 +42,12 @@ const SKIN_TONES = [[0.62, 0.44, 0.34], [0.48, 0.32, 0.23], [0.30, 0.20, 0.14], 
 // or jacket), the legs (jeans and boots), and bare skin (neck, hands, head).
 // Rings are anatomical cross-sections: separate half-widths for left/right,
 // front and back, so chest, glutes, biceps and calves have real shape.
+const WRAP_NECK = { stocking: 0x6a5240, execRed: 0x4a0c0a, execBlack: 0x0e0d0d, gimp: 0x121010, balaBlue: 0x1c2848, balaBlack: 0x141416, balaRed: 0x4a100c, wrapCamo: 0x2e2e20, gasHood: 0x0c0c0e, swat: 0x121212 };
+const FACE_SHOWS = new Set(['bandanaLow', 'bandanaCamo']); // half masks: the real face is built under them
 function buildGeometry(o) {
   const Lt = new Loft(), Ll = new Loft(), Ls = new Loft();
-  const skin = o.skin, top = o.top, legs = o.legs, boots = o.cash ? [0.22, 0.22, 0.24] : [0.06, 0.05, 0.045], sole = o.cash ? [0.86, 0.85, 0.82] : [0.03, 0.03, 0.03]; // Cash: dark sneakers, white soles
+  const skin = o.skin, top = o.top, legs = o.legs, boots = o.boots || (o.cash ? [0.22, 0.22, 0.24] : [0.06, 0.05, 0.045]), sole = o.sole || (o.cash ? [0.86, 0.85, 0.82] : [0.03, 0.03, 0.03]);
+  const Lc = o.shirtless ? Ls : Lt, topC = o.shirtless ? skin : top; // shirtless: the chest is skin // Cash: dark sneakers, white soles
   const v = (x, y, z) => new V(x, y, z);
   const W = (n) => [[B[n], 1]];
   const k = o.bulk;
@@ -65,20 +69,21 @@ function buildGeometry(o) {
   Ll.tube(torso.map((r) => R(r, legs)), 20, { capStart: true });
   Ll.blob(v(0, 1.02, 0.0), 0.152 * k, o.cash ? 0.02 : 0.012, 0.098 * k, tw(1.02), o.cash ? [0.12, 0.09, 0.07] : [legs[0] * 0.7, legs[1] * 0.7, legs[2] * 0.7], 18, 4); // belt line
   // Cash's denim jacket hangs wide open over a cream T-shirt: colour the front of the torso by angle
-  const tee = [0.72, 0.66, 0.54], openFront = o.cash ? (r, a) => (Math.sin(a) > 0 && Math.abs(Math.cos(a)) < 0.4 ? tee : r.col) : null;
-  Lt.tube(chest.map((r) => R(r, top, 0.006)), o.cash ? 36 : 20, { capStart: true, colFn: openFront });
+  const tee = o.inner || [0.72, 0.66, 0.54], openW = o.openW || 0.4, openFront = (o.cash || o.inner) ? (r, a) => (Math.sin(a) > 0 && Math.abs(Math.cos(a)) < openW ? tee : r.col) : null;
+  Lc.tube(chest.map((r) => R(r, topC, o.shirtless ? 0 : 0.006)), openFront ? 36 : 20, { capStart: true, colFn: openFront });
   // the hood bunched behind the neck, and a collar ring
   if (o.hood === 'up') Lt.tube([ring(v(0, 1.46, -0.01), up, fwd, 0.15 * k, 0.075, blend(B.chest, B.neck, 0.2), top, { ryn: 0.11 }), ring(v(0, 1.54, -0.02), up, fwd, 0.125, 0.08, blend(B.neck, B.head, 0.3), top, { ryn: 0.115 }), ring(v(0, 1.62, -0.02), up, fwd, 0.118, 0.085, blend(B.neck, B.head, 0.7), top, { ryn: 0.12 })], 18);
   else if (o.hood !== false) Lt.blob(v(0, 1.5, -0.075), 0.115, 0.06, 0.065, blend(B.chest, B.neck, 0.4), [top[0] * 0.85, top[1] * 0.85, top[2] * 0.85], 14, 8);
-  Lt.tube([ring(v(0, 1.495, 0.005), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), o.cash ? tee : top, { ryn: 0.078 }), ring(v(0, 1.525, 0.008), up, fwd, 0.072, 0.066, blend(B.chest, B.neck, 0.6), o.cash ? tee : top, { ryn: 0.072 })], 16); // collar (Cash: the T-shirt's crew neck)
+  Lc.tube([ring(v(0, 1.495, 0.005), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), o.cash || o.inner ? tee : topC, { ryn: 0.078 }), ring(v(0, 1.525, 0.008), up, fwd, 0.072, 0.066, blend(B.chest, B.neck, 0.6), o.cash || o.inner ? tee : topC, { ryn: 0.072 })], 16); // collar (Cash: the T-shirt's crew neck)
   // trapezius slopes from the neck to the shoulders
-  for (const sd of [1, -1]) Lt.blob(v(0.085 * sd * k, 1.475, -0.02), 0.075 * k, 0.04, 0.06, blend(B.chest, B.neck, 0.25), top, 12, 8);
+  for (const sd of [1, -1]) Lc.blob(v(0.085 * sd * k, 1.475, -0.02), 0.075 * k, 0.04, 0.06, blend(B.chest, B.neck, 0.25), topC, 12, 8);
   // shoulders: deltoid caps under the cloth
-  for (const sd of [1, -1]) Lt.blob(v(0.175 * sd * k, 1.4, -0.002), 0.07 * k, 0.07, 0.075 * k, blend(B.chest, B[sd > 0 ? 'armL' : 'armR'], 0.55), top, 14, 10);
+  const bareArm = o.shirtless || o.sleeves === 'none', armC = bareArm ? skin : top, La = bareArm ? Ls : Lt;
+  for (const sd of [1, -1]) La.blob(v((bareArm ? 0.168 : 0.175) * sd * k, 1.4, -0.002), (bareArm ? 0.056 : 0.07) * k, bareArm ? 0.06 : 0.07, (bareArm ? 0.062 : 0.075) * k, blend(B.chest, B[sd > 0 ? 'armL' : 'armR'], 0.55), armC, 14, 10);
   // neck (in the shadow of a raised hood it's barely lit)
   const nk = o.hood === 'up' ? skin.map((c) => c * 0.3) : skin;
   Ls.tube([ring(v(0, 1.47, 0), up, fwd, 0.08, 0.072, blend(B.chest, B.neck, 0.5), nk, { ryn: 0.075 }), ring(v(0, 1.56, 0.008), up, fwd, 0.066, 0.064, W('neck'), nk, { ryn: 0.066 }), ring(v(0, 1.63, 0.014), up, fwd, 0.058, 0.064, W('head'), nk)], 14);
-  if (o.mask) {
+  if (o.mask && !FACE_SHOWS.has(o.mask)) {
     Ls.blob(v(0, 1.71, 0.012), 0.094, 0.118, 0.108, W('head'), skin, 16, 12);
     Ls.blob(v(0, 1.66, 0.075), 0.05, 0.045, 0.04, W('head'), skin, 10, 8);
     Ls.blob(v(0.085, 1.70, 0.0), 0.015, 0.03, 0.02, W('head'), skin, 6, 4); Ls.blob(v(-0.085, 1.70, 0.0), 0.015, 0.03, 0.02, W('head'), skin, 6, 4);
@@ -91,8 +96,15 @@ function buildGeometry(o) {
     const upper = [[0.02, 0.064, 0.06, 0.062], [0.25, 0.056, 0.058, 0.056], [0.5, 0.052, 0.056, 0.054], [0.75, 0.047, 0.048, 0.048], [0.98, 0.043, 0.042, 0.044]];
     const fore = [[0.08, 0.046, 0.046, 0.044], [0.3, 0.045, 0.044, 0.04], [0.6, 0.038, 0.036, 0.034], [0.88, 0.032, 0.03, 0.029]];
     const rings = [];
-    upper.forEach(([t, rx, f, b]) => rings.push(ring(at(a, e, t), dA, fwd, rx * k + 0.01, f * k + 0.012, t < 0.15 ? blend(B.chest, B['arm' + S], 0.7) : blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), top, { ryn: b * k + 0.012 })));
-    if (o.cash) { // sleeves rolled up thick just below the elbow, bare forearms
+    const pad = bareArm ? 0 : 0.01;
+    upper.forEach(([t, rx, f, b]) => rings.push(ring(at(a, e, t), dA, fwd, rx * k + pad, f * k + pad * 1.2, t < 0.15 ? blend(B.chest, B['arm' + S], 0.7) : blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), armC, { ryn: b * k + pad * 1.2 })));
+    if (bareArm || o.sleeves === 'short') { // bare or short-sleeved: skin from the sleeve (or shoulder) down
+      if (bareArm) { Ls.tube(rings.concat(fore.map(([t, rx, f, b]) => ring(at(e, w, t), dF, fwd, rx * k, f * k, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), skin, { ryn: b * k })), [ring(at(e, w, 0.98), dF, fwd, 0.03, 0.028, W('fore' + S), skin)]), 14); }
+      else {
+        const sl = rings.slice(0, 3); sl.push(ring(at(a, e, 0.55), dA, fwd, 0.06 * k + 0.012, 0.062 * k + 0.012, blend(B['arm' + S], B['fore' + S], 0.55, 1.0, 0.16), top.map((c) => c * 0.85), { ryn: 0.058 * k + 0.012 })); Lt.tube(sl, 14, { capEnd: true });
+        Ls.tube([0.35, 0.5, 0.75, 0.98].map((t, i) => ring(at(a, e, t), dA, fwd, upper[Math.min(4, i + 1)][1] * k, upper[Math.min(4, i + 1)][2] * k, blend(B['arm' + S], B['fore' + S], t, 1.0, 0.16), skin, { ryn: upper[Math.min(4, i + 1)][3] * k })).concat(fore.map(([t, rx, f, b]) => ring(at(e, w, t), dF, fwd, rx * k, f * k, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), skin, { ryn: b * k })), [ring(at(e, w, 0.98), dF, fwd, 0.03, 0.028, W('fore' + S), skin)]), 14);
+      }
+    } else if (o.cash) { // sleeves rolled up thick just below the elbow, bare forearms
       for (const [t, g] of [[0.04, 0.022], [0.12, 0.026], [0.2, 0.02]]) rings.push(ring(at(e, w, t), dF, fwd, 0.046 + g, 0.045 + g, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), top.map((c) => c * (t === 0.12 ? 1.1 : 0.85)), { ryn: 0.044 + g }));
       Lt.tube(rings, 14, { capEnd: true });
       Ls.tube(fore.map(([t, rx, f, b]) => ring(at(e, w, t), dF, fwd, rx * k, f * k, blend(B['fore' + S], B['hand' + S], t, 1.0, 0.1), skin, { ryn: b * k })).concat([ring(at(e, w, 0.98), dF, fwd, 0.03, 0.028, W('fore' + S), skin)]), 14);
@@ -102,15 +114,15 @@ function buildGeometry(o) {
       Lt.tube(rings, 14, { capEnd: true });
     }
     // hand: wrist, palm (wide front-to-back), fingers loosely curled, thumb forward
-    const d = new V(0, -1, 0);
+    const d = new V(0, -1, 0), hc = o.gloves || skin;
     Ls.tube([
-      ring(w.clone().add(v(0, 0.01, 0)), d, fwd, 0.024, 0.03, W('hand' + S), skin),
-      ring(w.clone().add(v(0, -0.03, 0.004)), d, fwd, 0.019, 0.042, W('hand' + S), skin, { n: 2.6 }),
-      ring(w.clone().add(v(0, -0.07, 0.006)), d, fwd, 0.017, 0.044, W('hand' + S), skin, { n: 2.6 }),
-      ring(w.clone().add(v(-0.004 * sd, -0.1, 0.008)), d, fwd, 0.016, 0.04, W('hand' + S), skin, { n: 2.4 }),
-      ring(w.clone().add(v(-0.012 * sd, -0.125, 0.01)), d, fwd, 0.013, 0.035, W('hand' + S), skin, { n: 2.2 }),
+      ring(w.clone().add(v(0, 0.01, 0)), d, fwd, 0.024, 0.03, W('hand' + S), hc),
+      ring(w.clone().add(v(0, -0.03, 0.004)), d, fwd, 0.019, 0.042, W('hand' + S), hc, { n: 2.6 }),
+      ring(w.clone().add(v(0, -0.07, 0.006)), d, fwd, 0.017, 0.044, W('hand' + S), hc, { n: 2.6 }),
+      ring(w.clone().add(v(-0.004 * sd, -0.1, 0.008)), d, fwd, 0.016, 0.04, W('hand' + S), hc, { n: 2.4 }),
+      ring(w.clone().add(v(-0.012 * sd, -0.125, 0.01)), d, fwd, 0.013, 0.035, W('hand' + S), hc, { n: 2.2 }),
     ], 12, { capEnd: true });
-    Ls.blob(w.clone().add(v(-0.008 * sd, -0.05, 0.045)), 0.012, 0.03, 0.013, W('hand' + S), skin, 10, 6); // thumb
+    Ls.blob(w.clone().add(v(-0.008 * sd, -0.05, 0.045)), 0.012, 0.03, 0.013, W('hand' + S), hc, 10, 6); // thumb
   }
   // legs: thighs (quads in front, hamstrings behind), knees, calves bulging at the back
   for (const sd of [1, -1]) {
@@ -189,8 +201,8 @@ export class Person {
     this.skel = makeSkeleton();
     this.root = new THREE.Group();
     const mats = {
-      top: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, map: T.fleece.map, bumpMap: T.fleece.bump, bumpScale: 0.006, side: THREE.DoubleSide }), // both sides: the lofted tubes are open, never let you see through them
-      legs: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, map: T.denim.map, bumpMap: T.denim.bump, bumpScale: 0.005, side: THREE.DoubleSide }),
+      top: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.topMap === 'leather' ? 0.5 : 0.92, map: o.topMap ? (T.cloth[o.topMap] || T[o.topMap].map) : T.fleece.map, bumpMap: T.fleece.bump, bumpScale: 0.006, side: THREE.DoubleSide }), // both sides: the lofted tubes are open, never let you see through them
+      legs: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, map: o.legsMap ? (T.cloth[o.legsMap] || T[o.legsMap].map) : T.denim.map, bumpMap: T.denim.bump, bumpScale: 0.005, side: THREE.DoubleSide }),
       skin: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, bumpMap: T.skin, bumpScale: 0.002, side: THREE.DoubleSide }),
     };
     this.meshes = ['legs', 'top', 'skin'].map((k, i) => {
@@ -205,11 +217,16 @@ export class Person {
     this.rest = this.bones.map((b) => b.position.clone());
     // mask on the face, held by the head bone
     if (o.mask) {
-      const mk = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 12, Math.PI * 0.04, Math.PI * 0.92, Math.PI * 0.12, Math.PI * 0.68), new THREE.MeshStandardMaterial({ map: T.mask[o.mask], transparent: o.mask === 'hockey', alphaTest: 0.5, roughness: o.mask === 'hockey' ? 0.4 : 0.9, side: THREE.DoubleSide }));
-      mk.rotation.y = 0; mk.scale.set(0.98, 1.12, 1.02); mk.position.set(0, 0.11, 0.014);
+      const wrap = WRAP.has(o.mask), hard = /hockey|gorilla|puppet|doll|smiley(?!Paint)|skullCrimson|pazuzu|flayed|babyface/.test(o.mask);
+      const mk = new THREE.Mesh(wrap ? new THREE.SphereGeometry(0.109, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.82) : new THREE.SphereGeometry(0.112, 18, 12, Math.PI * 0.04, Math.PI * 0.92, Math.PI * 0.12, Math.PI * 0.68), new THREE.MeshStandardMaterial({ map: gangMask(o.mask, o.skin), alphaTest: 0.5, roughness: o.mask === 'gimp' ? 0.45 : hard ? 0.4 : 0.9, side: THREE.DoubleSide }));
+      mk.scale.set(0.98, 1.12, 1.02); mk.position.set(0, 0.11, 0.014);
+      if (wrap) { // u = 0.5 faces forward; the cloth carries on down the neck into the collar
+        mk.rotation.y = -Math.PI / 2; mk.scale.set(1.04, 1.14, 1.1); mk.position.set(0, 0.108, 0.006);
+        const nc = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.082, 0.13, 18, 1, true), new THREE.MeshStandardMaterial({ color: WRAP_NECK[o.mask] || 0x1a1a1a, roughness: 0.9, side: THREE.DoubleSide }));
+        nc.position.set(0, -0.045, -0.004); this.bones[B.head].add(nc);
+      } else mk.scale.multiplyScalar(1.06);
       if (o.mask === 'knit') { mk.geometry = new THREE.SphereGeometry(0.108, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.82); mk.material.transparent = false; }
       if (o.mask === 'swat') { // ballistic helmet and a dark visor over the balaclava
-        mk.geometry = new THREE.SphereGeometry(0.106, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.85); mk.material.transparent = false;
         const helm = new THREE.Mesh(new THREE.SphereGeometry(0.128, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), new THREE.MeshStandardMaterial({ color: 0x1a1c1a, roughness: 0.5, metalness: 0.2 }));
         helm.position.set(0, 0.13, 0); helm.scale.set(1, 0.9, 1.08); this.bones[B.head].add(helm);
         const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.02), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.05, metalness: 0.9 })); visor.position.set(0, 0.12, 0.112); this.bones[B.head].add(visor);
@@ -224,10 +241,10 @@ export class Person {
       this.bones[B.head].add(mk); this.maskMesh = mk;
       // eyes glinting behind the holes
       const eyeM = new THREE.MeshBasicMaterial({ color: 0x1a1410 });
-      for (const s of [1, -1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeM); e.position.set(0.033 * s, 0.11, 0.085); this.bones[B.head].add(e); }
+      if (!FACE_SHOWS.has(o.mask)) for (const s of [1, -1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeM); e.position.set(0.033 * s, 0.11, 0.085); this.bones[B.head].add(e); }
     }
     // bare faces get eyes, brows, a nose and a mouth
-    if (!o.mask) {
+    if (!o.mask || FACE_SHOWS.has(o.mask)) {
       const hb = this.bones[B.head], dark = new THREE.MeshStandardMaterial({ color: 0x1a120e, roughness: 0.6 });
       this.head = makeHead(o.skin, o.stubble, o.hair, o.cash || o.cashFace); this.head.position.set(0, 0.088, 0.012); this.head.scale.setScalar(1.2); hb.add(this.head); // a man-sized head, sat down on the neck
       const white = new THREE.MeshStandardMaterial({ color: 0xb8ae9e, roughness: 0.35 }), iris = new THREE.MeshStandardMaterial({ color: 0x1e140c, roughness: 0.15 });
@@ -270,6 +287,7 @@ export class Person {
       const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.016), new THREE.MeshStandardMaterial({ color: 0x8a8a84, metalness: 0.9, roughness: 0.35 })); buckle.position.set(-0.053, -0.08, 0.145 * k); buckle.rotation.z = -0.72; ch.add(buckle);
       const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.05), strapM); pouch.position.set(-0.15, -0.2, 0.07); pouch.rotation.set(0, -0.5, -0.1); this.bones[B.spine].add(pouch); // holster at the right hip
     }
+    addGear(this, o, B);
     // weapon in the right hand
     this.weapon = o.weapon ? makeHunterWeapon(o.weapon) : null;
     if (this.weapon) { this.weapon.position.set(0, -0.1, 0.02); this.bones[B.handR].add(this.weapon); }
@@ -556,12 +574,40 @@ function makeHunterWeapon(kind) {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.32), new THREE.MeshStandardMaterial({ color: 0xa8740c, roughness: 0.5, metalness: 0.3 })); body.position.z = 0.05; g.add(body);
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.62), new THREE.MeshStandardMaterial({ color: 0x8a8d90, metalness: 0.9, roughness: 0.35 })); bar.position.z = 0.5; g.add(bar);
     const chain = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.11, 0.64), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.8, roughness: 0.6, wireframe: true })); chain.position.z = 0.5; g.add(chain);
+  } else if (kind === 'crowbar') {
+    const m = new THREE.MeshStandardMaterial({ color: 0x3a3c40, metalness: 0.85, roughness: 0.45 });
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.66, 8), m); sh.rotation.x = Math.PI / 2; sh.position.z = 0.24; g.add(sh);
+    const hk = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.011, 6, 10, Math.PI), m); hk.position.set(0, 0.035, 0.57); hk.rotation.y = Math.PI / 2; g.add(hk);
+  } else if (kind === 'blackjack') { // a leather sap: short, weighted at the end
+    const m = new THREE.MeshStandardMaterial({ color: 0x0e0c0b, roughness: 0.5 });
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.16, 8), m); h.rotation.x = Math.PI / 2; h.position.z = 0.06; g.add(h);
+    const hd = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), m); hd.scale.z = 1.8; hd.position.z = 0.19; g.add(hd);
+  } else if (kind === 'metalbat') {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.014, 0.8, 12), new THREE.MeshStandardMaterial({ color: 0x9a9ea2, metalness: 0.9, roughness: 0.3 }));
+    m.rotation.x = Math.PI / 2; m.position.z = 0.34; g.add(m);
+    const gr = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.16, 8), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 })); gr.rotation.x = Math.PI / 2; gr.position.z = 0.0; g.add(gr);
+  } else if (kind === 'knife' || kind === 'sickle') {
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9a9da0, metalness: 0.95, roughness: 0.25 });
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.12), new THREE.MeshStandardMaterial({ color: kind === 'sickle' ? 0x5a3a20 : 0x111111, roughness: 0.7 })); h.position.z = 0.03; g.add(h);
+    if (kind === 'knife') { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.032, 0.2), steel); bl.position.z = 0.19; g.add(bl); }
+    else { const bl = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.008, 4, 16, Math.PI * 1.1), steel); bl.scale.y = 3; bl.rotation.set(0, Math.PI / 2, 0); bl.position.set(0, 0.11, 0.1); g.add(bl); }
+  } else if (kind === 'nailgun') {
+    const y = new THREE.MeshStandardMaterial({ color: 0xb08a14, roughness: 0.5 }), dk = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5 });
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.3), y); b.position.set(0, 0.06, 0.1); g.add(b);
+    const n = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.1), dk); n.position.set(0, 0.03, 0.29); g.add(n);
+  } else if (kind === 'shotgun') {
+    const dark = new THREE.MeshStandardMaterial({ color: 0x161616, metalness: 0.6, roughness: 0.4 }), wood = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.6 });
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), dark); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.02, 0.36); g.add(barrel);
+    const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.16, 8), wood); pump.rotation.x = Math.PI / 2; pump.position.set(0, -0.005, 0.38); g.add(pump);
+    const recv = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.07, 0.18), dark); recv.position.z = 0.0; g.add(recv);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.26), wood); stock.position.set(0, -0.03, -0.2); stock.rotation.x = 0.15; g.add(stock);
+    g.userData.muzzle = new V(0, 0.02, 0.68);
   } else if (kind === 'pipe') {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5a524a, metalness: 0.8, roughness: 0.6 }));
     m.rotation.x = Math.PI / 2; m.position.z = 0.25; g.add(m);
   }
   // point the weapon along the hand (bone points down -Y); the chainsaw is carried out in front
-  g.rotation.x = kind === 'chainsaw' || kind === 'rifle' ? -0.35 : -Math.PI / 2 + 0.3;
+  g.rotation.x = kind === 'chainsaw' || kind === 'rifle' || kind === 'shotgun' || kind === 'nailgun' ? -0.35 : -Math.PI / 2 + 0.3;
   return g;
 }
 
@@ -701,17 +747,17 @@ class Ragdoll {
 // bones that curl around whatever he's holding.
 export function makeHand(left = false) {
   const L = new Loft();
-  const skin = [0.52, 0.36, 0.27], knuckle = [0.56, 0.35, 0.28], nail = [0.66, 0.52, 0.47], scar = [0.6, 0.42, 0.36], sleeve = skin, cuff = skin, ink = skin; // Cash's jacket sleeves are rolled up past the elbow: bare forearms (arms.js adds the rolled cuff and the jacket)
+  const skin = [0.55, 0.38, 0.28], knuckle = [0.6, 0.39, 0.31], nail = [0.72, 0.57, 0.5], scar = [0.66, 0.45, 0.38], sleeve = [0.14, 0.16, 0.2], cuff = [0.7, 0.64, 0.52], ink = skin; // Cash: dark Darkwoods inmate jacket, cream shirt cuff rolled at the wrist
   const v = (x, y, z) => new V(x, y, z);
   // bones: 0 wrist, then per finger (index..pinky) 3 bones, thumb 3 bones
   const bones = [new THREE.Bone()]; bones[0].position.set(0, 0.075, 0.0);
   const fingerDefs = [ // base (relative to wrist root space), length of phalanges
-    { base: v(-0.005, -0.004, -0.030), l: [0.040, 0.025, 0.020], r: 0.0094 },
-    { base: v(-0.007, -0.010, -0.010), l: [0.044, 0.028, 0.021], r: 0.0097 },
-    { base: v(-0.006, -0.008, 0.010), l: [0.041, 0.026, 0.020], r: 0.0091 },
-    { base: v(-0.004, -0.002, 0.028), l: [0.032, 0.020, 0.018], r: 0.0080 },
+    { base: v(-0.005, -0.004, -0.031), l: [0.039, 0.025, 0.020], r: 0.0102 },
+    { base: v(-0.007, -0.009, -0.010), l: [0.043, 0.028, 0.021], r: 0.0106 },
+    { base: v(-0.006, -0.007, 0.011), l: [0.040, 0.026, 0.020], r: 0.0100 },
+    { base: v(-0.004, -0.001, 0.030), l: [0.032, 0.020, 0.018], r: 0.0088 },
   ];
-  const fingers = [], joints = [], tips = [];
+  const fingers = [];
   const Wn = (i) => [[i, 1]];
   // palm: from wrist (y≈0.075) to knuckles (y≈0); fingers start at the knuckle line pointing -Y then curl toward +X? no:
   // fingers extend down -Y from the knuckles in the open pose; curling rotates them about Z toward -X (palm side).
@@ -729,15 +775,13 @@ export function makeHand(left = false) {
       const r0 = f.r * (1 - k * 0.11), r1 = f.r * (1 - (k + 1) * 0.11);
       const prev = k === 0 ? [[chain[0], 0.65], [0, 0.35]] : blend(chain[k - 1], chain[k], 0.62);
       const col = k === 0 ? knuckle : skin;
-      rings.push(ring(v(f.base.x, y - 0.001, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 1.08, r0 * 0.95, prev, col, { ryn: r0 * 1.05 }));
-      rings.push(ring(v(f.base.x, y - f.l[k] * 0.3, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 0.95, r0 * 0.8, Wn(chain[k]), skin, { ryn: r0 * 1.02 }));
-      rings.push(ring(v(f.base.x, y - f.l[k] * 0.62, f.base.z), v(0, -1, 0), v(1, 0, 0), (r0 + r1) * 0.46, (r0 + r1) * 0.39, Wn(chain[k]), skin, { ryn: (r0 + r1) * 0.5 }));
-      rings.push(ring(v(f.base.x, y - f.l[k] * 0.9, f.base.z), v(0, -1, 0), v(1, 0, 0), r1 * 0.98, r1 * 0.85, blend(chain[k], chain[Math.min(2, k + 1)], 0.5), skin, { ryn: r1 * 0.95 }));
+      rings.push(ring(v(f.base.x, y - 0.001, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 1.06, r0 * 1.1, prev, col));
+      rings.push(ring(v(f.base.x, y - f.l[k] * 0.35, f.base.z), v(0, -1, 0), v(1, 0, 0), r0 * 0.93, r0 * 0.94, Wn(chain[k]), skin));
+      rings.push(ring(v(f.base.x, y - f.l[k] * 0.72, f.base.z), v(0, -1, 0), v(1, 0, 0), (r0 + r1) * 0.47, (r0 + r1) * 0.48, Wn(chain[k]), skin));
       y -= f.l[k];
     }
     rings.push(ring(v(f.base.x, y + 0.004, f.base.z), v(0, -1, 0), v(1, 0, 0), f.r * 0.74, f.r * 0.72, Wn(chain[2]), skin));
-    L.tube(rings, 14);
-    joints.push(...f.l.map((_, k) => ({ x: f.base.x, z: f.base.z, y: f.base.y - f.l.slice(0, k).reduce((a, b) => a + b, 0) }))); tips.push({ x: f.base.x, z: f.base.z, y });
+    L.tube(rings, 12);
     // rounded fingertip pad and a fingernail on the back (+X) of the last joint
     L.blob(v(f.base.x - 0.0008, y + 0.004, f.base.z), f.r * 0.74, f.r * 0.85, f.r * 0.72, Wn(chain[2]), skin, 10, 6);
     L.blob(v(f.base.x + f.r * 0.6, y + 0.0095, f.base.z), f.r * 0.14, f.r * 0.7, f.r * 0.52, Wn(chain[2]), nail, 8, 5);
@@ -748,20 +792,19 @@ export function makeHand(left = false) {
   {
     const tb = v(-0.017, 0.048, -0.026), td = v(-0.55, -0.74, -0.38).normalize();
     const chain = []; let parent = bones[0], pos = tb.clone().sub(bones[0].position);
-    const ls = [0.035, 0.03, 0.025];
+    const ls = [0.04, 0.032, 0.026];
     for (let k = 0; k < 3; k++) { const b = new THREE.Bone(); b.position.copy(pos); parent.add(b); bones.push(b); chain.push(bones.length - 1); parent = b; pos = td.clone().multiplyScalar(ls[k]); }
     fingers.push(chain);
     const d = td; let c = tb.clone(); const rings = [];
     for (let k = 0; k < 3; k++) {
-      const r = 0.0112 - k * 0.0011;
+      const r = 0.0128 - k * 0.0013;
       rings.push(ring(c.clone(), d, v(1, 0, 0), r * 1.05, r * 1.1, k === 0 ? [[chain[0], 0.6], [0, 0.4]] : blend(chain[k - 1], chain[k], 0.6), skin));
       rings.push(ring(c.clone().addScaledVector(d, ls[k] * 0.5), d, v(1, 0, 0), r * 0.93, r * 0.96, Wn(chain[k]), skin));
       c = c.clone().addScaledVector(d, ls[k]);
     }
-    rings.push(ring(c.clone().addScaledVector(d, -0.004), d, v(1, 0, 0), 0.0078, 0.0082, Wn(chain[2]), skin));
-    rings.unshift(ring(tb.clone().addScaledVector(d, -0.012), d, v(1, 0, 0), 0.008, 0.009, [[0, 1]], skin)); // starts buried in the palm
-    L.tube(rings, 14, { capStart: true });
-    L.blob(c.clone().addScaledVector(d, -0.004), 0.0079, 0.0085, 0.0079, Wn(chain[2]), skin, 10, 6);
+    rings.push(ring(c.clone().addScaledVector(d, -0.004), d, v(1, 0, 0), 0.0085, 0.009, Wn(chain[2]), skin));
+    L.tube(rings, 12);
+    L.blob(c.clone().addScaledVector(d, -0.004), 0.0088, 0.0095, 0.0088, Wn(chain[2]), skin, 10, 6);
     L.blob(c.clone().addScaledVector(d, -0.008).add(v(0.0055, 0.002, -0.003)), 0.0018, 0.0068, 0.0052, Wn(chain[2]), nail, 8, 5);
     // the meaty pad at the base of the thumb, on the palm side
     L.blob(v(-0.014, 0.05, -0.019), 0.0085, 0.022, 0.012, [[0, 0.7], [chain[0], 0.3]], skin, 12, 8);
@@ -796,8 +839,7 @@ export function makeHand(left = false) {
   L.tube(arm, 18, { capEnd: true });
   // put bones into world-of-hand space: bone 0 sits at the wrist; children positions are relative
   const geo = L.geometry(left);
-  shadeHand(geo, joints, tips, left);
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.6, bumpMap: T.skin, bumpScale: 0.0016, sheen: 0.25, sheenRoughness: 0.5, sheenColor: new THREE.Color(0.8, 0.35, 0.28), side: THREE.DoubleSide });
+  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.58, bumpMap: T.skin, bumpScale: 0.0012, sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0.9, 0.45, 0.35) });
   const mesh = new THREE.SkinnedMesh(geo, mat);
   // children were positioned relative to parents using world coords; fix bone 0 children (they used pos relative to wrist root already)
   if (left) { // mirror bone positions in X
@@ -814,11 +856,11 @@ export function makeHand(left = false) {
       fingers.forEach((ch, fi) => {
         const a = fi === 4 ? thumb : amt;
         // a relaxed hand: each finger a little more curled than the last, fanned slightly
-        const bias = fi === 4 ? 0 : fi * 0.09 * (1 - amt * 0.6), spread = fi === 4 ? 0 : (fi - 1.5) * 0.07 * (1 - amt);
+        const bias = fi === 4 ? 0 : (fi - 1) * 0.1 * (1 - amt), spread = fi === 4 ? 0 : (fi - 1.5) * 0.06 * (1 - amt);
         ch.forEach((bi, k) => {
-          const b = bones[bi], c = Math.min(1, 0.12 + a * 0.92 + bias);
-          if (fi === 4) b.quaternion.setFromEuler(new THREE.Euler(-(0.15 + a * 0.5) * (k === 0 ? 0.9 : 0.6), 0, -sgn * (0.1 + a) * (k === 0 ? 0.3 : 0.45)));
-          else b.quaternion.setFromEuler(new THREE.Euler(k === 0 ? spread : 0, 0, -sgn * c * (k === 0 ? 1.25 : k === 1 ? 1.55 : 1.0)));
+          const b = bones[bi], c = Math.min(1, a + bias + 0.08);
+          if (fi === 4) b.quaternion.setFromEuler(new THREE.Euler(-a * (k === 0 ? 0.5 : 0.35), 0, -sgn * a * (k === 0 ? 0.35 : 0.5)));
+          else b.quaternion.setFromEuler(new THREE.Euler(k === 0 ? spread : 0, 0, -sgn * c * (k === 0 ? 1.45 : k === 1 ? 1.6 : 1.1)));
         });
       });
     },
@@ -827,33 +869,5 @@ export function makeHand(left = false) {
   return hand;
 }
 
-// What makes a hand read as a hand: shadow down between the fingers and in the
-// palm, creases at the joints on the palm side, redder knuckles, a paler palm,
-// pink fingertips. Bind-space, before the left-hand mirror is applied to bones.
-function shadeHand(geo, joints, tips, left) {
-  const p = geo.attributes.position.array, n = geo.attributes.normal.array, col = geo.attributes.color.array, cnt = p.length / 3;
-  const sx = left ? -1 : 1, cell = 0.012, grid = new Map(), key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
-  for (let i = 0; i < cnt; i++) { const k = key(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(i); }
-  const lin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  for (let i = 0; i < cnt; i++) {
-    const x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2], nx = n[i * 3], ny = n[i * 3 + 1], nz = n[i * 3 + 2], hx = x * sx; // hx: + back of the hand, - palm
-    if (y > 0.2) continue; // the sleeve
-    let occ = 0; const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
-    for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (let c = -2; c <= 2; c++) {
-      const L = grid.get(`${cx + a},${cy + b},${cz + c}`); if (!L) continue;
-      for (const j of L) { const dx = p[j * 3] - x, dy = p[j * 3 + 1] - y, dz = p[j * 3 + 2] - z, d = Math.hypot(dx, dy, dz); if (d < 0.003 || d > 0.024) continue; const f = (dx * nx + dy * ny + dz * nz) / d; if (f > 0.3) occ += (f - 0.3) * (1 - d / 0.024); }
-    }
-    let r = 1, g = 1, bl = 1;
-    const ao = 1 - Math.min(0.55, occ * 0.05); r *= ao; g *= ao; bl *= ao;
-    if (hx < -0.006) { r *= 1.08; g *= 1.1; bl *= 1.08; } // palm: paler
-    else if (hx > 0.006) { r *= 0.94; g *= 0.92; bl *= 0.92; } // back of the hand: a shade more tan
-    for (const J of joints) { const d = Math.hypot(z - J.z, y - J.y); if (d < 0.004 + 0.003) { if (hx < -0.002) { const k = 1 - d / 0.007; r *= 1 - k * 0.35; g *= 1 - k * 0.4; bl *= 1 - k * 0.4; } else { const k = 1 - d / 0.007; r *= 1 + k * 0.08; g *= 1 - k * 0.06; bl *= 1 - k * 0.04; } } }
-    for (const T0 of tips) { const d = Math.hypot(z - T0.z, y - T0.y); if (d < 0.016) { const k = 1 - d / 0.016; r *= 1 + k * 0.1; g *= 1 - k * 0.02; bl *= 1 + k * 0.01; } }
-    // fine mottling so the skin isn't plastic
-    const m = 1 + (Math.sin(x * 900 + y * 700) * Math.sin(z * 800 - y * 500)) * 0.04; r *= m; g *= m; bl *= m;
-    col[i * 3] *= r; col[i * 3 + 1] *= g; col[i * 3 + 2] *= bl;
-  }
-  geo.attributes.color.needsUpdate = true;
-}
 
 export { B as BONE, SKIN_TONES };
