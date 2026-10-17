@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>DEAD AIR</title>
+<meta name="description" content="Carcer City. You are Josh Earnings: framed, sentenced, and sold to a snuff film ring. A VR stealth horror game for Meta Quest.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<canvas id="view" tabindex="0"></canvas>
+<div id="hud" hidden>
+  <div class="meters">
+    <div class="m"><span>SEEN</span><i><b id="mLight"></b></i></div>
+    <div class="m"><span>NOISE</span><i><b id="mNoise"></b></i></div>
+    <div class="m"><span>HEALTH</span><i><b id="mHp"></b></i></div>
+  </div>
+  <div id="show"></div>
+  <div class="rec"><span class="dot"></span>REC</div>
+</div>
+<div id="caption" hidden></div>
+<div id="prompt" hidden></div>
+<div id="banner" hidden></div>
+
+<div id="screen">
+  <div class="tape">
+    <div class="rec big"><span class="dot"></span>REC &nbsp;00:00:00</div>
+    <h1 class="logo">DEAD <span>AIR</span></h1>
+    <p class="sub">Carcer City &middot; Scene 1: The Pens</p>
+    <p class="lede">Josh Earnings was sentenced to die for murders he didn't commit.<br>At 11:58 p.m. somebody paid to get him out.<br>Now the cameras are rolling, and every man out there has been paid to kill him.</p>
+    <div class="actions">
+      <button id="enterVR">Enter VR</button>
+      <button id="playDesktop">Play on desktop</button>
+      <button id="howBtn">How to play</button>
+    </div>
+    <label class="mic"><input type="checkbox" id="micBox"> Use my microphone &mdash; real noise in your room can give you away</label>
+    <p id="vrNote"></p>
+    <p id="loading">Building Carcer City&hellip;</p>
+    <div class="how" id="how" hidden>
+      <p><b>Stay in the dark.</b> Your SEEN meter (on your left wrist in VR) shows how lit you are. Hunters spot you much faster in light. Crouch for less noise and a smaller shape.</p>
+      <p><b>Stay quiet.</b> Running is loud. Walking is quiet. Crouched is nearly silent. Throw bottles and bricks to send hunters to go look somewhere else.</p>
+      <p><b>Quest.</b> Left stick walks (click it to sprint), right stick turns. Grip picks up whatever your hand is touching; let go while swinging to throw. Bag: reach over a hunter's head from behind with the bag, then hold grip and pull for about four seconds. Glass shard and crowbar: really stab and swing &mdash; they only hurt when they're moving fast. Crouch for real, or press B.</p>
+      <p><b>Desktop.</b> WASD move, mouse look (click to capture), Shift run, C crouch, E pick up, click to stab / swing / use the bag (hold), Q or right-click throw, G drop, F swap hands, N free camera.</p>
+      <p><b>The show.</b> The Director wants three kills. Give him that and the gate in the east wall opens. CCTV cameras report you to the hunters; a crowbar or a brick shuts them up.</p>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/main.js?v=1"></script>
+</body>
+</html>
