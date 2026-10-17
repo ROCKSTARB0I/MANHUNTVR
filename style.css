@@ -110,9 +110,11 @@ canvas.cut { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: c
 .meters .m { display: block; grid-template-columns: none; }
 .meters .m.noise { display: none; }
 
-/* ---- the front end: Fake Receipt (Ray Larabie, freeware) on a plain, old PS2-style menu ---- */
-@font-face { font-family: 'Fake Receipt'; src: url('fonts/FakeReceipt.otf') format('opentype'); font-display: block; }
-#screen, #screen *, #pause, #pause *, #loadScreen, #loadScreen *, #slots, #slots * { font-family: 'Fake Receipt', 'Courier New', monospace !important; }
+/* ---- the front end: VT323 (square-pixel receipt print, SIL Open Font License) on a plain, old PS2-style menu ---- */
+#screen, #screen *, #pause, #pause *, #loadScreen, #loadScreen *, #slots, #slots * { font-family: 'VT323', 'Courier New', monospace !important; }
+.logo { font-size: clamp(72px, 15vw, 150px); }
+#menuList button, #pauseList button { font-size: 30px !important; }
+.sub, .feed { font-size: 18px; }
 #screen::before { background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px); }
 .logo { letter-spacing: 0.08em; font-weight: normal; text-shadow: none; filter: none; color: #e4dfd2; }
 .sub { letter-spacing: 0.25em; margin: 6px 0 40px; color: #9a9488; }
