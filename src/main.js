@@ -1,19 +1,20 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=22';
-import { District, SCENES } from './district.js?v=22';
-import { spawnHunters } from './hunters.js?v=22';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=22';
-import { Blood } from './blood.js?v=22';
-import { Director } from './director.js?v=22';
-import { Sound } from './sound.js?v=22';
-import { makeHand, Person, BONE } from './body.js?v=22';
-import { VHS } from './vhs.js?v=22';
-import { Grime } from './grime.js?v=22';
-import { Cutscene } from './cutscene.js?v=22';
-import { Arms } from './arms.js?v=22';
-import { Finisher } from './finisher.js?v=22';
+import { paintAll, T } from './paint.js?v=23';
+import { District, SCENES } from './district.js?v=23';
+import { spawnHunters } from './hunters.js?v=23';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=23';
+import { Blood } from './blood.js?v=23';
+import { Objectives } from './objectives.js?v=23';
+import { Director } from './director.js?v=23';
+import { Sound } from './sound.js?v=23';
+import { makeHand, Person, BONE } from './body.js?v=23';
+import { VHS } from './vhs.js?v=23';
+import { Grime } from './grime.js?v=23';
+import { Cutscene } from './cutscene.js?v=23';
+import { Arms } from './arms.js?v=23';
+import { Finisher } from './finisher.js?v=23';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -179,19 +180,21 @@ const hud = (() => {
       $('mLight').style.width = light * 100 + '%'; $('mLight').style.height = Math.min(1, light) * 100 + '%'; $('mLight').style.background = light > 0.35 ? '#ffdd66' : light > 0.15 ? '#a08a40' : '#3c4450';
       $('mNoise').style.width = noise * 100 + '%';
       $('mHp').style.width = Math.max(0, P.hp) + '%'; $('mHp').style.height = Math.max(0, P.hp) + '%'; updateWeapon(); drawStance();
-      $('show').textContent = G.director?.gate ? 'THE EXIT IS OPEN' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
+      $('show').textContent = G.objectives?.text && !G.director?.gate ? G.objectives.text.toUpperCase() : G.director?.gate ? 'THE EXIT IS OPEN' : `HUNTERS DOWN ${G.director?.kills || 0} / ${G.director?.quota || 0}`;
     },
   };
 })();
 sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound;
 // ------------------------------------------------------------- weapon icon
-const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE' };
+const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', knife: 'KNIFE', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE', nailgun: 'NAIL GUN' };
 function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
   g.save(); g.translate(x, y); g.scale(s, s); g.lineCap = 'round'; g.lineJoin = 'round';
   if (kind === 'crowbar') { g.strokeStyle = '#8a1c14'; g.lineWidth = 9; g.beginPath(); g.moveTo(18, 82); g.lineTo(70, 22); g.quadraticCurveTo(80, 10, 88, 22); g.stroke(); g.strokeStyle = '#333'; g.lineWidth = 5; g.beginPath(); g.moveTo(12, 88); g.lineTo(22, 78); g.stroke(); }
   else if (kind === 'shard') { g.fillStyle = 'rgba(190,220,210,0.9)'; g.beginPath(); g.moveTo(30, 86); g.lineTo(44, 82); g.lineTo(70, 12); g.lineTo(52, 40); g.closePath(); g.fill(); g.fillStyle = '#5a4a3a'; g.fillRect(26, 78, 20, 14); }
   else if (kind === 'bag') { g.fillStyle = '#e4e2da'; g.beginPath(); g.moveTo(24, 36); g.quadraticCurveTo(14, 86, 48, 88); g.quadraticCurveTo(82, 86, 72, 36); g.closePath(); g.fill(); g.strokeStyle = '#e4e2da'; g.lineWidth = 5; g.beginPath(); g.arc(36, 32, 10, Math.PI, 0); g.arc(60, 32, 10, Math.PI, 0); g.stroke(); }
   else if (kind === 'bottle') { g.fillStyle = '#2f6a2c'; g.beginPath(); g.moveTo(42, 10); g.lineTo(54, 10); g.lineTo(54, 30); g.quadraticCurveTo(68, 38, 68, 52); g.lineTo(68, 88); g.lineTo(28, 88); g.lineTo(28, 52); g.quadraticCurveTo(28, 38, 42, 30); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(34, 50, 5, 30); }
+  else if (kind === 'knife') { g.fillStyle = '#c8ccd0'; g.beginPath(); g.moveTo(30, 70); g.lineTo(42, 76); g.lineTo(80, 18); g.lineTo(72, 16); g.closePath(); g.fill(); g.fillStyle = '#1a1612'; g.save(); g.translate(26, 80); g.rotate(-0.95); g.fillRect(-14, -5, 26, 10); g.restore(); }
+  else if (kind === 'nailgun') { g.fillStyle = '#c8a018'; g.fillRect(22, 30, 46, 26); g.fillStyle = '#1a1a1a'; g.fillRect(68, 38, 20, 10); g.fillRect(34, 56, 12, 24); g.fillRect(24, 56, 44, 5); }
   else if (kind === 'rifle') { g.fillStyle = '#1a1a1a'; g.fillRect(10, 42, 70, 12); g.fillRect(70, 46, 22, 5); g.fillRect(36, 54, 10, 22); g.fillRect(10, 50, 14, 16); }
   else if (kind === 'brick') { g.fillStyle = '#8a3a26'; g.beginPath(); g.moveTo(14, 46); g.lineTo(62, 34); g.lineTo(86, 44); g.lineTo(86, 64); g.lineTo(38, 78); g.lineTo(14, 66); g.closePath(); g.fill(); g.fillStyle = '#a24a30'; g.beginPath(); g.moveTo(14, 46); g.lineTo(62, 34); g.lineTo(86, 44); g.lineTo(38, 56); g.closePath(); g.fill(); }
   else { g.fillStyle = '#b08068'; g.beginPath(); g.ellipse(48, 54, 26, 22, 0, 0, 7); g.fill(); g.strokeStyle = '#7a5040'; g.lineWidth = 3; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(30 + k * 12, 36); g.lineTo(30 + k * 12, 50); g.stroke(); } }
@@ -211,10 +214,10 @@ function drawStance() {
 }
 function updateWeapon() {
   const it = G.hands[0]?.item || G.hands[1]?.item, kind = it ? it.kind : null;
-  $('weapon').className = !kind ? '' : kind === 'crowbar' || kind === 'shard' ? 'red' : kind === 'bottle' || kind === 'brick' || kind === 'rifle' ? 'blue' : ''; // the pill takes the item's colour, as in the game
-  const key = (kind === 'rifle' ? 'rifle' + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
+  $('weapon').className = !kind ? '' : kind === 'crowbar' || kind === 'shard' || kind === 'knife' ? 'red' : kind === 'bottle' || kind === 'brick' || kind === 'rifle' || kind === 'nailgun' ? 'blue' : ''; // the pill takes the item's colour, as in the game
+  const key = (kind === 'rifle' || kind === 'nailgun' ? kind + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
   const g = $('wIcon').getContext('2d'); g.clearRect(0, 0, 96, 96); drawWeapon(g, kind);
-  $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
+  $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' || kind === 'nailgun' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
   $('wList').innerHTML = SLOTS.map((s, i) => { const c = G.kit.inv[s]; return `<span class="${c && c === it ? 'on' : ''}">${i + 1} ${c ? WNAMES[c.kind] : '—'}</span>`; }).join('');
 }
 function who(L) { return L.who === 'DIRECTOR' ? 'THE DIRECTOR' : L.who === 'CASH' ? 'CASH' : L.who === 'NEWS' ? 'CHANNEL 6' : 'HOOD'; }
@@ -231,7 +234,7 @@ function radar(g, cx, cy, r) {
   g.strokeStyle = 'rgba(120,160,130,0.25)'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, r * 0.5, 0, Math.PI * 2); g.moveTo(cx - r, cy); g.lineTo(cx + r, cy); g.moveTo(cx, cy - r); g.lineTo(cx, cy + r); g.stroke();
   const f = G.lookDir || new V(0, 0, -1), yaw = Math.atan2(f.x, f.z), c = Math.cos(yaw), s = Math.sin(yaw), range = 25;
   for (const h of G.hunters) {
-    if (!h.alive) continue;
+    if (!h.alive || h.dormant) continue;
     const dx = h.pos.x - P.pos.x, dz = h.pos.z - P.pos.z;
     // rotate so the way Cash faces is up
     const rx = dx * c - dz * s, rz = dx * s + dz * c;
@@ -276,6 +279,7 @@ function populate() {
   G.kit = new Kit(G);
   G.hunters = spawnHunters(G);
   G.director = new Director(G);
+  G.objectives?.dispose(); G.objectives = new Objectives(G);
   G.grime?.dispose(); G.grime = new Grime(G);
   if (rabbit) { scene.remove(rabbit.root); rabbit = null; }
   if (world.def.rabbit) rabbit = makeRabbit();
@@ -384,6 +388,7 @@ addEventListener('keydown', (e) => {
   if (G.state === 'paused') { if (e.code === 'ArrowDown') pauseSelect(pauseSel + 1); if (e.code === 'ArrowUp') pauseSelect(pauseSel - 1); if (e.code === 'Enter') pauseDo(pauseItems[pauseSel].dataset.a); return; }
   if (G.state !== 'play') return;
   const R = dHands[0];
+  if (e.code === 'KeyE' && G.state === 'play' && G.objectives?.interact()) return;
   if (e.code === 'KeyE') { if (R.item?.kind === 'bag') { R.use = true; R.useHeld = true; } else G.kit.pickInView(R, camera.getWorldPosition(new V()), camera.getWorldDirection(new V())); }
   // inventory: 1 melee, 2 single-use, 3 lure, 4 gun, X bare hands
   const slotKey = { Digit1: 'melee', Digit2: 'single', Digit3: 'lure', Digit4: 'gun' }[e.code];
@@ -613,7 +618,7 @@ renderer.setAnimationLoop(() => {
     world.update(G.time, dt);
     for (const h of G.hunters) h.update(dt, G.time);
     G.blood.update(dt);
-    G.director.update(dt); rabbitTick(dt); G.grime?.update(dt, G.time);
+    G.director.update(dt); G.objectives?.update(dt); rabbitTick(dt); G.grime?.update(dt, G.time);
     // tension score: how hunted are you?
     let hunted = 0; for (const h of G.hunters) if (h.alive) hunted = Math.max(hunted, h.aware() ? 1 : h.susp * 0.7);
     sound.tension(hunted); sound.tick(dt);
@@ -745,7 +750,7 @@ function loadGame() {
   if (d.dir.gate) { G.director.gate = true; world.openGate(); }
   d.hunters.forEach((s, i) => { const h = G.hunters[i]; if (!h) return; h.pos.set(s.x, 0, s.z); h.yaw = s.yaw; h.wp = s.wp; h.place(); if (!s.alive) { h.alive = false; h.state = 'dead'; if (h.torch) { h.torch.intensity = 0; h.beam.visible = false; } if (h.body.weapon) h.body.weapon.parent?.remove(h.body.weapon); h.body.die(new V(), null, world); G.blood.pool(h.pos.clone(), 1.2); } });
   G.kit.clear(); d.items.forEach((it) => G.kit.spawn(it.kind, new V(it.x, it.y, it.z)));
-  if (d.inv) { const R = G.hands[0]; d.inv.forEach((k) => { if (k) { const it = G.kit.spawn(k, P.head.clone()); if (k === 'rifle') it.ammo = d.invAmmo; G.kit.grab(R, it); } }); const first = d.held && d.held[0]; if (first) G.kit.equip(R, SLOT[first]); }
+  if (d.inv) { const R = G.hands[0]; d.inv.forEach((k) => { if (k) { const it = G.kit.spawn(k, P.head.clone()); if (k === 'rifle' || k === 'nailgun') it.ammo = d.invAmmo; G.kit.grab(R, it); } }); const first = d.held && d.held[0]; if (first) G.kit.equip(R, SLOT[first]); }
   else d.held.forEach((k, i) => { if (k && G.hands[i]) G.kit.grab(G.hands[i], G.kit.spawn(k, P.head.clone())); });
   d.cams.forEach((alive, i) => { const c = G.director.cams[i]; if (c && !alive) { c.alive = false; c.led.visible = false; c.head.rotation.x = 1.2; c.head.rotation.z = 0.6; } });
   G.state = 'play'; return true;
@@ -824,6 +829,7 @@ function prompt() {
   else if (G.kit.exec) s = `STRIKE — ${G.kit.exec.need - G.kit.exec.done} more`;
   else if (G.kit.charge) s = 'RELEASE TO EXECUTE';
   else if (R.item && G.kit.candidate(R)) s = 'HOLD CLICK — charge an execution';
+  if (!s) s = G.objectives?.prompt() || '';
   if (!s) for (const it of G.kit.items) { if (it.hand || it.flying) continue; if (Math.hypot(it.pos.x - P.pos.x, it.pos.z - P.pos.z) < 1.7) { s = `E — pick up ${it.kind === 'pills' ? 'painkillers' : it.kind}`; break; } }
   el.hidden = !s; el.textContent = s;
 }

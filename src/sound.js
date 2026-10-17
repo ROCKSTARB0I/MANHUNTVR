@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=22';
-import { Score } from './score.js?v=22';
+import { LINE, VOICES } from './lines.js?v=23';
+import { Score } from './score.js?v=23';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -230,6 +230,21 @@ export class Sound {
     this.burst(o, { dur: 0.9, f: 700, q: 0.4, gain: 0.12, attack: 0.02, t: 0.05 });
   }
   click() { this.tone(this.sfx, { f: 1800, dur: 0.03, type: 'square', gain: 0.08 }); }
+  nail(p) { // pneumatic nailer: a hard air thwack and the clack of the driver
+    if (!this.ctx) return; const o = p ? this.at(p) : this.sfx;
+    this.burst(o, { dur: 0.06, f: 1400, q: 0.7, gain: 0.7, attack: 0.001 });
+    this.burst(o, { dur: 0.12, f: 400, type: 'lowpass', gain: 0.6, attack: 0.001 });
+    this.tone(o, { f: 2600, dur: 0.02, type: 'square', gain: 0.06 });
+  }
+  rattle(p) { // a chain-link gate shaken and dragged open
+    if (!this.ctx) return; const o = p ? this.at(p) : this.sfx;
+    for (let k = 0; k < 6; k++) this.burst(o, { t: k * 0.07, dur: 0.06, f: 2400 + Math.random() * 1600, q: 3, gain: 0.25, attack: 0.002 });
+    this.burst(o, { t: 0.1, dur: 0.6, f: 300, q: 0.6, gain: 0.25, attack: 0.05 });
+  }
+  buzz(p) { // the electric lock letting go
+    if (!this.ctx) return; const o = p ? this.at(p) : this.sfx;
+    this.tone(o, { f: 120, dur: 0.6, type: 'sawtooth', gain: 0.12 }); this.burst(o, { t: 0.55, dur: 0.08, f: 900, q: 1, gain: 0.5, attack: 0.001 });
+  }
   // play a sound file from the game folder (cached after the first load)
   sample(url, gain = 1) {
     if (!this.ctx) return; this.samples = this.samples || {};

@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=22';
-import { T } from './paint.js?v=22';
+import { Person, BONE, SKIN_TONES } from './body.js?v=23';
+import { T } from './paint.js?v=23';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -140,6 +140,7 @@ export class Hunter {
   }
 
   hear(n) {
+    if (this.dormant) return;
     if (!this.alive || this.state === 'bagged' || this.state === 'executed') return;
     const d = this.pos.distanceTo(n.p); let r = n.r;
     if (!this.game.world.clear(this.eye(_a), _b.copy(n.p).setY(1.0))) r *= 0.55;
@@ -160,6 +161,7 @@ export class Hunter {
   // ------------------------------------------------------------ think
   update(dt, t) {
     const A = this.body.anim;
+    if (this.dormant) { this.body.root.visible = false; return; } // waiting out of sight (a scene objective wakes him)
     if (!this.alive) { this.body.animate(dt, t); return; }
     if (this.state === 'bagged') { A.speed = 0; A.struggle = Math.min(1, A.struggle + dt * 4); this.body.animate(dt, t); return; }
     if (this.state === 'fallen') { this.fallen -= dt; if (this.saw) this.saw(this.eye(_a), 0); if (this.fallen <= 0) { const p = [[14, -8], [-12, 8], [12, 8]][Math.floor(Math.random() * 3)]; this.pos.set(p[0], 0, p[1]); this.body.root.position.y = 0; this.state = 'hunt'; this.susp = 1; this.last.copy(this.game.player.pos); this.lostT = 0; this.say('spot'); } this.place(); this.body.root.position.y = this.fallen > 0 ? -2.4 : 0; return; }
@@ -354,6 +356,7 @@ export class Hunter {
     if (this.saw) this.saw(this.eye(_a), 0, true);
     if (this.body.weapon) { const w = this.body.weapon; w.parent.remove(w); }
     if (this.set.guns) this.game.kit.spawn('rifle', new V(this.pos.x + 0.4, 0.04, this.pos.z + 0.2));
+    if (this.dropOnDeath) this.game.kit.spawn(this.dropOnDeath, new V(this.pos.x + 0.3, 0.04, this.pos.z - 0.3));
     this.body.anim.struggle = 0; this.body.anim.swing = -1;
     this.body.die(impulse, at, this.game.world);
     this.game.sound.gurgle(this.eye(_a)); this.say('die');

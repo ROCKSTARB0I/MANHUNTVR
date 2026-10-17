@@ -145,7 +145,7 @@ export const SETS = {
       K.trailer(92, 134, 0); K.quonset(122, 148, 0, 12, 3.6); K.tank(108, 124, 0); K.tank(140, 128, PI / 2); K.tank(138, 154, 0.2);
       K.drums(100, 154, 4); K.tyres(132, 124, 5); K.fire(116, 128); K.lamp(104, 140, { h: 6, r: 14, col: 0xffc070 });
       // the far yard: wrecks and tyres, the guard house with the gate switch, the electric gate out
-      K.guardhouse(226, 140, PI); K.lamp(220, 132, { h: 6, r: 14, col: 0xffd090 }); K.tyres(200, 168, 6); K.tyres(203, 168, 4); K.drums(170, 168, 4);
+      K.guardhouse(214, 128, 0); K.lamp(220, 124, { h: 6, r: 14, col: 0xffd090 }); K.tyres(200, 168, 6); K.tyres(203, 168, 4); K.drums(170, 168, 4);
       K.prop('car', 214, 110, 1.2); K.prop('van', 160, 140, 0.4); K.fire(190, 150); K.lamp(232, 70, { h: 6, r: 14, col: 0xffd090 });
       for (let k = 0; k < 6; k++) K.blood(80 + Math.random() * 140, 60 + Math.random() * 100, 1.2);
     },

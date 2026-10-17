@@ -52,7 +52,7 @@ export class Director {
     const took = G.time - (h.firstHit || G.time), stealth = h.stealthStart;
     setTimeout(() => {
       // he congratulates every takedown; executions are graded by how far you charged them
-      if (cause === 'fall') { this.line('dir_end', 0); if (this.kills >= this.quota && !this.gate) { this.gate = true; G.world.openGate(); } return; }
+      if (cause === 'fall') { this.line('dir_end', 0); if (this.kills >= this.quota && !this.gate && !G.objectives?.lockExit) { this.gate = true; G.world.openGate(); } return; }
       const lvl = h.execLevel;
       if (lvl === 2) this.any('dir_exec_red', 0, 3);
       else if (lvl === 1) this.any('dir_exec_green', 0, 3);
@@ -60,8 +60,8 @@ export class Director {
       else if (!stealth) this.any('dir_kill_fight', 0, 2);
       else this.any('dir_kill_quiet', 0, 2);
       if (Math.random() < 0.35) G.sound.say(Math.random() < 0.5 ? 'cash_kill' : 'cash_kill_2');
-      if (this.kills === this.quota - 1) this.line('dir_one_left', 999);
-      if (this.kills >= this.quota && !this.gate) { this.gate = true; G.world.openGate(); this.line('dir_gate', 999); setTimeout(() => G.sound.say('cash_gate'), 9000); }
+      if (this.kills === this.quota - 1 && !G.objectives?.lockExit) this.line('dir_one_left', 999);
+      if (this.kills >= this.quota && !this.gate && !G.objectives?.lockExit) { this.gate = true; G.world.openGate(); this.line('dir_gate', 999); setTimeout(() => G.sound.say('cash_gate'), 9000); }
     }, 1400);
   }
 
@@ -96,7 +96,7 @@ export class Director {
   update(dt) {
     const G = this.game, P = G.player;
     // however they died, once they're all dead the gate opens
-    if (!this.gate && G.hunters.length && G.hunters.every((h) => !h.alive)) { this.gate = true; this.kills = Math.max(this.kills, this.quota); G.world.openGate(); setTimeout(() => this.line('dir_gate', 999), 1600); }
+    if (!this.gate && !G.objectives?.lockExit && G.hunters.length && G.hunters.every((h) => !h.alive)) { this.gate = true; this.kills = Math.max(this.kills, this.quota); G.world.openGate(); setTimeout(() => this.line('dir_gate', 999), 1600); }
     // CCTV sweeps and reports
     for (const c of this.cams) {
       if (!c.alive) continue;

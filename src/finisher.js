@@ -6,7 +6,7 @@
 // Desktop gets a slow orbiting camera; in VR the view fades and you watch from
 // a step to the side (nothing moves you on its own), then it fades back.
 import * as THREE from '../vendor/three.module.js';
-import { BONE } from './body.js?v=22';
+import { BONE } from './body.js?v=23';
 
 const V = THREE.Vector3;
 const INTRO = 0.4, BLOW = 0.82, LASTBLOW = 1.5, HOLD = 2.2, FADE = 0.22, REACH = 0.64;
@@ -105,7 +105,7 @@ export class Finisher {
     G.sound.tapeStatic(0.45, 0.16); // the tape cuts
   }
   // where the man is hit this blow (blunt things to the head, blades to the neck)
-  target() { const b = this.h.body; return this.it.kind === 'shard' ? b.bonePos('neck', new V()).add(new V(0, 0.05, 0)) : b.headPos(new V()); }
+  target() { const b = this.h.body; return (this.it.kind === 'shard' || this.it.kind === 'knife') ? b.bonePos('neck', new V()).add(new V(0, 0.05, 0)) : b.headPos(new V()); }
 
   // Cash's body this frame
   drive(C, rot, b, B, dt, t) {
@@ -163,14 +163,14 @@ export class Finisher {
   strike(last) {
     const G = this.G, h = this.h, kit = this.kit, at = this.target(), dir = at.clone().sub(this.cashPos.clone().setY(1.7)).normalize();
     const kind = this.it.kind, pw = last ? 1.6 : 1;
-    if (kind === 'shard') G.sound.stab(at, 1.3); else if (kind === 'bottle') G.sound.glass(at); else { G.sound.crunch(at); G.sound.thud(at, 1.6 * pw); }
+    if (kind === 'shard' || kind === 'knife') G.sound.stab(at, 1.3); else if (kind === 'bottle') G.sound.glass(at); else { G.sound.crunch(at); G.sound.thud(at, 1.6 * pw); }
     for (const x of G.hands) x.haptic?.(1, last ? 220 : 120);
     G.vhs.hot = Math.min(1.3, G.vhs.hot + 0.45 * pw); this.shakeT = 0.2;
     // the impact goes through both of them
     const v = this.vs, sideK = (Math.random() - 0.5);
     v.spine.kick(3.5 * pw); v.neck.kick(6 * pw); v.head.kick(9 * pw); v.twist.kick(sideK * 5); v.side.kick(sideK * 4);
     this.cs.recoil.kick(2.2 * pw); this.cs.twist.kick(-1.2);
-    h.body.wound(kind === 'shard' ? 'neck' : this.n % 2 ? 'head' : 'neck', at, 1.3 + this.level * 0.3);
+    h.body.wound(kind === 'shard' || kind === 'knife' ? 'neck' : this.n % 2 ? 'head' : 'neck', at, 1.3 + this.level * 0.3);
     G.blood.spray(at, dir, (50 + this.level * 30) * pw, (1.3 + this.level * 0.3) * pw);
     G.blood.spray(at, new V(0, 1, 0).sub(dir).normalize(), 12 + this.level * 10, 0.8);
     G.blood.splat(new V(h.pos.x + dir.x * 0.5, 0, h.pos.z + dir.z * 0.5), 0.35 + this.level * 0.15);

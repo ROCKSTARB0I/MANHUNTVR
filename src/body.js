@@ -3,9 +3,9 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=22';
-import { T, gangMask, WRAP } from './paint.js?v=22';
-import { addGear } from './gear.js?v=22';
+import { Loft, ring, blend } from './loft.js?v=23';
+import { T, gangMask, WRAP } from './paint.js?v=23';
+import { addGear } from './gear.js?v=23';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -551,7 +551,7 @@ function paintFace(stubble, hair, cash = false) {
   return (faceCache[key] = t);
 }
 
-function makeHunterWeapon(kind) {
+export function makeHunterWeapon(kind) {
   const g = new THREE.Group();
   if (kind === 'bat') {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.016, 0.84, 10), new THREE.MeshStandardMaterial({ map: T.wood.map, color: 0xb08860, roughness: 0.6 }));
