@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=13';
+import { T } from './paint.js?v=14';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -392,7 +392,7 @@ export class Kit {
     // the bag sucks in and out with his breathing, slower as he fades
     const br = Math.sin(G.time * (14 - S.t / S.need * 10)) * 0.08 * (1 - S.t / S.need);
     S.it.mesh.scale.set(1.18 + br, 1.2, 1.18 + br);
-    S.pulse -= dt; if (S.pulse < 0) { S.pulse = 0.18; hand.haptic?.(0.5 + Math.random() * 0.5, 60); if (Math.random() < 0.4) G.sound.rustle(head, 0.15); if (Math.random() < 0.45 + S.level * 0.2) G.sound.grunt(head, (1 - S.t / S.need * 0.6) * (1 + S.level * 0.3), true); }
+    S.pulse -= dt; if (S.pulse < 0) { S.pulse = 0.18; hand.haptic?.(0.5 + Math.random() * 0.5, 60); if (Math.random() < 0.4) G.sound.rustle(head, 0.15); if (Math.random() < 0.45 + S.level * 0.2) G.sound.grunt(head, (1 - S.t / S.need * 0.6) * (1 + S.level * 0.3), true); if (Math.random() < 0.12) G.sound.painScream(head, 0.9 - S.t / S.need * 0.4, true); } // muffled screams inside the bag
     h.body.anim.struggle = Math.max(0.2, 1 - S.t / (S.need * 1.2)) * (1 + S.level * 0.4); if (S.level === 2) h.body.anim.crouch = Math.min(0.9, S.t / S.need * 1.4); G.vhs.hot = Math.max(G.vhs.hot, 0.25 + S.level * 0.2);
     if (S.slip > 0.6) { // he tore free
       this.struggle = null;
@@ -482,7 +482,7 @@ export class Kit {
     h.yaw = Math.atan2(f.x, f.z); h.place();
     h.hitsTaken = 0; h.firstHit = G.time; h.stealthStart = true;
     G.vhs.hot = 0.4 + level * 0.3; hand.haptic?.(1, 120);
-    G.sound.stinger(); this.killOn(h); G.sound.grunt(h.eye(new V()), 0.8, it.kind === 'bag');
+    G.sound.stinger(); this.killOn(h); G.sound.painScream(h.eye(new V()), 0.8, true); G.sound.tapeStatic(0.3, 0.14); // grabbed: a hand over his mouth, the tape glitches
     if (it.kind === 'bag') { this.startBag(hand, it, h, level); return; }
     this.exec = { h, hand, it, level, need: (NEED[it.kind] || [1, 2, 3])[level], done: 0, t: 0 };
     h.body.anim.struggle = 0.4; if (level === 2) h.body.anim.crouch = 0.85; // forced to his knees
@@ -501,7 +501,8 @@ export class Kit {
     G.blood.spray(at, dir, 45 + E.level * 35, 1.2 + E.level * 0.35);
     G.blood.spray(at, dir.clone().negate().add(new V(0, 0.6, 0)), 10 + E.level * 12, 0.8); // back-spatter toward Cash
     if (part.name === 'neck' || part.name === 'head') G.blood.splat(new V(h.pos.x + dir.x * 0.6, 0, h.pos.z + dir.z * 0.6), 0.4 + E.level * 0.2);
-    G.sound.grunt(h.eye(new V()), 1 + E.level * 0.3);
+    G.sound.painScream(h.eye(new V()), 1 + E.level * 0.3, E.level === 0 || Math.random() < 0.4); G.sound.effort(G.player.head, 1 + E.level * 0.2);
+    G.sound.tapeStatic(0.12 + E.level * 0.05, 0.08 + E.level * 0.03);
     if (E.level === 2 || Math.random() < 0.3) this.lensBlood(1 + E.level);
     this.bloodyHands(hand, 0.08 + E.level * 0.04);
     if (E.level >= 1) { // the wound keeps pumping

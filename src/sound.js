@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=13';
-import { Score } from './score.js?v=13';
+import { LINE, VOICES } from './lines.js?v=14';
+import { Score } from './score.js?v=14';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -144,9 +144,10 @@ export class Sound {
     }
   }
   // a man's grunt: a buzzy voice through two formants, pitch falling. muffled = through a plastic bag
-  grunt(p, pain = 1, muffled = false) {
+  grunt(p, pain = 1, muffled = false, pitch = 1) {
+    if (!this.ctx) return;
     const C = this.ctx, out = p ? this.at(p) : this.sfx, t0 = this.now(), dur = 0.18 + Math.random() * 0.25 * pain;
-    const o = C.createOscillator(); o.type = 'sawtooth'; const f0 = 95 + Math.random() * 45 + pain * 20;
+    const o = C.createOscillator(); o.type = 'sawtooth'; const f0 = (95 + Math.random() * 45 + pain * 20) * pitch;
     o.frequency.setValueAtTime(f0 * 1.25, t0); o.frequency.exponentialRampToValueAtTime(f0 * 0.75, t0 + dur);
     const vib = C.createOscillator(), vg = C.createGain(); vib.frequency.value = 18 + Math.random() * 10; vg.gain.value = 6 * pain; vib.connect(vg); vg.connect(o.frequency);
     const mix = C.createGain(); mix.gain.value = 0;
@@ -155,6 +156,38 @@ export class Sound {
     mix.gain.setValueAtTime(0.0001, t0); mix.gain.exponentialRampToValueAtTime(0.5 * Math.min(1.4, pain), t0 + 0.02); mix.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     mix.connect(lp); lp.connect(out); o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
     this.burst(out, { dur: dur * 0.8, f: muffled ? 500 : 1400, q: 1, gain: 0.08 * pain, attack: 0.01 }); // breath
+  }
+  // a man screaming in pain: a strained, cracking voice through "aah" formants. muffled = through a
+  // hand clamped over his mouth or a bag: the sound is trapped, low, and comes out in sobbing pushes
+  painScream(p, pain = 1, muffled = false) {
+    if (!this.ctx) return;
+    const C = this.ctx, out = p ? this.at(p) : this.sfx, t0 = this.now(), dur = (muffled ? 0.5 : 0.55) + Math.random() * 0.5 * pain;
+    const o = C.createOscillator(); o.type = 'sawtooth';
+    const f0 = (muffled ? 150 : 210) + Math.random() * 70 + pain * 30;
+    o.frequency.setValueAtTime(f0 * 0.8, t0); o.frequency.linearRampToValueAtTime(f0 * 1.35, t0 + dur * 0.25); o.frequency.exponentialRampToValueAtTime(f0 * 0.7, t0 + dur);
+    if (!muffled && Math.random() < 0.6) o.frequency.setValueAtTime(f0 * 1.9, t0 + dur * (0.3 + Math.random() * 0.2)); // the voice cracks
+    // strain: fast irregular jitter on the pitch
+    const j = C.createOscillator(), jg = C.createGain(); j.type = 'square'; j.frequency.value = 9 + Math.random() * 14; jg.gain.value = f0 * 0.06 * pain; j.connect(jg); jg.connect(o.frequency);
+    const mix = C.createGain(); mix.gain.value = 0;
+    const F = muffled ? [[300, 4, 1], [700, 5, 0.4], [1300, 6, 0.1]] : [[780, 5, 1], [1180, 6, 0.8], [2600, 7, 0.35], [3400, 8, 0.15]];
+    for (const [f, q, a] of F) { const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * (0.9 + Math.random() * 0.2); bp.Q.value = q; const g = C.createGain(); g.gain.value = a; o.connect(bp); bp.connect(g); g.connect(mix); }
+    const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = muffled ? 520 : 5200;
+    const env = C.createGain(); env.gain.setValueAtTime(0.0001, t0); env.gain.exponentialRampToValueAtTime(0.42 * Math.min(1.5, pain) * (muffled ? 1.4 : 1), t0 + 0.04); env.gain.setValueAtTime(0.42 * Math.min(1.5, pain), t0 + dur * 0.6); env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    if (muffled) { // pushes of air against the hand: amplitude pulses
+      const am = C.createOscillator(), ag = C.createGain(); am.frequency.value = 5 + Math.random() * 3; ag.gain.value = 0.5; am.connect(ag); ag.connect(mix.gain); am.start(t0); am.stop(t0 + dur + 0.05);
+    }
+    mix.connect(lp); lp.connect(env); env.connect(out); o.start(t0); j.start(t0); o.stop(t0 + dur + 0.05); j.stop(t0 + dur + 0.05);
+    this.burst(out, { dur: dur * 0.9, f: muffled ? 400 : 2200, q: 0.7, gain: (muffled ? 0.12 : 0.1) * pain, attack: 0.02 }); // breath and spit
+  }
+  // Cash putting his weight behind it
+  effort(p, k = 1) { this.grunt(p, 0.6 * k, false, 0.72); }
+  // the tape chewing: a hiss of static, crackle and mains hum, not placed in the world
+  tapeStatic(dur = 0.25, gain = 0.12) {
+    if (!this.ctx) return;
+    this.burst(this.sfx, { dur, f: 4500, q: 0.4, gain, attack: 0.002 });
+    this.burst(this.sfx, { dur: dur * 0.7, f: 900, q: 0.5, gain: gain * 0.5, attack: 0.002, t: 0.01 });
+    for (let k = 0; k < 6; k++) this.burst(this.sfx, { dur: 0.006, f: 2500 + Math.random() * 4000, q: 2, gain: gain * 1.4, t: Math.random() * dur });
+    this.tone(this.sfx, { f: 60, dur, type: 'square', gain: gain * 0.12 });
   }
   // Piggsy's chainsaw: an engine buzz that follows him and revs when he's after you
   sawLoop() {

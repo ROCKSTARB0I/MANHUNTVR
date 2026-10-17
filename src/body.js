@@ -3,8 +3,8 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=13';
-import { T } from './paint.js?v=13';
+import { Loft, ring, blend } from './loft.js?v=14';
+import { T } from './paint.js?v=14';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -280,6 +280,7 @@ export class Person {
     const swing = (0.45 + run * 0.35) * walkAmp;
     const e = new THREE.Euler();
     const rot = (n, x, y = 0, z = 0) => b[B[n]].quaternion.multiply(new Q().setFromEuler(e.set(x, y, z)));
+    if (this.pose) { this.pose(rot, b, dt, t, B); return; } // a scripted performance (finisher.js) drives every bone
     // legs
     rot('thighL', -Math.sin(ph) * swing - A.crouch * 0.9); rot('thighR', Math.sin(ph) * swing - A.crouch * 0.9);
     rot('shinL', Math.max(0, Math.sin(ph - 1.3)) * (0.6 + run * 0.7) * walkAmp + A.crouch * 1.4);
