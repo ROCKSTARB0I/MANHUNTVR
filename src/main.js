@@ -1,16 +1,16 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=7';
-import { District, SCENES } from './district.js?v=7';
-import { spawnHunters } from './hunters.js?v=7';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=7';
-import { Blood } from './blood.js?v=7';
-import { Director } from './director.js?v=7';
-import { Sound } from './sound.js?v=7';
-import { makeHand, Person, BONE } from './body.js?v=7';
-import { VHS } from './vhs.js?v=7';
-import { Cutscene } from './cutscene.js?v=7';
+import { paintAll, T } from './paint.js?v=8';
+import { District, SCENES } from './district.js?v=8';
+import { spawnHunters } from './hunters.js?v=8';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=8';
+import { Blood } from './blood.js?v=8';
+import { Director } from './director.js?v=8';
+import { Sound } from './sound.js?v=8';
+import { makeHand, Person, BONE } from './body.js?v=8';
+import { VHS } from './vhs.js?v=8';
+import { Cutscene } from './cutscene.js?v=8';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -801,7 +801,8 @@ function begin(vr) {
   if (S.mic && !mic) startMic();
   teardown(); populate(); P.pos.copy(world.start); dolly.position.set(P.pos.x, 0, P.pos.z);
   if (!readSlot(G.slot) && world.idx !== 0) goScene(0);
-  if (readSlot(G.slot)) { $('hud').hidden = true; loadingThen(() => { if (!loadGame()) { resetScene(); } $('hud').hidden = false; }); }
+  const save = readSlot(G.slot);
+  if (save) { $('hud').hidden = true; loadingThen(() => { if (!loadGame()) { resetScene(); } $('hud').hidden = false; }, save.scene || 0); } // the card names the scene you're loading into
   else playIntro();
 }
 // ------------------------------------------------------------- save profiles

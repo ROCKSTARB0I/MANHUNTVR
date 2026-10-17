@@ -6,8 +6,8 @@
 // transparent 2D layer on top. Desktop shows it full screen; VR shows it as a
 // flat screen in a dark room. Any key, click or controller button skips.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=7';
-import { T } from './paint.js?v=7';
+import { Person, BONE as B } from './body.js?v=8';
+import { T } from './paint.js?v=8';
 
 const V = THREE.Vector3;
 const RW = 1280, RH = 720, W = 960, H = 540;
@@ -320,7 +320,7 @@ export class Cutscene {
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H * lid * 0.5 + 2); g.fillRect(0, H - H * lid * 0.5 - 2, W, H * lid * 0.5 + 2);
       g.fillStyle = `rgba(0,0,0,${0.5 * (1 - open)})`; g.fillRect(0, 0, W, H);
     } else {
-      camHud(g, 'CAM 01  THE PENS', `00:0${Math.floor(lt / 10)}:${String(Math.floor(lt * 3) % 60).padStart(2, '0')} AM`, t);
+      camHud(g, 'CAM 01  CARCER MARKET', `00:0${Math.floor(lt / 10)}:${String(Math.floor(lt * 3) % 60).padStart(2, '0')} AM`, t);
       g.fillStyle = '#ff2a1a'; g.font = 'bold 22px "Courier New", monospace'; if (Math.sin(t * 5) > -0.2) g.fillText('● LIVE', 820, 40);
       g.fillStyle = '#e8e2d0'; g.font = '16px "Courier New", monospace'; g.fillText(`VIEWERS ${1200 + Math.floor(lt * 37)}`, 790, 66);
     }
