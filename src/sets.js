@@ -12,11 +12,12 @@ export const SETS = {
   // (box trucks, ambulance), then the mall's back corridor of shuttered shop
   // units to the REAR MALL DISPOSAL CHUTE.
   'born-again': {
-    look: { bldTex: 'cinder', bldCol: 0xa8a49a, wallCol: 0x7a6a5e, lineCol: { concreteWall: 0x7d8a78, cinder: 0x9a968a, plaster: 0x8a8270, stucco: 0x9a968c, tiles: 0xc8c4b8, metal: 0x8a8e90 } },
+    look: { ground: 'paving', facadeTex: 'tenementStone', facadeCol: 0xc0c0bc, bldTex: 'concreteWall', bldCol: 0x7a7a76, wall: 'concreteWall', wallCol: 0x80887c, lineCol: { concreteWall: 0x7d8a78, cinder: 0x9a968a, plaster: 0x8a8270, stucco: 0x9a968c, tiles: 0xc8c4b8, metal: 0x8a8e90, tenementStone: 0xb4b4b0 } },
     // Carcer Market isn't all one brick: grimy green-grey concrete down the alley, breeze block round the court and
     // the stair passage, bare concrete in the car park, tiles and metal cladding on the back of the mall
-    areas: [{ x0: 112, y0: 66, x1: 163, y1: 104, wall: 'cinder', facade: 'concreteWall' }, { x0: 150, y0: 0, x1: 206, y1: 104, wall: 'concreteWall' },
-      { x0: 100, y0: 104, x1: 206, y1: 176, wall: 'cinder', facade: 'plaster' }, { x0: 58, y0: 86, x1: 112, y1: 152, wall: 'stucco', facade: 'concreteWall' }, { x0: 0, y0: 100, x1: 58, y1: 176, wall: 'tiles', facade: 'metal' }],
+    floors: [{ x0: 104, y0: 66, x1: 163, y1: 104, ground: 'asphalt' }, { x0: 58, y0: 86, x1: 104, y1: 152, ground: 'asphalt' }],
+    areas: [{ x0: 112, y0: 66, x1: 163, y1: 104, wall: 'cinder', facade: 'tenementStone' }, { x0: 150, y0: 0, x1: 206, y1: 104, wall: 'concreteWall' },
+      { x0: 100, y0: 104, x1: 206, y1: 176, wall: 'cinder', facade: 'tenementStone' }, { x0: 58, y0: 86, x1: 112, y1: 152, wall: 'stucco', facade: 'concreteWall' }, { x0: 0, y0: 100, x1: 58, y1: 176, wall: 'tiles', facade: 'metal' }],
     start: [197, 52, PI / 2], exit: [5, 133],
     zones: [{ x0: 105, y0: 68, x1: 160, y1: 103, h: -1.8 }, { x0: 105, y0: 103, x1: 137, y1: 117, h: -1.8 }],
     ramps: [{ x0: 130, x1: 137.5, y0: 103, y1: 131, axis: 'y', h0: -1.8, h1: 0 }, { x0: 91, x1: 105, y0: 109, y1: 117, axis: 'x', h0: 0, h1: -1.8 }],
@@ -56,6 +57,8 @@ export const SETS = {
       // the mall's back corridor: shuttered shop units, mall logos, bins
       K.shutter(44.6, 125.5, PI / 2, 4); K.shutter(50.6, 141.5, PI / 2, 4); K.shutter(44.6, 156.5, PI / 2, 4);
       K.shutter(32, 120.6, PI, 4); K.shutter(32, 146.4, 0, 4);
+      // the mall's red trim and its sign
+      K.sign('CARCER MALL', 32, 120.5, PI, { w: 5, h: 0.8, y: 4.4, bg: '#a01a14', fg: '#ffd84a', font: 'bold 64px Arial', lit: true }); K.sign('CARCER MALL', 32, 146.5, 0, { w: 5, h: 0.8, y: 4.4, bg: '#a01a14', fg: '#ffd84a', font: 'bold 64px Arial', lit: true });
       K.sign('C', 40, 108.5, 0, { w: 1.1, h: 1.1, y: 3.4, bg: '#b8201a', fg: '#f4efe2', font: 'bold 180px Arial' }); K.sign('CARCER MALL', 56, 109, 0, { w: 4, h: 0.8, y: 3.6, bg: '#b8201a', fg: '#f4efe2', lit: true });
       K.prop('dumpster', 56, 160, 0); K.bins(12.5, 148, PI / 2, 2); K.prop('trash', 18, 168, 0.3); K.prop('trash', 52, 118, 1.9);
       // the way out

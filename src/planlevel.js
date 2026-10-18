@@ -6,10 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=43';
-import { PLANS } from './plans.js?v=43';
-import { HAND } from './handplans.js?v=43';
-import { SETS } from './sets.js?v=43';
+import { T, seeded } from './paint.js?v=44';
+import { PLANS } from './plans.js?v=44';
+import { HAND } from './handplans.js?v=44';
+import { SETS } from './sets.js?v=44';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -66,7 +66,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=43';
+import { makeKit } from './setkit.js?v=44';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = HAND[def.plan] || PLANS[def.plan], R = seeded(4000 + D.idx);
@@ -147,7 +147,9 @@ export function buildPlan(D, matFor) {
   // floors
   const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't' || at(i, j) === 'i';
   const levels = [...new Set([0, ...(SET.zones || []).map((z) => z.h)])];
-  for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv && !(SET.inner && at(i, j) === 'i'))) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
+  // the set can lay different ground in parts of the map (SET.floors: {x0,y0,x1,y1, ground})
+  const FL = SET.floors || [], floorOf = (i, j) => FL.findIndex((a) => i >= a.x0 && i < a.x1 && j >= a.y0 && j < a.y1);
+  for (let fk = -1; fk < FL.length; fk++) for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv && !(SET.inner && at(i, j) === 'i') && floorOf(i, j) === fk)) B(fk < 0 ? 'floor' : 'g_' + FL[fk].ground).quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
   if (SET.inner) for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'i' && !isRamp(i, j))) B(lining(i, j) === 'tiles' ? 'tfloor' : (SET.innerFloor || 'ifloor')).quad(X(i), X(i + w), Z(j), Z(j + h), Hc(i + w / 2, j + h / 2), 3.6);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (floorish(i, j) && isRamp(i, j)) B('floor').quad4(X(i), X(i + 1), Z(j), Z(j + 1), Hc(i, j), Hc(i + 1, j), Hc(i, j + 1), Hc(i + 1, j + 1), 3.6);
   // where two levels meet without stairs: a retaining wall with a parapet on the high side
@@ -167,7 +169,7 @@ export function buildPlan(D, matFor) {
   // the set can give parts of the map their own walls (SET.areas: {x0,y0,x1,y1, wall, facade} in plan cells)
   const AREAS = SET.areas || [], areaOf = (i, j) => AREAS.findIndex((a) => i >= a.x0 && i < a.x1 && j >= a.y0 && j < a.y1);
   for (let ak = -1; ak < AREAS.length; ak++) {
-    const A = AREAS[ak] || {}, fKey = A.facade || 'facade', wKey = A.wall || 'wall', fTile = (k) => (k === 'facade' && S.tenement ? 10.8 : 3.6);
+    const A = AREAS[ak] || {}, fKey = A.facade || 'facade', wKey = A.wall || 'wall', fTile = (k) => ((k === 'facade' && S.tenement) || k === 'tenementStone' ? 10.8 : 3.6);
     for (const [i, j, w, h] of rects(W, H, (i, j) => edge(i, j) && areaOf(i, j) === ak)) {
       const fh = S.facade[0] + R() * (S.facade[1] - S.facade[0]);
       B(fKey).box(X(i), X(i + w), lowest, fh, Z(j), Z(j + h), fTile(fKey)); solid(X(i), X(i + w), Z(j), Z(j + h), fh);

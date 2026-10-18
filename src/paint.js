@@ -850,6 +850,12 @@ export function paintAll(low) {
   T.gravel = makeGravel(1024);
   T.scrap = makeScrap(1024); T.plaster = makePlaster(1024);
   T.cinder = makeCinder(1024); T.concreteWall = makeConcreteWall(1024); T.metal = makeMetalPanels(1024); T.stone = makeStoneWall(1024);
+  { // Carcer Market's grey tenements: weathered concrete laid out in ashlar courses (the brick texture's 4 m square)
+    const [c, g] = cnv(1024), r = seeded(77); g.drawImage(T.concreteWall.canvas || brick.canvas, 0, 0, 1024, 1024);
+    const ch = 1024 / 10; for (let y = 0, row = 0; y < 1024; y += ch, row++) { g.fillStyle = 'rgba(30,30,28,0.55)'; g.fillRect(0, y, 1024, 3); const bw = 1024 / 5, off = row % 2 ? bw / 2 : 0;
+      for (let x = -off; x < 1024; x += bw) { g.fillRect(x, y, 3, ch); const t = r(); g.fillStyle = `rgba(${t < 0.5 ? 255 : 0},${t < 0.5 ? 255 : 0},${t < 0.5 ? 250 : 0},${0.03 + r() * 0.06})`; g.fillRect(x + 3, y + 3, bw - 3, ch - 3); g.fillStyle = 'rgba(30,30,28,0.55)'; } }
+    T.tenementStone = makeTenement(1024, c, 11);
+  }
   T.stucco = makeStucco(1024); T.wallpaper = makeWallpaper(1024); T.polka = makePolka(1024); T.walltile = makeWallTiles(1024);
   T.corrugated = makeCorrugated(n);
   T.dumpster = makePaintedMetal(n / 2, [34, 70, 44]);

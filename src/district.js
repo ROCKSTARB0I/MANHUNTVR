@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=43';
-import { buildPlan } from './planlevel.js?v=43';
+import { T, seeded } from './paint.js?v=44';
+import { buildPlan } from './planlevel.js?v=44';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -616,20 +616,20 @@ export class District {
   buildPlan() {
     const surf = (t, color, extra = {}) => ({ map: rep(t.map, 1, 1), normalMap: t.normal ? rep(t.normal, 1, 1) : undefined, roughnessMap: t.rough ? rep(t.rough, 1, 1) : undefined, bumpMap: t.normal ? undefined : rep(t.bump, 1, 1), bumpScale: 0.03, roughness: 1, color, ...extra });
     buildPlan(this, (S) => {
-      const ground = { asphalt: surf(T.asphalt, 0xffffff, { roughness: 0.9 }), gravel: surf(T.gravel, 0x9a8a76), tiles: surf(T.slab, 0xb0aa9c, { roughness: 0.55 }), concrete: surf(T.concrete, 0x9a9890) }[S.ground];
+      const GROUNDS = { asphalt: surf(T.asphalt, 0xffffff, { roughness: 0.9 }), gravel: surf(T.gravel, 0x9a8a76), tiles: surf(T.slab, 0xb0aa9c, { roughness: 0.55 }), concrete: surf(T.concrete, 0x9a9890), paving: surf(T.slab, 0x8c8b86, { roughness: 0.8 }) }, ground = GROUNDS[S.ground];
       // every wall material the levels use; a scene picks by name (S.wall / S.facadeTex / S.bldTex) and may tint it
       const TEX = { brick: (c) => brickMat(c ?? 0x9a958e), concrete: (c) => surf(T.concrete, c ?? 0x9a968c), corrugated: (c) => ({ map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: c ?? 0x9a9a98 }),
-        stone: (c) => surf(T.stone, c ?? 0xb0aca0), cinder: (c) => surf(T.cinder, c ?? 0xc8c4b8), concreteWall: (c) => surf(T.concreteWall, c ?? 0xb8b4ac), metal: (c) => surf(T.metal, c ?? 0xb0aca4, { metalness: 0.4, roughness: 0.7 }),
+        stone: (c) => surf(T.stone, c ?? 0xb0aca0), tenementStone: (c) => ({ map: rep(T.tenementStone.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenementStone.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: T.stone.normal ? rep(T.stone.normal, 1, 1) : undefined, roughness: 0.95, color: c ?? 0xd8d8d4 }), cinder: (c) => surf(T.cinder, c ?? 0xc8c4b8), concreteWall: (c) => surf(T.concreteWall, c ?? 0xb8b4ac), metal: (c) => surf(T.metal, c ?? 0xb0aca4, { metalness: 0.4, roughness: 0.7 }),
         stucco: (c) => surf(T.stucco, c ?? 0xc8c0b0), wallpaper: (c) => surf(T.wallpaper, c ?? 0xc8c0b0), polka: (c) => surf(T.polka, c ?? 0xffffff), plaster: (c) => surf(T.plaster, c ?? 0xc8c0b0),
         tiles: (c) => surf(T.walltile, c ?? 0xd0ccc0, { roughnessMap: undefined, roughness: 0.4 }), planks: (c) => ({ map: rep(T.wood.map, 1, 1), color: c ?? 0x8a7a66, roughness: 0.9 }), scrap: (c) => ({ map: rep(T.scrap.map, 1, 1), bumpMap: rep(T.scrap.bump, 1, 1), bumpScale: 0.05, roughness: 0.75, metalness: 0.25, color: c ?? 0xb0aca4 }) };
       const wallSurf = TEX[S.wall](S.wallCol);
       return {
-        floor: this.mat('pfloor' + this.idx, ground), grass: this.mat('pgrass', surf(T.gravel, 0x56663e)),
+        floor: this.mat('pfloor' + this.idx, ground), ...Object.fromEntries(Object.entries(GROUNDS).map(([k, v]) => ['g_' + k, this.mat('pg_' + k + this.idx, v)])), grass: this.mat('pgrass', surf(T.gravel, 0x56663e)),
         wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.facadeTex ? TEX[S.facadeTex](S.facadeCol) : S.tenement ? { map: rep(T.tenement.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenement.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: rep(T.brick.normal, 1, 1), roughness: 0.95 } : S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
         building: this.mat('pbld' + this.idx, S.bldTex ? TEX[S.bldTex](S.bldCol) : brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
         ceil: this.mat('pceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }),
         scrap: this.mat('pscrap', { map: rep(T.scrap.map, 1, 1), bumpMap: rep(T.scrap.bump, 1, 1), bumpScale: 0.05, roughness: 0.75, metalness: 0.25, color: 0xb0aca4 }),
-        ...Object.fromEntries(['plaster', 'tiles', 'cinder', 'concreteWall', 'metal', 'stone', 'stucco', 'wallpaper', 'polka', 'planks'].map((k) => [k, this.mat('pl_' + k + this.idx, TEX[k]((S.lineCol || {})[k]))])),
+        ...Object.fromEntries(['plaster', 'tiles', 'cinder', 'concreteWall', 'metal', 'stone', 'stucco', 'wallpaper', 'polka', 'planks', 'tenementStone'].map((k) => [k, this.mat('pl_' + k + this.idx, TEX[k]((S.lineCol || {})[k]))])),
         ifloor: this.mat('pifloor', surf(T.concrete, 0x7a7266)), tfloor: this.mat('ptfloor', surf(T.slab, 0x9a9488, { roughness: 0.5 })),
       };
     });
