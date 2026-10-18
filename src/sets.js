@@ -178,4 +178,24 @@ export const SETS = {
       for (let k = 0; k < 6; k++) K.blood(40 + Math.random() * 100, 70 + Math.random() * 100, 1.2);
     },
   },
+  // Grounds for Assault: Carcer City Zoo. Dropped at the entrance unarmed; a Wardog's machete cuts the
+  // rope-tied door; the rocky pens; the padlocked gate (crowbar from the cave); the sniper on his platform;
+  // the restaurant at the top, out the back to the exit.
+  'grounds': {
+    start: [22, 198], exit: [89, 3], noJunk: true,
+    patrols: [[[30, 170], [60, 170]], [[70, 150], [55, 185]], [[40, 100], [69, 89]], [[60, 60], [65, 33]], [[40, 62], [48, 64]], [[50, 13], [50, 13]], [[40, 12], [70, 12]], [[80, 18], [85, 8]]],
+    dress(K) {
+      // entrance: the zoo sign, statues, ticket kiosk, a tree in the forecourt
+      K.sign('CARCER CITY ZOO', 22, 196.6, PI, { w: 5, h: 0.9, y: 3.8, bg: '#2a3a2a', fg: '#d8c890', font: 'bold 64px Georgia' });
+      K.statue(40, 176, 0.4); K.statue(70, 168, -0.6); K.kiosk(64, 186, 0); K.tree(48, 160, 4); K.tree(16, 176, 3.5); K.vending(30, 190, PI / 2);
+      K.lamp(30, 180, { h: 5, r: 12, col: 0xd8d8b0 }); K.lamp(64, 150, { h: 5, r: 12, col: 0xd8d8b0 });
+      // the pens: rock outcrops, big old trees, a statue, the cave with the crowbar
+      for (const [i, j, r] of [[60, 80, 2.6], [44, 70, 3], [70, 50, 3.4], [26, 62, 3], [62, 102, 2.6]]) K.rocks(i, j, r, 2.6);
+      K.tree(36, 76, 5); K.tree(66, 66, 4.5); K.statue(50, 112, 1.2); K.cave(44, 56, PI);
+      K.lamp(58, 50, { h: 5, r: 12, col: 0xd8d8b0 });
+      // the restaurant at the top: kiosks, vending machines, the sniper's platform
+      K.restaurant(60, 6.5, 0, 18, 4.4); K.kiosk(36, 16, 0); K.kiosk(70, 16, 0); K.vending(48, 20, PI); K.vending(50, 20, PI, 0x1c4ab0);
+      K.platform(50, 9.6, 0); K.lamp(40, 20, { h: 5, r: 12, col: 0xffd8a0 }); K.lamp(80, 12, { h: 5, r: 12, col: 0xffd8a0 });
+    },
+  },
 };

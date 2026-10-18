@@ -3,9 +3,9 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=25';
-import { makeHunterWeapon } from './body.js?v=25';
-import { T } from './paint.js?v=25';
+import { PLANS } from './plans.js?v=26';
+import { makeHunterWeapon } from './body.js?v=26';
+import { T } from './paint.js?v=26';
 
 const V = THREE.Vector3;
 
@@ -92,6 +92,30 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Grounds for Assault. Hunters: 0-1 the entrance (machetes), 2-3 the pens, 4 the cave guard,
+  // 5 the sniper (appears on his platform once the padlock is broken), 6-7 the restaurant.
+  'grounds'(O, G) {
+    const H = G.hunters, W = G.world, blade = () => ['machete', 'knife', 'shard'].some((k) => O.hasItem(k));
+    O.lockExit = true; O.noCrowbars();
+    const rope = O.gateRow(132, 48, 62, () => 'rope')[0];
+    const lock = O.gateRow(24, 54, 68, () => 'chain')[0];
+    for (const k of [0, 1]) if (H[k]) H[k].dropOnDeath = 'machete';
+    G.kit.spawn('crowbar', new V(O.X(44), 0.04, O.Z(56.5)));
+    const sniper = H[5]; O.hold(sniper);
+    if (sniper) { sniper.gun = true; sniper.dropOnDeath = 'rifle'; const b = sniper.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon('rifle'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); }
+    let phase = 0;
+    O.set('Find a weapon and get past the rope-tied door', 'dir_ga_weapon');
+    O.spots.push({ at: rope ? rope.at : new V(), r: rope ? Math.max(2.2, rope.len / 2 + 1.2) : 2, reach: 0.6, label: 'E — cut the rope', live: () => rope && !rope.open && blade(),
+      act: () => { rope.unlock(); phase = 1; O.set('Make your way to the zoo pens', 'dir_ga_pens'); } });
+    O.spots.push({ at: lock ? lock.at : new V(), r: lock ? Math.max(2.2, lock.len / 2 + 1.4) : 2, reach: 0.6, label: 'E — break the padlock', live: () => lock && !lock.open && O.hasItem('crowbar'),
+      act: () => { lock.unlock(); G.sound.crunch?.(lock.at); phase = 3; O.wake(sniper, O.cell(50, 13)); O.set('Find a way into the restaurant at the top of the zoo', 'dir_ga_sniper'); } });
+    O.tick = () => {
+      if (phase === 1 && O.inCells(0, 93, 26, 126)) { phase = 2; O.set('Get past the padlocked gate'); }
+      if (phase === 2 && lock && !lock.open && G.player.pos.distanceTo(lock.at) < 6 && !O.saidLock) { O.saidLock = 1; G.sound.say('dir_ga_lock'); }
+      if (phase === 3 && O.inCells(0, 93, 0, 22)) { phase = 4; O.set('Go out the back of the restaurant to the exit'); }
+      if (phase >= 3 && phase < 5 && [5, 6, 7].every((k) => !H[k] || !H[k].alive)) { phase = 5; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Go out the back of the restaurant to the exit', 'dir_ga_exit'); }
+    };
+  },
   // Fuelled By Hate (scene 5). Hunters by index: 0-2 containers, 3 the guard hut, 4-6 the core,
   // 7-9 arrive when the gasoline is taken (9 guards the crane), 10 rushes out when the crane clears the
   // path, 11-13 the crusher yard, 14 the last one at the exit.

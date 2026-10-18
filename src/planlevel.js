@@ -6,9 +6,9 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=25';
-import { PLANS } from './plans.js?v=25';
-import { SETS } from './sets.js?v=25';
+import { T, seeded } from './paint.js?v=26';
+import { PLANS } from './plans.js?v=26';
+import { SETS } from './sets.js?v=26';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -64,7 +64,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=25';
+import { makeKit } from './setkit.js?v=26';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
@@ -236,7 +236,7 @@ export function buildPlan(D, matFor) {
   if (SET.dress) SET.dress(makeKit(D, { X, Z, Hc, m, W, H, at, reach, mats, R }));
   // ---------- dressing: junk against the walls, by style
   const kinds = { junk: ['dumpster', 'trash', 'barrel', 'mattress'], rubble: ['trash', 'barrel', 'mattress'], counter: ['crate', 'trash'], crate: ['crate', 'barrel'], grave: ['crate'] }[S.block] || ['trash'];
-  const want2 = SET.dress ? Math.round(W * H * m * m / 260) : Math.round(W * H * m * m / 90);
+  const want2 = SET.noJunk ? 0 : SET.dress ? Math.round(W * H * m * m / 260) : Math.round(W * H * m * m / 90);
   for (let k = 0, t = 0; k < want2 && t < want2 * 20; t++) {
     const i = (R() * W) | 0, j = (R() * H) | 0; if (!reach[j * W + i]) continue;
     if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const c = at(i + a, j + b); return c === '#' || c === ' '; })) continue;

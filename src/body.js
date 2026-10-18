@@ -3,9 +3,9 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=25';
-import { T, gangMask, WRAP } from './paint.js?v=25';
-import { addGear } from './gear.js?v=25';
+import { Loft, ring, blend } from './loft.js?v=26';
+import { T, gangMask, WRAP } from './paint.js?v=26';
+import { addGear } from './gear.js?v=26';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
