@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=32';
+import { T } from './paint.js?v=33';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -20,9 +20,10 @@ export const LEVELS = [
 const CHARGE = [1.0, 2.2];                       // seconds to reach green, red
 const NEED = { shard: [1, 3, 5], crowbar: [1, 2, 4], brick: [1, 3, 4], bottle: [1, 2, 3], bag: [2.0, 3.5, 5.5] };
 // Manhunt-style inventory: one of each kind carried at once
-export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', rifle: 'gun', nailgun: 'gun', revolver: 'gun' };
+export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', hammer: 'melee', bat: 'melee', rifle: 'gun', nailgun: 'gun', revolver: 'gun' };
 export const isGun = (k) => k === 'rifle' || k === 'nailgun' || k === 'revolver';
 const stabby = (k) => k === 'shard' || k === 'knife';
+const blunt = (k) => k === 'crowbar' || k === 'hammer' || k === 'bat';
 export const SLOTS = ['melee', 'single', 'lure', 'gun'];
 export function levelOf(t) { return t >= CHARGE[1] ? 2 : t >= CHARGE[0] ? 1 : 0; }
 
@@ -36,6 +37,8 @@ const DEF = {
   rifle: { tip: [0, 0.03, -0.62], speed: 3.0, rest: 0.04, throwable: true },
   knife: { tip: [0, 0, -0.24], speed: 1.4, rest: 0.015, throwable: true },
   machete: { tip: [0, 0, -0.55], speed: 2.4, rest: 0.02, throwable: true },
+  hammer: { tip: [0, 0.04, -0.3], speed: 2.4, rest: 0.02, throwable: true },
+  bat: { tip: [0, 0, -0.78], speed: 2.6, rest: 0.035, throwable: true },
   revolver: { tip: [0, 0.03, -0.22], speed: 3, rest: 0.03, throwable: true },
   nailgun: { tip: [0, 0.04, -0.3], speed: 3.0, rest: 0.05, throwable: true },
 };
@@ -88,6 +91,11 @@ function makeMesh(kind) {
     const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.05, 12), st); cyl.rotation.x = Math.PI / 2; cyl.position.set(0, 0.03, -0.03); g.add(cyl);
     const fr = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.09), st); fr.position.set(0, 0.035, -0.02); g.add(fr);
     const grip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.09, 0.035), new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.6 })); grip.position.set(0, -0.02, 0.03); grip.rotation.x = 0.35; g.add(grip);
+  } else if (kind === 'hammer') { // claw hammer: wooden shaft, steel head across the end
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.32, 8), new THREE.MeshStandardMaterial({ color: 0x8a6a40, roughness: 0.6 })); sh.rotation.x = Math.PI / 2; sh.position.z = -0.12; g.add(sh);
+    const hd = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.032), new THREE.MeshStandardMaterial({ color: 0x3a3a3c, metalness: 0.85, roughness: 0.35 })); hd.position.set(0, 0.02, -0.28); g.add(hd);
+  } else if (kind === 'bat') { // wooden baseball bat
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.015, 0.84, 12), new THREE.MeshStandardMaterial({ map: T.wood.map, color: 0xb08860, roughness: 0.6 })); b.rotation.x = -Math.PI / 2; b.position.z = -0.36; g.add(b);
   } else if (kind === 'machete') { // a long, slightly curved blade, black grip
     const bl = new THREE.Shape(); bl.moveTo(-0.02, 0); bl.lineTo(0.022, 0); bl.quadraticCurveTo(0.04, 0.3, 0.03, 0.46); bl.lineTo(-0.005, 0.5); bl.quadraticCurveTo(-0.02, 0.25, -0.02, 0); bl.closePath();
     const geo = new THREE.ExtrudeGeometry(bl, { depth: 0.003, bevelEnabled: false }); geo.translate(0, 0.03, -0.0015); geo.rotateX(-Math.PI / 2);
@@ -299,10 +307,10 @@ export class Kit {
       const fast = it.tipSpeed >= need || (hand.desktop && hand === G.hands[0] && G.swingHot);
       if (it.hitCool > 0 || !fast) continue;
       // cameras
-      if (it.kind === 'crowbar' || it.kind === 'brick') for (const c of G.director.cams) if (c.alive && tip.distanceTo(c.p) < 0.4) { G.director.smash(c); it.hitCool = 0.4; hand.haptic?.(1, 80); }
+      if (blunt(it.kind) || it.kind === 'brick') for (const c of G.director.cams) if (c.alive && tip.distanceTo(c.p) < 0.4) { G.director.smash(c); it.hitCool = 0.4; hand.haptic?.(1, 80); }
       // desktop executions: each click lands on the victim (he's held down; the camera can't be aimed at a kneeling man easily)
       if (hand.desktop && this.exec && this.exec.hand === hand) {
-        const h = this.exec.h, parts = h.parts(), part = parts.find((p) => p.name === (it.kind === 'crowbar' || it.kind === 'brick' ? 'head' : 'neck')) || parts[0];
+        const h = this.exec.h, parts = h.parts(), part = parts.find((p) => p.name === (blunt(it.kind) || it.kind === 'brick' ? 'head' : 'neck')) || parts[0];
         it.tipVel.copy(part.p).sub(G.player.head).normalize().multiplyScalar(4);
         this.hit(hand, it, h, part, part.p.clone()); it.hitCool = 0.4; continue;
       }
@@ -313,7 +321,7 @@ export class Kit {
           // VR: sweep the weapon between frames (last tip -> this tip) and test its whole length (grip -> tip),
           // so a fast swing can't pass straight through him; the man you're holding is easier to connect with
           let d;
-          if (hand.desktop) d = segDist(part.p, G.player.head, G.lookDir, it.kind === 'crowbar' ? 1.6 : 1.25);
+          if (hand.desktop) d = segDist(part.p, G.player.head, G.lookDir, blunt(it.kind) ? 1.6 : 1.25);
           else {
             const grip = it.mesh.getWorldPosition(new V()), sweep = segPt(part.p, _p, tip), shaft = segPt(part.p, grip, tip);
             d = Math.min(sweep, shaft);
@@ -382,7 +390,7 @@ export class Kit {
       dmg = part.name === 'neck' || part.name === 'head' ? 55 : 30;
       if (sneak) dmg *= 1.9;
       G.sound.stab(at, 1); hand.haptic?.(1, 90);
-    } else if (it.kind === 'crowbar') {
+    } else if (blunt(it.kind)) {
       dmg = part.name === 'head' ? 60 : 30;
       if (sneak && part.name === 'head') dmg = 110;
       if (part.name === 'head') G.sound.crunch(at); else G.sound.thud(at, 1.2);
@@ -397,7 +405,7 @@ export class Kit {
     if (!h.hitsTaken) { h.hitsTaken = 0; h.firstHit = G.time; h.stealthStart = unaware; }
     h.hitsTaken++;
     const killed = h.damage(dmg, part.name, dir, at, it.kind);
-    G.noise(at, it.kind === 'crowbar' ? 7 : 4, 'player');
+    G.noise(at, blunt(it.kind) ? 7 : 4, 'player');
     if (killed && it.kind === 'shard' && Math.random() < 0.5) { G.sound.glass(at); this.remove(it); } // snapped off in him
   }
 
@@ -526,7 +534,7 @@ export class Kit {
     E.done++; h.hitsTaken++;
     const last = E.done >= E.need;
     if (stabby(it.kind)) G.sound.stab(at, 1 + E.level * 0.3);
-    else if (it.kind === 'crowbar') { if (part.name === 'head') G.sound.crunch(at); else G.sound.thud(at, 1.3); }
+    else if (blunt(it.kind)) { if (part.name === 'head') G.sound.crunch(at); else G.sound.thud(at, 1.3); }
     else if (it.kind === 'bottle') { G.sound.glass(at); }
     else G.sound.thud(at, 1.5);
     hand.haptic?.(1, 110 + E.level * 30);

@@ -304,4 +304,21 @@ export const SETS = {
       K.lamp(160, 14, { h: 5, r: 14, col: 0xc8d0e8 }); K.lamp(190, 22, { h: 5, r: 14, col: 0xc8d0e8 }); K.tree(176, 26, 4); K.tree(140, 12, 4);
     },
   },
+  // Doing Time: Darkwoods cellblocks H, J and K, two tiers, hand-built from the map render. Cash drops in at the
+  // west end; the hammer lies between the H/J gates; the Director wants executions; up to the top tier and the showers.
+  'doing-time': {
+    start: [5, 39, -PI / 2], exit: [111, 16], noJunk: true,
+    look: { wall: 'cinder', wallCol: 0xb8b8a8, facadeTex: 'concreteWall', facadeCol: 0x8a8a84, bldTex: 'cinder', lineCol: { cinder: 0xa8b0a0, tiles: 0xc0c8c0 } }, inner: 'cinder', innerFloor: 'ifloor',
+    linings: [{ x0: 96, y0: 17, x1: 129, y1: 34, mat: 'tiles' }],
+    zones: [{ x0: 95, x1: 106, y0: 16, y1: 85, h: 4.2 }, { x0: 119, x1: 130, y0: 16, y1: 85, h: 4.2 }, { x0: 106, x1: 119, y0: 16, y1: 72, h: 4.2 }],
+    ramps: [{ x0: 106, x1: 119, y0: 72, y1: 90, axis: 'y', h0: 4.2, h1: 0 }],
+    patrols: [[[8, 39], [8, 39]], [[9, 40], [9, 40]], [[7, 38], [7, 38]], [[8, 39], [8, 39]], [[9, 40], [9, 40]], [[7, 38], [7, 38]], [[8, 39], [8, 39]], [[8, 40], [8, 40]], [[9, 39], [9, 39]], [[7, 40], [7, 40]],
+      [[80, 88], [80, 88]], [[90, 88], [90, 88]], [[112, 60], [112, 40]], [[100, 46], [100, 46]], [[124, 58], [124, 58]], [[112, 30], [118, 26]]],
+    dress(K) {
+      for (const [i, j] of [[10, 39], [30, 39], [50, 39], [79, 45], [79, 65], [112, 70], [112, 50], [112, 28]]) K.bulb(i, j, { col: 0xd8e0c8, flicker: Math.random() < 0.3 ? 1 : 0 });
+      for (let k = 0; k < 8; k++) K.blood(4 + Math.random() * 80, 37 + Math.random() * 5, 1.2);
+      K.graffiti(1.4, 40, PI / 2, 2, 3, 1); K.sign('BLOCK H', 20, 36.4, 0, { w: 1.6, h: 0.5, y: 2.6, bg: '#2a2a20', fg: '#d8d0b0' }); K.sign('BLOCK J', 48, 36.4, 0, { w: 1.6, h: 0.5, y: 2.6, bg: '#2a2a20', fg: '#d8d0b0' }); K.sign('BLOCK K', 79, 50.4, 0, { w: 1.6, h: 0.5, y: 2.6, bg: '#2a2a20', fg: '#d8d0b0' });
+      K.sign('SHOWERS', 111.5, 34.4, PI, { w: 1.8, h: 0.5, y: 2.6 + 4.2, bg: '#2a2a20', fg: '#d8d0b0' });
+    },
+  },
 };

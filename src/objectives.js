@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=32';
-import { HAND } from './handplans.js?v=32';
-import { makeHunterWeapon, Person } from './body.js?v=32';
-import { T } from './paint.js?v=32';
+import { PLANS } from './plans.js?v=33';
+import { HAND } from './handplans.js?v=33';
+import { makeHunterWeapon, Person } from './body.js?v=33';
+import { T } from './paint.js?v=33';
 
 const V = THREE.Vector3;
 
@@ -142,6 +142,37 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Doing Time. Hunters 0-5 drop through the hole for the hammer executions, 6 the big Smiley with the bat,
+  // 7-9 drop for the bat executions, 10-11 come down the stairs, 12-15 hold the top tier with guns.
+  'doing-time'(O, G) {
+    const H = G.hunters, W = G.world;
+    O.lockExit = true;
+    const kDoor = O.gateRow(83, 68, 92, () => 'chain');
+    for (let k = 0; k < 12; k++) O.hold(H[k]);
+    for (const k of [10, 11, 12, 13, 14, 15]) { const h = H[k]; if (!h) continue; h.gun = true; h.dropOnDeath = k % 2 ? 'revolver' : 'rifle'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(k % 2 ? 'revolver' : 'shotgun'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); }
+    if (H[6]) { H[6].dropOnDeath = 'bat'; H[6].hp = (H[6].hp || 100) * 1.6; H[6].body.root.scale.setScalar(1.15); }
+    G.kit.spawn('hammer', new V(O.X(38), 0.04, O.Z(39)));
+    const done = { hammer: [0, 0], bat: [0, 0] }; let phase = 0, wave = 0;
+    const held = () => G.hands.map((h) => h.item?.kind).find((k) => k === 'hammer' || k === 'bat');
+    const need = (w) => done[w][0] < 1 || done[w][1] < 1;
+    const st = () => O.set(phase <= 1 ? (phase === 0 ? 'Find the Hammer' : `Execute with the Hammer: gruesome ${done.hammer[1] ? '✓' : '✗'}  violent ${done.hammer[0] ? '✓' : '✗'}`) : phase === 2 ? 'Get the Bat from the big Smiley' : phase === 3 ? `Execute with the Bat: gruesome ${done.bat[1] ? '✓' : '✗'}  violent ${done.bat[0] ? '✓' : '✗'}` : phase === 4 ? 'Make your way to the end of the Cellblock' : 'Go along the top of the Cellblock and get to the showers');
+    const drop = (ks) => ks.forEach((k, n) => O.wake(H[k], O.cell(6 + n, 38 + n), true));
+    const orig = G.director.onKill.bind(G.director);
+    G.director.onKill = (h, cause) => { orig(h, cause); const w = held(); const lvl = h.execLevel;
+      if (w && lvl != null && (phase === 1 && w === 'hammer' || phase === 3 && w === 'bat')) { if (lvl >= 2) done[w][1]++; else if (lvl >= 1) done[w][0]++; }
+      st(); };
+    O.set('Find the Hammer', 'dir_dt_intro');
+    O.tick = () => {
+      if (phase === 0 && O.hasItem('hammer')) { phase = 1; drop([0, 1, 2]); wave = 1; G.sound.say('dir_dt_hammer'); st(); }
+      if (phase === 1) { if (!need('hammer')) { phase = 2; O.wake(H[6], O.cell(6, 39)); G.sound.say('dir_dt_big'); st(); }
+        else if (wave === 1 && [0, 1, 2].every((k) => !H[k]?.alive)) { wave = 2; drop([3, 4, 5]); G.sound.say('dir_dt_again'); } }
+      if (phase === 2 && O.hasItem('bat')) { phase = 3; drop([7, 8, 9]); st(); }
+      if (phase === 3 && !need('bat')) { phase = 4; for (const g of kDoor) g.unlock(); O.wake(H[10], O.cell(80, 88)); O.wake(H[11], O.cell(90, 88)); G.sound.say('dir_dt_up'); st(); }
+      if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
+      if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
+      if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
   // Mouth of Madness. Hunters: 0 the ward guard, 1-3 the park (3 has a revolver), 4-6 the greenhouses,
   // 7 hides in the greenhouses, 8 and 10 guard the grounds, 9 the Smiley in the dress.
   'madness'(O, G) {
