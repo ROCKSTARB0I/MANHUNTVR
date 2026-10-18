@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=36';
-import { HAND } from './handplans.js?v=36';
-import { makeHunterWeapon, Person } from './body.js?v=36';
-import { T } from './paint.js?v=36';
+import { PLANS } from './plans.js?v=37';
+import { HAND } from './handplans.js?v=37';
+import { makeHunterWeapon, Person } from './body.js?v=37';
+import { T } from './paint.js?v=37';
 
 const V = THREE.Vector3;
 
@@ -173,6 +173,37 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Wrong Side of the Tracks. Hunters: 0-1 platform cops, 2 the hallway gunman, 3-5 Bravo team in the tunnels, 6-7 the
+  // team down the stairs behind Cash, 8-12 SWAT in the control building, 13-15 waiting at the train, 16-26 Carcer Point.
+  'tracks'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const arm = (h, kind) => { if (!h) return; h.gun = true; h.dropOnDeath = kind === 'revolver' ? 'revolver' : 'rifle'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(kind); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); };
+    H.forEach((h, k) => arm(h, [3, 4, 5, 13, 14, 15, 19, 20, 26].includes(k) ? 'shotgun' : [0, 1, 16, 17, 18, 21, 22, 23, 24, 25].includes(k) ? 'revolver' : 'rifle'));
+    for (const k of [3, 4, 5, 6, 7, 13, 14, 15, 18, 21, 22, 23, 24, 25]) O.hold(H[k]);
+    const rusty = O.gateCol(127, 5, 11, () => 'chain'), side = O.gateRow(22, 69, 73, () => 'chain'), ctrl = O.gateRow(12, 67, 70, () => 'chain'), barrier = O.gateCol(57, 59, 67, () => 'scrap');
+    let phase = 0, clock = 120, boarded = false;
+    const dead = (ks) => ks.every((k) => !H[k]?.alive);
+    O.set('Restore power to the rails so that the last train can leave the station', 'dir_ws_intro');
+    O.spots.push({ at: O.cell(129, 8), r: 2.2, reach: 0.8, label: 'E — smash the rusty lock', live: () => !rusty[0]?.open,
+      act: () => { for (const g of rusty) g.unlock(); G.sound.bang?.(O.cell(127, 8)); G.noise?.(O.cell(127, 8), 14, 'player'); [3, 4, 5].forEach((k) => O.wake(H[k], null, false)); [6, 7].forEach((k) => O.wake(H[k], null, false)); G.sound.say('sw_regroup'); } });
+    O.spots.push({ at: O.cell(71, 24.5), r: 2.2, reach: 0.8, label: 'E — smash the rusty lock', live: () => !side[0]?.open, act: () => { for (const g of side) g.unlock(); G.sound.bang?.(O.cell(71, 23)); G.noise?.(O.cell(71, 23), 14, 'player'); } });
+    O.spots.push({ at: O.cell(66, 6), at3: new V(X(66), 1.2, Z(4.6)), r: 2.4, reach: 0.8, label: 'E — restore the third rail', live: () => phase === 1,
+      act: () => { phase = 2; G.sound.buzz?.(O.cell(66, 5)); [13, 14, 15].forEach((k) => O.wake(H[k], null, false)); G.sound.say('dir_ws_power'); } });
+    O.spots.push({ at: O.cell(178, 33), at3: new V(X(178), 1.4, Z(36.5)), r: 2.6, reach: 1.2, label: 'E — board the last train', live: () => phase === 2,
+      act: () => { phase = 3; boarded = true; G.hud?.fadeTo(1); G.sound.say('dir_ws_train');
+        setTimeout(() => { G.teleport?.(X(53.5), Z(71.5), -Math.PI / 2); G.hud?.fadeTo(0); O.set('Find a way out of this subway station'); W.openGate(); G.director.gate = true; O.lockExit = false; }, 1800); } });
+    O.tick = (dt) => {
+      if (phase === 0 && dead([8, 9, 10, 11, 12])) { phase = 1; for (const g of ctrl) g.unlock(); O.set('Get into the control room and restore the power'); }
+      if (phase === 2) { clock -= dt; O.text = `Get onto the last train before the police order its departure  ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`;
+        if (clock <= 0) { phase = 9; O.set('The last train has gone'); G.sound.say('dir_ws_missed'); setTimeout(() => G.player.hurt?.(999, null), 3500); } }
+      if (phase === 3 && boarded) {
+        if (H[18]?.dormant && G.player.pos.distanceTo(O.cell(47, 80)) < 6) O.wake(H[18], null, true);
+        if (H[21]?.dormant && O.inCells(2, 58, 2, 35)) { [21, 22, 23].forEach((k) => O.wake(H[k], null, true)); G.sound.say('cp_code1'); }
+        if (!H[21]?.dormant && H[24]?.dormant && dead([21, 22, 23])) [24, 25].forEach((k) => O.wake(H[k], null, true));
+      }
     };
   },
   // Press Coverage. Hunters: 0-1 the tunnel cops, 2-7 the street round her building, 8-14 inside her apartment,

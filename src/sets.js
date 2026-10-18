@@ -418,4 +418,37 @@ export const SETS = {
       K.sign('TYSON TIRES', 36, 21.6, PI, { w: 5, h: 1, y: 5.6, bg: '#1a1a1a', fg: '#e8c040', font: 'bold 64px Arial' }); K.sign('SUBWAY', 2.4, 31, PI / 2, { w: 2.4, h: 0.6, y: 3, bg: '#1a3a1a', fg: '#e8e8d8', lit: true });
     },
   },
+  // Wrong Side of the Tracks: two stations, hand-built. Carcer line station (east): platform, L hallway, the tunnels,
+  // the control building where SWAT cut the third rail. The last train runs west to Carcer Point (B2, B1, the street).
+  'tracks': {
+    start: [194, 14, 0], exit: [28, 0], noJunk: true,
+    look: { ground: 'concrete', wall: 'concreteWall', wallCol: 0x9a9a90, facadeTex: 'concreteWall', bldTex: 'concreteWall', lineCol: { tiles: 0xd8d8c8, cinder: 0x9a9a90 } }, inner: 'tiles', innerFloor: 'tfloor',
+    linings: [{ x0: 110, y0: 34, x1: 147, y1: 71, mat: 'cinder' }, { x0: 52, y0: 34, x1: 112, y1: 71, mat: 'cinder' }, { x0: 147, y0: 34, x1: 199, y1: 46, mat: 'cinder' }, { x0: 60, y0: 2, x1: 101, y1: 24, mat: 'concreteWall' }],
+    zones: [{ x0: 0, x1: 59, y0: 0, y1: 54, h: 4.2 }],
+    ramps: [{ x0: 44, x1: 51, y0: 53.5, y1: 77.9, axis: 'y', h0: 4.2, h1: 0 }],
+    tall: [{ x0: 147, x1: 199, y0: 34, y1: 35, h: 1.0 }, { x0: 3, x1: 58, y0: 36, y1: 37, h: 1.0 }],
+    patrols: [[[170, 26], [170, 26]], [[176, 28], [184, 28]], [[160, 10], [160, 16]],
+      [[120, 50], [120, 50]], [[125, 55], [125, 55]], [[130, 50], [130, 50]], [[194, 15], [194, 15]], [[195, 16], [195, 16]],
+      [[70, 18], [90, 18]], [[80, 8], [95, 8]], [[92, 16], [92, 16]], [[78, 14], [78, 20]], [[96, 6], [96, 20]],
+      [[165, 24], [165, 24]], [[175, 24], [175, 24]], [[182, 28], [182, 28]],
+      [[20, 84], [20, 84]], [[36, 84], [36, 84]], [[47, 60], [47, 60]], [[35, 46], [35, 46]], [[28, 20], [28, 20]],
+      [[26, 5], [26, 5]], [[28, 5], [28, 5]], [[30, 5], [30, 5]], [[27, 6], [27, 6]], [[29, 6], [29, 6]], [[34, 11], [34, 11]]],
+    dress(K) {
+      // the station: strip lights, the coffee stand, vending, the train's lit windows
+      for (let i = 152; i < 196; i += 10) K.bulb(i, 26, { col: 0xe8f0e8, flicker: Math.random() < 0.3 ? 1 : 0 }); K.kiosk?.(186, 24, 0); K.vending(150, 19.6, 0);
+      K.sign('CARCER LINE', 172, 18.6, 0, { w: 4, h: 0.7, y: 3, bg: '#1a3a6a', fg: '#e8e8e8', lit: true });
+      for (const [i, j] of [[140, 8], [160, 12], [145, 15], [120, 20], [120, 50], [130, 62]]) K.bulb(i, j, { col: 0xd8d8c8, flicker: Math.random() < 0.5 ? 1 : 0 });
+      // the tunnels: work lamps far apart, the barriers
+      for (const j of [39, 51, 63]) for (let i = 66; i < 110; i += 18) K.bulb(i, j, { col: 0xffb060, i: 0.6, r: 6 });
+      K.drums(64, 50, 3); K.sign('NO ENTRY', 64.4, 51, PI / 2, { w: 1.6, h: 0.5, y: 2, bg: '#c8b020', fg: '#1a1a1a' });
+      // the control building
+      for (const [i, j] of [[68, 6], [80, 14], [94, 8], [72, 18]]) K.bulb(i, j, { col: 0xe8f0e8 }); K.counter(68, 4, 0, 4); K.fusebox(64, 9, PI / 2);
+      K.sign('CONTROL', 68.5, 12.4, 0, { w: 1.8, h: 0.45, y: 2.5, bg: '#202a30', fg: '#c8d8e8' });
+      // Carcer Point: B2, the platform, B1's gates and booth, the hot dog stand up top
+      for (let i = 8; i < 56; i += 12) { K.bulb(i, 72, { col: 0xe8f0e8 }); K.bulb(i, 84, { col: 0xe8f0e8, flicker: Math.random() < 0.3 ? 1 : 0 }); }
+      K.vending(30, 88, PI); K.sign('CARCER POINT', 20, 76.6, 0, { w: 4, h: 0.7, y: 3, bg: '#1a3a6a', fg: '#e8e8e8', lit: true });
+      for (let i = 8; i < 56; i += 12) { K.bulb(i, 20, { col: 0xe8f0e8 }); K.bulb(i, 44, { col: 0xe8f0e8 }); } K.kiosk?.(40, 46, 0); K.kiosk?.(34, 6, PI);
+      K.sign('EXIT', 28, 2.6, 0, { w: 1.4, h: 0.45, y: 2.8, bg: '#1a6a1a', fg: '#e8e8e8', lit: true });
+    },
+  },
 };

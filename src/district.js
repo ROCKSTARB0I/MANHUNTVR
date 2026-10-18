@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=36';
-import { buildPlan } from './planlevel.js?v=36';
+import { T, seeded } from './paint.js?v=37';
+import { buildPlan } from './planlevel.js?v=37';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1110,7 +1110,7 @@ export const SCENES = [
   { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'rabbit', style: 'asylum', B: { x0: -63, x1: 63, z0: -35, z1: 35 }, gang: 'smileys', fog: 0.035, hunters: 21 },
   { id: 'divided', title: 'DIVIDED THEY FALL', area: 'The Projects', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -60, x1: 60, z0: -39, z1: 39 }, gang: 'wardogs', fog: 0.04, amb: 0.6, hunters: 22 },
   { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -70, x1: 70, z0: -41, z1: 41 }, gang: 'cops', fog: 0.035, amb: 0.7, hunters: 30 },
-  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'swat', fog: 0.045, hunters: 8 , look: { wall: 'concreteWall', bldTex: 'metal' } },
+  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Carcer Point', build: 'buildPlan', plan: 'tracks', style: 'mall', B: { x0: -70, x1: 70, z0: -37, z1: 37 }, gang: 'swat', fog: 0.04, amb: 0.6, hunters: 27 },
   { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'swat', fog: 0.045, hunters: 9 },
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildEstate', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildMansion', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'cerberus', fog: 0.055, amb: 0.65, hunters: 8 },

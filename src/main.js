@@ -1,20 +1,20 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=36';
-import { District, SCENES } from './district.js?v=36';
-import { spawnHunters } from './hunters.js?v=36';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=36';
-import { Blood } from './blood.js?v=36';
-import { Objectives } from './objectives.js?v=36';
-import { Director } from './director.js?v=36';
-import { Sound } from './sound.js?v=36';
-import { makeHand, Person, BONE } from './body.js?v=36';
-import { VHS } from './vhs.js?v=36';
-import { Grime } from './grime.js?v=36';
-import { Cutscene } from './cutscene.js?v=36';
-import { Arms } from './arms.js?v=36';
-import { Finisher } from './finisher.js?v=36';
+import { paintAll, T } from './paint.js?v=37';
+import { District, SCENES } from './district.js?v=37';
+import { spawnHunters } from './hunters.js?v=37';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=37';
+import { Blood } from './blood.js?v=37';
+import { Objectives } from './objectives.js?v=37';
+import { Director } from './director.js?v=37';
+import { Sound } from './sound.js?v=37';
+import { makeHand, Person, BONE } from './body.js?v=37';
+import { VHS } from './vhs.js?v=37';
+import { Grime } from './grime.js?v=37';
+import { Cutscene } from './cutscene.js?v=37';
+import { Arms } from './arms.js?v=37';
+import { Finisher } from './finisher.js?v=37';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -185,6 +185,8 @@ const hud = (() => {
   };
 })();
 sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound;
+// a scene can move Cash (the last train, a lift): the dolly carries the player, VR room offset and all
+G.teleport = (x, z, yaw) => { dolly.position.set(x, world.heightAt(x, z), z); P.pos.set(x, world.heightAt(x, z), z); if (yaw !== undefined) { P.yaw = yaw; if (renderer.xr.isPresenting) dolly.rotation.y = yaw; } };
 // ------------------------------------------------------------- weapon icon
 const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', knife: 'KNIFE', machete: 'MACHETE', hammer: 'HAMMER', bat: 'BASEBALL BAT', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE', nailgun: 'NAIL GUN', revolver: 'REVOLVER' };
 function drawWeapon(g, kind, x = 0, y = 0, s = 1) {

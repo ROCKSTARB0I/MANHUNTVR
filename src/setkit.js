@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=36';
+import { T } from './paint.js?v=37';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
