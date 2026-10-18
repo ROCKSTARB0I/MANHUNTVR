@@ -1,21 +1,21 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=45';
-import { District, SCENES } from './district.js?v=45';
-import { spawnHunters } from './hunters.js?v=45';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=45';
-import { Blood } from './blood.js?v=45';
-import { Objectives } from './objectives.js?v=45';
-import { Director } from './director.js?v=45';
-import { Sound } from './sound.js?v=45';
-import { makeHand, Person, BONE } from './body.js?v=45';
-import { VHS } from './vhs.js?v=45';
-import { Grime } from './grime.js?v=45';
-import { Cutscene } from './cutscene.js?v=45';
-import { Story } from './story.js?v=45';
-import { Arms } from './arms.js?v=45';
-import { Finisher } from './finisher.js?v=45';
+import { paintAll, T } from './paint.js?v=46';
+import { District, SCENES } from './district.js?v=46';
+import { spawnHunters } from './hunters.js?v=46';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=46';
+import { Blood } from './blood.js?v=46';
+import { Objectives } from './objectives.js?v=46';
+import { Director } from './director.js?v=46';
+import { Sound } from './sound.js?v=46';
+import { makeHand, Person, BONE } from './body.js?v=46';
+import { VHS } from './vhs.js?v=46';
+import { Grime } from './grime.js?v=46';
+import { Cutscene } from './cutscene.js?v=46';
+import { Story } from './story.js?v=46';
+import { Arms } from './arms.js?v=46';
+import { Finisher } from './finisher.js?v=46';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -123,6 +123,32 @@ function useVRHands() { G.hands = vHands; dHands.forEach((h) => { if (h.item) G.
 useDesktopHands();
 const arms = null; G.arms = null; // Nathan prefers the first floating hands (no IK arms)
 // execution finishers: the cut to Cash beating the man to death (finisher.js)
+// demo: a Hood on his knees in front of Cash, the weapon in Cash's hand, a red (gruesome) execution played out blow by blow
+G.demoExec = async (kind = 'crowbar', level = 2) => {
+  const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
+  const hand = G.hands.find((x) => x.side === 'R') || G.hands[0], h = G.hunters.find((x) => x.alive) || G.hunters[0];
+  for (const x of G.hunters) if (x !== h) { x.dormant = true; x.body.root.visible = false; }
+  if (hand.item) G.kit.remove(hand.item);
+  const it = G.kit.spawn(kind, P.pos.clone()); G.kit.grab(hand, it);
+  const f = new V(Math.sin(P.yaw) * -1, 0, Math.cos(P.yaw) * -1);
+  h.dormant = false; h.body.root.visible = true; h.pos.copy(P.pos).addScaledVector(f, 1.2).setY(0); h.yaw = Math.atan2(f.x, f.z); h.state = 'patrol'; h.place();
+  h.route = [[h.pos.x, h.pos.z]]; G.demoRunning = true;
+  $('tip').hidden = false; $('tip').textContent = `${WNAMES[kind] || kind.toUpperCase()}  ·  ${LEVELS[level].name}`;
+  await wait(1.2);
+  G.kit.startExec(hand, h, level);
+  while (G.kit.struggle) { await wait(0.1); if (G.kit.struggle) { G.kit.struggle.t += 0.12; G.kit.struggle.slip = 0; } } // the bag: hold it over his head
+  while (G.kit.exec) { // each blow lands on his head
+    await wait(0.9); if (!G.kit.exec) break;
+    const part = h.parts().find((q) => q.name === 'head') || h.parts()[0], dir = part.p.clone().sub(P.pos).setY(-0.4).normalize();
+    it.tipVel.copy(dir).multiplyScalar(5); G.kit.execStrike(hand, it, h, part, part.p.clone(), dir);
+  }
+  while (G.finisher) await wait(0.2);
+  await wait(3);
+  $('tip').hidden = true; G.demoRunning = false;
+  if (renderer.xr.isPresenting) renderer.xr.getSession().end();
+  $('screen').hidden = false; $('hud').hidden = true; G.state = 'menu'; document.exitPointerLock?.(); $('execs').hidden = false;
+};
+
 G.startFinisher = (o) => { G.finisher = new Finisher(G, o, { cashBody, camera, dolly, renderer, P }); };
 
 // ------------------------------------------------------------- HUD
@@ -367,7 +393,7 @@ function win() {
   sound.say(stars >= 4 ? 'dir_rate_high' : stars >= 2 ? 'dir_rate_mid' : 'dir_rate_low'); sound.say('dir_win');
   $('banner').innerHTML = `SCENE COMPLETE<br><span class="stars">${'★'.repeat(stars)}<i>${'★'.repeat(5 - stars)}</i></span>`; $('banner').hidden = false;
   const next = world.idx + 1;
-  if (next < SCENES.length) {
+  if (next < SCENES.length && !SCENES[next].demo) {
     // Manhunt saves at the end of every scene: the profile now starts at the next one
     try { localStorage.setItem(slotKey(G.slot), JSON.stringify({ v: 2, scene: next, fresh: true, time: 0, savedAt: Date.now(), stars, quota: 0, dir: { kills: 0 } })); } catch (e) {}
     setTimeout(() => { $('banner').hidden = true; playStory(SCENES[next].id, () => loadingThen(() => { goScene(next); resetScene(); }, next)); }, 9000);
@@ -858,6 +884,7 @@ function begin(vr) {
   $('screen').hidden = true; $('hud').hidden = false;
   if (S.mic && !mic) startMic();
   teardown(); populate(); P.pos.copy(world.start); dolly.position.set(P.pos.x, world.heightAt(P.pos.x, P.pos.z), P.pos.z);
+  if (G.demo || location.hash.startsWith('#demo')) { const d = G.demo || { kind: location.hash.split('-')[1] || 'crowbar', level: 2 }; G.demo = null; goScene(SCENES.findIndex((x) => x.demo)); resetScene(true); G.demoExec(d.kind, d.level); return; } // the executions demo
   if (!readSlot(G.slot) && world.idx !== 0) goScene(0);
   const save = readSlot(G.slot);
   if (save) { $('hud').hidden = true; loadingThen(() => { if (!loadGame()) { resetScene(); } $('hud').hidden = false; }, save.scene || 0); } // the card names the scene you're loading into
@@ -934,3 +961,13 @@ $('loading').hidden = true;
 // the menu theme starts with the first click or key (browsers need a gesture for sound)
 addEventListener('pointerdown', () => sound.start(), { once: true });
 addEventListener('keydown', () => sound.start(), { once: true });
+// the main menu's executions list: every weapon, every level
+{
+  const KINDS = ['bag', 'shard', 'bottle', 'crowbar', 'knife', 'machete', 'hammer', 'bat', 'chainsaw'], list = $('execList');
+  for (const k of KINDS) {
+    const w = document.createElement('div'); w.className = 'w'; w.textContent = WNAMES[k] || k.toUpperCase(); list.append(w);
+    LEVELS.forEach((L, n) => { const b = document.createElement('button'); b.className = 'l' + n; b.textContent = L.name;
+      b.onclick = () => { $('execs').hidden = true; G.demo = { kind: k, level: n }; G.slot = 0; useDesktopHands(); thirdPerson(S.third); begin(false); lockPointer(); }; list.append(b); });
+  }
+  $('execBtn').onclick = () => { $('execs').hidden = !$('execs').hidden; $('how').hidden = true; $('opts').hidden = true; $('slots').hidden = true; };
+}

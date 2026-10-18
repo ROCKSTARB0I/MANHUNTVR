@@ -565,4 +565,11 @@ export const SETS = {
       K.bulb(48, 18, { col: 0xd8c8a0, flicker: 1 }); K.bulb(18, 14, { col: 0xd8c8a0 }); K.sign('PRIVATE', 9.6, 19, PI / 2, { w: 1.4, h: 0.4, y: 2.4, bg: '#3a1a14', fg: '#e8d8b0' });
     },
   },
+  // the executions demo: a bare concrete floor under work lights, nothing in the way
+  'demo-stage': {
+    start: [40, 42, PI], exit: [40, 1], noJunk: true, cams: [],
+    look: { ground: 'concrete', wall: 'concreteWall', wallCol: 0x6a6a66, facadeTex: 'concreteWall', facadeCol: 0x5a5a56, facade: [3, 3] },
+    patrols: [[[40, 38], [40, 38]]],
+    dress(K) { for (const [i, j] of [[28, 28], [52, 28], [28, 54], [52, 54]]) K.lamp(i, j, { h: 7, r: 26, col: 0xf0e8d8 }); K.bulb(40, 40, { col: 0xffffff, h: 4.5, r: 14 }); },
+  },
 };

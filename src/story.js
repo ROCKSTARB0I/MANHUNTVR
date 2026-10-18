@@ -4,9 +4,9 @@
 // the film full screen; in VR you stand where the camera is, inside each shot. Any button skips.
 // Every story is keyed by the scene it leads into ('ending' plays after the last one).
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=45';
-import { T } from './paint.js?v=45';
-import { GANG_SETS } from './hunters.js?v=45';
+import { Person, BONE as B } from './body.js?v=46';
+import { T } from './paint.js?v=46';
+import { GANG_SETS } from './hunters.js?v=46';
 
 const V = THREE.Vector3, PI = Math.PI;
 const RW = 1280, RH = 720, W = 960, H = 540;

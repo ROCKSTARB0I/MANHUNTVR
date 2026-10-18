@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=45';
-import { buildPlan } from './planlevel.js?v=45';
+import { T, seeded } from './paint.js?v=46';
+import { buildPlan } from './planlevel.js?v=46';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1115,4 +1115,6 @@ export const SCENES = [
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildPlan', plan: 'border', style: 'cemetery', B: { x0: -74, x1: 74, z0: -39, z1: 39 }, gang: 'cerberus', fog: 0.05, amb: 0.6, hunters: 22 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildPlan', plan: 'mansion', style: 'mall', B: { x0: -63, x1: 63, z0: -35, z1: 35 }, gang: 'cerberus', fog: 0.03, amb: 0.6, hunters: 20 },
   { id: 'deliverance', title: 'DELIVERANCE', area: 'Wapona Hills', build: 'buildPlan', plan: 'deliverance', style: 'mall', B: { x0: -56, x1: 56, z0: -35, z1: 35 }, gang: 'piggsy', fog: 0.06, amb: 0.55, hunters: 7 },
+  // not a scene: the bare stage the main menu's executions demo plays on
+  { id: 'demo-stage', title: 'EXECUTIONS', area: 'The Stage', build: 'buildPlan', plan: 'demo-stage', style: 'zoo', demo: true, B: { x0: -28, x1: 28, z0: -28, z1: 28 }, gang: 'hoods', fog: 0.005, amb: 1.2, hunters: 1 },
 ];
