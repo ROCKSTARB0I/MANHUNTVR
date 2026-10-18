@@ -113,3 +113,13 @@ Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill,
 - After the scene (cutscene list): the Journalist's video diary.
 - Map lesson: this map's lanes are one cell wide; any solid prop (lamp pole, tree, rock, cave wall) can cut
   the level in two. Check with a fresh flood after dressing.
+
+## Strapped for Cash (video 136:00–163:13) — the other half of the zoo, foggy
+- Starts where Grounds for Assault ended. Cash's family are held as bait (four of them) under armed Wardogs;
+  if a guard spots Cash near one, that one is shot. Save at least one.
+- Foggy night: stone walls, chain-link gorilla enclosures with rock mounds and trees, giraffe statues,
+  a tunnel and a hill, a cafeteria with pink walls and patterned carpet (break the window), the geodesic
+  monkey dome, the shark's mouth into the aquarium: blue wave-painted walls, an empty pool, the souvenir
+  shop with the fire exit. Revolvers and tranquilliser rifles on the Wardogs; scoped sniping.
+- The wiki's radar for this scene has the same outline as Grounds for Assault (same zoo, "zoo2").
+- Outro (cutscene list): the Cerberus take Cash again; this time he goes quietly.
