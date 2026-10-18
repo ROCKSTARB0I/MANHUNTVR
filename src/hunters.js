@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=35';
-import { T } from './paint.js?v=35';
+import { Person, BONE, SKIN_TONES } from './body.js?v=36';
+import { T } from './paint.js?v=36';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -65,6 +65,12 @@ export const GANG_SETS = {
     { g: 'A', mask: 'smileyPaint', weapon: 'pipe', skin: DARK, bulk: 1.12, shirtless: true, legs: [0.9, 0.9, 0.9], legsMap: 'camoForest', gloves: BLK, gear: [{ t: 'mohawk', col: [0.5, 0.04, 0.3] }, { t: 'bracer' }, { t: 'print', side: 'front', text: 'DRUG SLUT', fg: 'rgba(200,190,170,0.85)', w: 0.22, y: 0.04 }] },
     { g: 'B', mask: 'smileyPlease', weapon: 'crowbar', skin: WHITE, bulk: 1.1, top: [0.9, 0.9, 0.9], topMap: 'plaidOrange', legs: BLK, legsMap: 'fleece', gloves: [0.05, 0.1, 0.35], gear: [{ t: 'bib', col: BLK, print: 'DIE', printCol: '#c8b020' }] },
     { g: 'C', mask: 'smileyFrown', weapon: 'machete', skin: DARK, top: [0.7, 0.66, 0.6], sleeves: 'short', legs: JEANS, stains: 1.6 },
+  ] },
+  cops: { vp: 'c', bulk: 1.06, torch: 'all', members: [ // the Carcer City Police Department: navy shirts, peaked caps, nightsticks and six-shooters
+    { g: 'A', mask: null, weapon: 'blackjack', skin: WHITE, stubble: true, top: [0.1, 0.13, 0.26], sleeves: 'short', legs: [0.05, 0.06, 0.1], legsMap: 'fleece', boots: BLK, gear: [{ t: 'cap', col: [0.05, 0.06, 0.12] }, { t: 'print', side: 'back', text: 'POLICE', fg: '#d8d4c8', w: 0.2, y: 0.04 }, { t: 'print', bone: 'chest', side: 'front', text: '★', fg: '#c8a848', w: 0.05, x: 0.08, y: 0.06 }] },
+    { g: 'B', mask: null, weapon: 'revolver', skin: DARK, top: [0.1, 0.13, 0.26], legs: [0.05, 0.06, 0.1], legsMap: 'fleece', boots: BLK, gear: [{ t: 'cap', col: [0.05, 0.06, 0.12] }, { t: 'print', side: 'back', text: 'POLICE', fg: '#d8d4c8', w: 0.2, y: 0.04 }, { t: 'print', bone: 'chest', side: 'front', text: '★', fg: '#c8a848', w: 0.05, x: 0.08, y: 0.06 }] },
+    { g: 'C', mask: null, weapon: 'revolver', skin: BROWN, top: [0.1, 0.13, 0.26], sleeves: 'short', legs: [0.05, 0.06, 0.1], legsMap: 'fleece', boots: BLK, gear: [{ t: 'cap', col: [0.05, 0.06, 0.12] }, { t: 'print', side: 'back', text: 'POLICE', fg: '#d8d4c8', w: 0.2, y: 0.04 }, { t: 'vest', col: [0.08, 0.08, 0.09] }] },
+    { g: 'A', mask: null, weapon: 'shotgun', skin: WHITE, top: [0.1, 0.13, 0.26], legs: [0.05, 0.06, 0.1], legsMap: 'fleece', boots: BLK, gear: [{ t: 'cap', col: [0.05, 0.06, 0.12] }, { t: 'print', side: 'back', text: 'POLICE', fg: '#d8d4c8', w: 0.2, y: 0.04 }, { t: 'vest', col: [0.08, 0.08, 0.09] }] },
   ] },
   swat: { vp: 'c', bulk: 1.12, torch: 'all', sharp: true, guns: true, members: [ // Carcer City SWAT: helmets, balaclavas, vests
     { g: 'B', mask: 'swat', weapon: 'rifle', top: [0.03, 0.035, 0.05], legs: [0.03, 0.035, 0.05], legsMap: 'fleece', gloves: BLK, gear: [{ t: 'vest', col: [0.03, 0.03, 0.035] }, { t: 'print', side: 'back', text: 'SWAT', fg: '#e8e4d8', w: 0.24, y: 0.04 }, 'kneepad', { t: 'pouches', col: BLK }] },

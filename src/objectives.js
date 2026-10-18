@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=35';
-import { HAND } from './handplans.js?v=35';
-import { makeHunterWeapon, Person } from './body.js?v=35';
-import { T } from './paint.js?v=35';
+import { PLANS } from './plans.js?v=36';
+import { HAND } from './handplans.js?v=36';
+import { makeHunterWeapon, Person } from './body.js?v=36';
+import { T } from './paint.js?v=36';
 
 const V = THREE.Vector3;
 
@@ -31,6 +31,8 @@ export class Objectives {
       if (!this.waveTex) { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#1e3a6a'; x.fillRect(0, 0, 256, 128); x.strokeStyle = '#c8d8e8'; x.lineWidth = 6; for (let r = 0; r < 3; r++) { x.beginPath(); for (let k = 0; k <= 256; k += 4) x.lineTo(k, 30 + r * 34 + Math.sin(k / 256 * Math.PI * 4) * 8); x.stroke(); } this.waveTex = new THREE.CanvasTexture(c); this.waveTex.colorSpace = THREE.SRGBColorSpace; this.waveTex.wrapS = THREE.RepeatWrapping; }
       const t = this.waveTex.clone(); t.needsUpdate = true; t.repeat.set(len / 4, 1);
       const b = new THREE.Mesh(new THREE.BoxGeometry(len, 4.2, 0.5), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); b.position.y = 2.1; b.castShadow = true; g.add(b);
+    } else if (kind === 'panel') { // a white-painted board set flush in the wall
+      const b = new THREE.Mesh(new THREE.BoxGeometry(len, 2.6, 0.12), W.mat('opanel', { color: 0xe8e6de, roughness: 0.7 })); b.position.y = 1.3; g.add(b);
     } else if (kind === 'scrap') {
       const m = W.mats.pscrap || W.mat('oscrap', { color: 0x4a4038, roughness: 0.8 });
       const b = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 3.4, 1.2), m); b.position.y = 1.7; b.castShadow = true; g.add(b);
@@ -48,9 +50,9 @@ export class Objectives {
       g.userData.panel = panel;
     }
     this.mesh(g);
-    const b = this.box({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0: 0, y1: 3.4, see: kind !== 'scrap' && kind !== 'facade' });
+    const b = this.box({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0: 0, y1: 3.4, see: kind !== 'scrap' && kind !== 'facade' && kind !== 'panel' });
     const gt = { g, b, kind, open: false, swing: 0, at: new V(cx, y, cz), len };
-    gt.unlock = () => { if (gt.open) return; gt.open = true; this.unbox(b); if (kind === 'scrap') { g.visible = false; this.G.sound.thud?.(gt.at, 1.5); } else this.G.sound.rattle?.(gt.at); };
+    gt.unlock = () => { if (gt.open) return; gt.open = true; this.unbox(b); if (kind === 'scrap' || kind === 'panel') { g.visible = false; this.G.sound.thud?.(gt.at, 1.5); } else this.G.sound.rattle?.(gt.at); };
     this.gates = this.gates || []; this.gates.push(gt);
     return gt;
   }
@@ -96,7 +98,7 @@ export class Objectives {
     P.animate(0.016, 0); this.mesh(P.root); this.captives = this.captives || []; const c = { P, at: at.clone(), alive: true, saved: false }; this.captives.push(c); return c;
   }
   // an escort (the tramp): follows Cash or waits where he's told, walks the world's paths, can be hurt
-  companion(at, look) {
+  companion(at, look, name = 'tramp', lines = ['tr_follow', 'tr_wait']) {
     const G = this.G, W = G.world, P = new Person(Object.assign({ mask: null, weapon: null, hood: false, dirt: 1, stains: 0.6, seed: 91, bulk: 0.95 }, look));
     P.root.position.set(at.x, W.heightAt(at.x, at.z), at.z); this.mesh(P.root);
     const c = { P, pos: at.clone(), yaw: 0, hp: 100, alive: true, follow: false, path: [], pathT: 0 };
@@ -107,7 +109,7 @@ export class Objectives {
         c.pathT -= dt; if (c.pathT < 0 || !c.path.length) { c.path = W.path(c.pos, me) || []; c.pathT = 0.6; }
         while (c.path.length && Math.hypot(c.path[0][0] - c.pos.x, c.path[0][1] - c.pos.z) < 0.5) c.path.shift();
         const w = c.path[0] || [me.x, me.z], dx = w[0] - c.pos.x, dz = w[1] - c.pos.z, l = Math.hypot(dx, dz) || 1;
-        speed = d > 7 ? 3.0 : 1.9; c.pos.x += dx / l * Math.min(l, speed * dt); c.pos.z += dz / l * Math.min(l, speed * dt); if (!c.path.length) W.collide?.(c.pos, 0.3); // a found path is walkable; only bare steering needs pushing out of walls
+        speed = d > 7 ? 3.0 : 1.9; c.pos.x += dx / l * Math.min(l, speed * dt); c.pos.z += dz / l * Math.min(l, speed * dt); if (c.path.length <= 1) W.collide?.(c.pos, 0.3); // a found path is walkable; only bare steering needs pushing out of walls
         const ty = Math.atan2(dx, dz); c.yaw += Math.atan2(Math.sin(ty - c.yaw), Math.cos(ty - c.yaw)) * Math.min(1, dt * 6);
       }
       P.anim.speed += (speed - P.anim.speed) * Math.min(1, dt * 6); P.anim.crouch = c.follow ? 0 : 0.6;
@@ -115,8 +117,8 @@ export class Objectives {
       for (const h of G.hunters) if (h.alive && !h.dormant && h.aware?.() && h.pos.distanceTo(c.pos) < 1.7) c.hp -= 22 * dt;
       if (c.hp <= 0) { c.alive = false; G.sound.painScream?.(c.pos.clone().setY(1.4)); G.blood?.pool?.(c.pos.clone(), 1.3); P.die(new V(), null, W); c.onDie?.(); }
     };
-    this.spots.push({ at: c.pos, at3: c.pos, r: 2.6, reach: 1, label: '', live: () => c.alive && c.free, act: () => { c.follow = !c.follow; G.sound.say(c.follow ? 'tr_follow' : 'tr_wait'); } });
-    const spot = this.spots[this.spots.length - 1]; Object.defineProperty(spot, 'label', { get: () => c.follow ? 'E — tell the tramp to wait here' : 'E — tell the tramp to follow you' });
+    this.spots.push({ at: c.pos, at3: c.pos, r: 2.6, reach: 1, label: '', live: () => c.alive && c.free, act: () => { c.follow = !c.follow; G.sound.say(c.follow ? lines[0] : lines[1]); } });
+    const spot = this.spots[this.spots.length - 1]; Object.defineProperty(spot, 'label', { get: () => c.follow ? `E — tell the ${name} to wait here` : `E — tell the ${name} to follow you` });
     this.comp = c; return c;
   }
   noCrowbars() { const K = this.G.kit; for (const it of [...K.items]) if (it.kind === 'crowbar' && !it.hand) K.remove(it); }
@@ -171,6 +173,33 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Press Coverage. Hunters: 0-1 the tunnel cops, 2-7 the street round her building, 8-14 inside her apartment,
+  // 15-16 the alley, 17-19 the casino, 20 the balcony sniper, 21-25 the vans, 26-28 the subway, 29 Tyson Tires' roof.
+  'press'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const arm = (h, kind) => { if (!h) return; h.gun = true; h.dropOnDeath = kind === 'revolver' ? 'revolver' : 'rifle'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(kind); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); };
+    H.forEach((h, k) => { if (k < 2 || k === 2) return; arm(h, [8, 10, 16, 21, 23, 26, 27, 28].includes(k) ? 'shotgun' : [20, 29].includes(k) ? 'shotgun' : 'revolver'); });
+    for (const k of [20, 29]) if (H[k]) { H[k].sniper = true; H[k].hp = 80; }
+    const barricade = O.gateRow(39, 100, 147, () => 'fence');
+    const front = O.gateCol(99, 69, 74, () => 'chain'), panel = O.gateCol(65, 55, 60, () => 'panel'), window = O.gateCol(60, 49, 54, () => 'chain');
+    const jo = O.companion(O.cell(190, 103), { top: [0.72, 0.66, 0.58], legs: [0.12, 0.12, 0.14], skin: [0.66, 0.5, 0.4], hair: [0.32, 0.18, 0.08], bulk: 0.86, dirt: 0.3, stains: 0.1, gear: [] }, 'Journalist', ['jo_follow', 'jo_wait']);
+    jo.free = true; jo.follow = true;
+    jo.onDie = () => { G.sound.say('dir_pc_dead'); O.set('The Journalist is dead'); setTimeout(() => G.player.hurt?.(999, null), 5000); };
+    let phase = 0, wait = 0;
+    const alive = (ks) => ks.some((k) => H[k]?.alive);
+    const st = (t) => O.set(t + (jo.alive && phase < 3 ? `  ·  JOURNALIST ${Math.max(0, Math.round(jo.hp))}%` : ''));
+    O.set('Take the Journalist to her apartment and recover the dossier', 'dir_pc_intro');
+    O.tick = (dt) => {
+      if (!jo.alive) return;
+      const spotted = H.some((h) => h.alive && !h.dormant && h.aware?.());
+      if (phase === 0) { st('Take the Journalist to her apartment and recover the dossier');
+        if (jo.pos.distanceTo(O.cell(100, 71.5)) < 4.5 && !alive([2, 3, 4, 5, 6, 7]) && !spotted) { phase = 1; for (const g of front) g.unlock(); G.sound.say('jo_door'); } }
+      if (phase === 1) { st(alive([8, 9, 10, 11, 12, 13, 14]) ? 'Clear her apartment of cops' : 'Take her to the white panel in the dining room');
+        if (!alive([8, 9, 10, 11, 12, 13, 14]) && jo.pos.distanceTo(O.cell(66, 57.5)) < 3.5) { phase = 2; for (const g of panel) g.unlock(); G.sound.say('jo_panel'); wait = 6; } }
+      if (phase === 2) { wait -= dt; if (wait < 0) { phase = 3; jo.P.root.visible = false; jo.alive = false; jo.follow = false; jo.free = false; for (const g of window) g.unlock(); W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_pc_window'); O.set('Break out of the perimeter created by the Police and reach the SUBWAY'); } }
     };
   },
   // Divided They Fall. Hunters: 0-2 the machete stalkers in the courtyard, 3-5 the shotgun team that comes out of

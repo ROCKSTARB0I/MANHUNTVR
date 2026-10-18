@@ -6,10 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=35';
-import { PLANS } from './plans.js?v=35';
-import { HAND } from './handplans.js?v=35';
-import { SETS } from './sets.js?v=35';
+import { T, seeded } from './paint.js?v=36';
+import { PLANS } from './plans.js?v=36';
+import { HAND } from './handplans.js?v=36';
+import { SETS } from './sets.js?v=36';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -66,7 +66,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=35';
+import { makeKit } from './setkit.js?v=36';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = HAND[def.plan] || PLANS[def.plan], R = seeded(4000 + D.idx);

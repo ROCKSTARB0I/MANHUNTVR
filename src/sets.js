@@ -387,4 +387,35 @@ export const SETS = {
       K.sign('3', 84, 49.6, 0, { w: 0.5, h: 0.5, y: 2.4 }); K.sign('5', 84, 13.6, 0, { w: 0.5, h: 0.5, y: 2.4 + 14.4 });
     },
   },
+  // Press Coverage: Central, hand-built. The tunnel roadblock, the street round her building, her apartment and the
+  // white panel, out of the window into the alley, the plaza with the casino's balcony sniper, the vans, the subway.
+  'press': {
+    start: [194, 103, PI / 2], exit: [0, 31], noJunk: true,
+    look: { ground: 'asphalt', wall: 'concreteWall', wallCol: 0x9a9890, facadeTex: 'concreteWall', facadeCol: 0x7a7a76, bldTex: 'concreteWall', bldCol: 0x6a6a68, bld: [14, 22], facade: [6, 6], lineCol: { wallpaper: 0xc0b8a8, cinder: 0xa8a8a0 } }, inner: 'wallpaper', innerFloor: 'ifloor',
+    linings: [{ x0: 148, y0: 94, x1: 198, y1: 113, mat: 'cinder' }, { x0: 100, y0: 0, x1: 148, y1: 25, mat: 'polka' }],
+    zones: [{ x0: 115, x1: 147, y0: 18, y1: 24, h: 4.2 }, { x0: 116, x1: 131, y0: 24, y1: 28, h: 4.2 }, { x0: 30, x1: 43, y0: 22, y1: 25, h: 4.2 }],
+    ramps: [{ x0: 140, x1: 147, y0: 2, y1: 17.99, axis: 'y', h0: 0, h1: 4.2 }],
+    tall: [{ x0: 116, x1: 131, y0: 27, y1: 28, h: 1.0 }, { x0: 30, x1: 43, y0: 24, y1: 25, h: 1.0 }],
+    patrols: [[[152, 100], [152, 100]], [[152, 106], [152, 106]],
+      [[110, 60], [110, 80]], [[115, 75], [125, 75]], [[125, 50], [140, 48]], [[110, 92], [110, 100]], [[130, 78], [126, 70]], [[120, 102], [140, 102]],
+      [[93, 76], [93, 76]], [[72, 84], [84, 84]], [[80, 84], [80, 84]], [[72, 50], [80, 50]], [[80, 62], [80, 62]], [[76, 68], [84, 68]], [[84, 45], [84, 45]],
+      [[55, 70], [55, 45]], [[55, 90], [55, 60]],
+      [[106, 8], [106, 20]], [[120, 10], [134, 10]], [[130, 6], [126, 14]], [[123, 25.5], [123, 25.5]],
+      [[68, 28], [68, 28]], [[68, 36], [68, 36]], [[64, 32], [60, 32]], [[62, 27], [62, 27]], [[62, 37], [62, 37]],
+      [[14, 28], [14, 28]], [[14, 34], [14, 34]], [[18, 31], [22, 31]], [[36, 23], [36, 23]]],
+    dress(K) {
+      // the tunnel: work lights, the dug-up road, a generator
+      for (let i = 154; i < 196; i += 10) K.bulb(i, 103, { col: 0xffd890, flicker: Math.random() < 0.3 ? 1 : 0 }); K.drums(176, 107, 3); K.tyres(168, 108);
+      // the street: streetlamps, the museum and video store fronts, the barricade lights
+      for (const [i, j] of [[106, 50], [140, 56], [106, 96], [140, 96], [120, 42]]) K.lamp(i, j, { h: 6, r: 14, col: 0xffd890 });
+      K.sign('APARTMENTS', 99.6, 71.5, PI / 2, { w: 2.6, h: 0.6, y: 3, bg: '#2a2620', fg: '#e8d8b0' }); K.sign('VIDEO', 147.4, 70, -PI / 2, { w: 2, h: 0.7, y: 3.4, bg: '#1a1a3a', fg: '#e83a3a', lit: true }); K.sign('MUSEUM', 147.4, 50, -PI / 2, { w: 3, h: 0.7, y: 4, bg: '#d8d0c0', fg: '#2a2a2a' });
+      // her apartment: bulbs, a bed, the table, the panel's wall
+      K.bulb(93, 76, { col: 0xffe8c0 }); K.bulb(76, 84, { col: 0xffe8c0 }); K.bulb(76, 58, { col: 0xffe8c0 }); K.bulb(63, 58, { col: 0xd8e0f0 }); K.counter(76, 56, 0, 4); K.bulb(93, 52, { col: 0xffe8c0 });
+      // the alley, the plaza, the casino, Tyson Tires
+      K.bins(52, 60, PI / 2); K.prop('dumpster', 52, 104, 0); K.lamp(55, 44, { h: 5, r: 12, col: 0xffc070 });
+      K.sign('CHIPS CASINO', 112, 24.4, PI, { w: 6, h: 1.2, y: 6, bg: '#3a0a2a', fg: '#ffd84a', font: 'bold 70px Arial', lit: true }); K.neon('OPEN 24 HRS', 106, 24.6, PI, '#ff3a6a', 3, 2.2);
+      for (const [i, j] of [[84, 32], [44, 32], [130, 34], [100, 34]]) K.lamp(i, j, { h: 6, r: 14, col: 0xffd890 });
+      K.sign('TYSON TIRES', 36, 21.6, PI, { w: 5, h: 1, y: 5.6, bg: '#1a1a1a', fg: '#e8c040', font: 'bold 64px Arial' }); K.sign('SUBWAY', 2.4, 31, PI / 2, { w: 2.4, h: 0.6, y: 3, bg: '#1a3a1a', fg: '#e8e8d8', lit: true });
+    },
+  },
 };
