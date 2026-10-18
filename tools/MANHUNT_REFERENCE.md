@@ -100,3 +100,16 @@ Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill,
   stairs (one Skin on top), five around it; then a second crane clears the way to the exit doors.
 - Muddy tyre tracks, timber stacks, an orange excavator, fire barrels, chain-link fences, moon.
 - Outro (cutscene list): the Cerberus ambush Cash in the street and carry him to the Securicar again.
+
+## Grounds for Assault (video 109:00–135:23) — Carcer City Zoo, the Wardogs
+- Intro (cutscene list): Cerberus feed Piggsy in his room; the Securicar drops Cash at the zoo; Ramirez briefs the Wardogs.
+- Entrance buildings: rusty animal-house rooms with peeling blue/green paint, steel cage frames, bloodstains;
+  a forecourt with elephant statues, a ticket kiosk, trees. Cash starts unarmed: a Wardog's machete cuts the
+  rope-tied door.
+- The pens: grey rock cliffs and outcrops, huge old trees, statues, stone steps, concrete moats under
+  chain-link, a cave with the crowbar (guarded); a padlocked iron gate at the top.
+- Past the gate a Wardog sniper (tranquilliser rifle) runs onto a wooden platform; then the brick restaurant
+  with a red door and green windows, kiosks with red roofs, vending machines; out the back to a barred gate.
+- After the scene (cutscene list): the Journalist's video diary.
+- Map lesson: this map's lanes are one cell wide; any solid prop (lamp pole, tree, rock, cave wall) can cut
+  the level in two. Check with a fresh flood after dressing.
