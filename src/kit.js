@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=40';
+import { T } from './paint.js?v=41';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -20,7 +20,7 @@ export const LEVELS = [
 const CHARGE = [1.0, 2.2];                       // seconds to reach green, red
 const NEED = { shard: [1, 3, 5], crowbar: [1, 2, 4], brick: [1, 3, 4], bottle: [1, 2, 3], bag: [2.0, 3.5, 5.5] };
 // Manhunt-style inventory: one of each kind carried at once
-export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', hammer: 'melee', bat: 'melee', rifle: 'gun', nailgun: 'gun', revolver: 'gun' };
+export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', chainsaw: 'melee', hammer: 'melee', bat: 'melee', rifle: 'gun', nailgun: 'gun', revolver: 'gun' };
 export const isGun = (k) => k === 'rifle' || k === 'nailgun' || k === 'revolver';
 const stabby = (k) => k === 'shard' || k === 'knife';
 const blunt = (k) => k === 'crowbar' || k === 'hammer' || k === 'bat';
@@ -37,6 +37,7 @@ const DEF = {
   rifle: { tip: [0, 0.03, -0.62], speed: 3.0, rest: 0.04, throwable: true },
   knife: { tip: [0, 0, -0.24], speed: 1.4, rest: 0.015, throwable: true },
   machete: { tip: [0, 0, -0.55], speed: 2.4, rest: 0.02, throwable: true },
+  chainsaw: { tip: [0, 0, -0.72], speed: 0.15, rest: 0.06, throwable: false }, // running: any touch cuts
   hammer: { tip: [0, 0.04, -0.3], speed: 2.4, rest: 0.02, throwable: true },
   bat: { tip: [0, 0, -0.78], speed: 2.6, rest: 0.035, throwable: true },
   revolver: { tip: [0, 0.03, -0.22], speed: 3, rest: 0.03, throwable: true },
@@ -96,6 +97,12 @@ function makeMesh(kind) {
     const hd = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.032), new THREE.MeshStandardMaterial({ color: 0x3a3a3c, metalness: 0.85, roughness: 0.35 })); hd.position.set(0, 0.02, -0.28); g.add(hd);
   } else if (kind === 'bat') { // wooden baseball bat
     const b = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.015, 0.84, 12), new THREE.MeshStandardMaterial({ map: T.wood.map, color: 0xb08860, roughness: 0.6 })); b.rotation.x = -Math.PI / 2; b.position.z = -0.36; g.add(b);
+  } else if (kind === 'chainsaw') { // Piggsy's saw: orange body, top handle, a long bar with its chain
+    const or = new THREE.MeshStandardMaterial({ color: 0xc8501a, roughness: 0.6 }), dk = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 }), st = new THREE.MeshStandardMaterial({ color: 0x9a9c98, roughness: 0.35, metalness: 0.85 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.2, 0.32), or); body.position.set(0, 0.02, 0.08); g.add(body);
+    const hdl = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 6, 12, Math.PI), dk); hdl.position.set(0, 0.12, 0.08); hdl.rotation.y = Math.PI / 2; g.add(hdl);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, 0.5), st); bar.position.set(0, -0.01, -0.3); g.add(bar);
+    const chain = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.085, 0.52), new THREE.MeshStandardMaterial({ color: 0x3a3a38, roughness: 0.5, metalness: 0.7, wireframe: true })); chain.position.copy(bar.position); g.add(chain);
   } else if (kind === 'machete') { // a long, slightly curved blade, black grip
     const bl = new THREE.Shape(); bl.moveTo(-0.02, 0); bl.lineTo(0.022, 0); bl.quadraticCurveTo(0.04, 0.3, 0.03, 0.46); bl.lineTo(-0.005, 0.5); bl.quadraticCurveTo(-0.02, 0.25, -0.02, 0); bl.closePath();
     const geo = new THREE.ExtrudeGeometry(bl, { depth: 0.003, bevelEnabled: false }); geo.translate(0, 0.03, -0.0015); geo.rotateX(-Math.PI / 2);
@@ -330,7 +337,7 @@ export class Kit {
           const held = this.exec && this.exec.h === h;
           if (d > part.r + (hand.desktop ? 0.07 : held ? 0.13 : 0.06)) continue;
           this.hit(hand, it, h, part, tip.clone());
-          it.hitCool = hand.desktop ? 0.4 : stabby(it.kind) ? 0.28 : 0.45; break;
+          it.hitCool = it.kind === 'chainsaw' ? 0.22 : hand.desktop ? 0.4 : stabby(it.kind) ? 0.28 : 0.45; break;
         }
         if (it.hitCool > 0) break;
       }
@@ -399,6 +406,11 @@ export class Kit {
       dmg = 28; G.sound.glass(at); hand.haptic?.(1, 100);
       // the bottle breaks in your hand: now you're holding the neck, jagged
       const hd = it.hand; this.remove(it); const s = this.spawn('shard', at); this.grab(hd, s);
+    } else if (it.kind === 'machete') {
+      dmg = part.name === 'neck' || part.name === 'head' ? 60 : 34; if (sneak) dmg *= 1.6;
+      G.sound.stab(at, 1.2); hand.haptic?.(1, 110);
+    } else if (it.kind === 'chainsaw') {
+      dmg = 40; G.sound.stab(at, 1.5); G.blood?.spray?.(at.clone(), dir.clone().negate(), 20, 0.8); hand.haptic?.(1, 160);
     } else if (it.kind === 'brick') {
       dmg = part.name === 'head' ? 45 : 20; G.sound.thud(at, 1.4); hand.haptic?.(1, 110);
     }

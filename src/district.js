@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=40';
-import { buildPlan } from './planlevel.js?v=40';
+import { T, seeded } from './paint.js?v=41';
+import { buildPlan } from './planlevel.js?v=41';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1114,5 +1114,5 @@ export const SCENES = [
   { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildPlan', plan: 'trained', style: 'rail', B: { x0: -74, x1: 74, z0: -39, z1: 39 }, gang: 'cops', fog: 0.035, amb: 0.6, hunters: 29 },
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildPlan', plan: 'border', style: 'cemetery', B: { x0: -74, x1: 74, z0: -39, z1: 39 }, gang: 'cerberus', fog: 0.05, amb: 0.6, hunters: 22 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildPlan', plan: 'mansion', style: 'mall', B: { x0: -63, x1: 63, z0: -35, z1: 35 }, gang: 'cerberus', fog: 0.03, amb: 0.6, hunters: 20 },
-  { id: 'deliverance', title: 'DELIVERANCE', area: 'Wapona Hills', build: 'buildAttic', B: { x0: -18, x1: 18, z0: -12, z1: 12 }, gang: 'piggsy', fog: 0.07, amb: 0.6 },
+  { id: 'deliverance', title: 'DELIVERANCE', area: 'Wapona Hills', build: 'buildPlan', plan: 'deliverance', style: 'mall', B: { x0: -56, x1: 56, z0: -35, z1: 35 }, gang: 'piggsy', fog: 0.06, amb: 0.55, hunters: 7 },
 ];

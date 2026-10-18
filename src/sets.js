@@ -533,4 +533,29 @@ export const SETS = {
       K.fusebox(8, 10, PI / 2); K.tank(14, 8, 0); K.sign('ELEVATOR MOTOR', 10, 4.6, 0, { w: 2.6, h: 0.45, y: 2.4, bg: '#3a2a1a', fg: '#e8c040' }); K.sign('ELEVATOR', 56.4, 72, PI / 2, { w: 1.8, h: 0.45, y: 2.8, bg: '#2a2620', fg: '#d8c8a0' });
     },
   },
+  // Deliverance: the top of the house, hand-built. The derelict floor off the elevator (Piggsy hunts you there; two glass
+  // shards and a wooden spike are all that hurt him), the attic, the stair tower and its grating, the locked door,
+  // Starkweather's office.
+  'deliverance': {
+    start: [146, 91, PI / 2], exit: [57, 63], noJunk: true,
+    look: { ground: 'planks', wall: 'plaster', wallCol: 0x9a8a6a, facadeTex: 'planks', facadeCol: 0x6a5a44, bldTex: 'planks', lineCol: { wallpaper: 0x6a5238, plaster: 0x9a8a6a, planks: 0x6a5a44, cinder: 0x8a8478 } }, inner: 'wallpaper', innerFloor: 'ifloor',
+    linings: [{ x0: 56, y0: 2, x1: 157, y1: 35, mat: 'planks' }, { x0: 112, y0: 66, x1: 125, y1: 74, mat: 'plaster' }, { x0: 1, y0: 8, x1: 58, y1: 31, mat: 'cinder' }],
+    zones: [{ x0: 56, x1: 157, y0: 2, y1: 34, h: 3.6 }, { x0: 40, x1: 58, y0: 10, y1: 29, h: 3.6 }, { x0: 0, x1: 28, y0: 8, y1: 31, h: 7.2 }],
+    ramps: [{ x0: 126, x1: 133, y0: 33.6, y1: 52.9, axis: 'y', h0: 3.6, h1: 0 }, { x0: 27.6, x1: 40.4, y0: 16, y1: 23, axis: 'x', h0: 7.2, h1: 3.6 }],
+    tall: [{ x0: 125, x1: 126, y0: 34, y1: 52, h: 1.0 }, { x0: 133, x1: 134, y0: 34, y1: 52, h: 1.0 }],
+    patrols: [[[146, 70], [146, 70]], [[4, 16], [4, 16]], [[5, 19], [5, 19]], [[4, 22], [4, 22]], [[6, 17], [6, 17]], [[6, 21], [6, 21]], [[70, 60], [70, 60]]],
+    dress(K) {
+      // the derelict floor: bare bulbs, torn rooms, blood trails
+      for (const [i, j] of [[145, 90], [145, 74], [145, 58], [126, 84], [128, 56], [110, 62], [96, 74], [118, 70], [74, 64]]) K.bulb(i, j, { col: 0xd8c098, flicker: Math.random() < 0.5 ? 1 : 0, i: 0.6 });
+      for (let k = 0; k < 10; k++) K.blood(120 + Math.random() * 28, 56 + Math.random() * 38, 1.4);
+      K.sign('PADDED', 118, 66.6, 0, { w: 1.2, h: 0.3, y: 2.2, bg: '#c8c0b0', fg: '#3a1a14' }); K.counter(70, 56, 0, 4); K.vending(84, 76, PI, 0x2a2a2a);
+      K.sign('L. STARKWEATHER', 88.4, 58, PI / 2, { w: 2.4, h: 0.45, y: 2.4, bg: '#3a2a1a', fg: '#d8c8a0', font: 'italic 44px Georgia, serif' });
+      // the attic: Piggsy's home and his meals
+      for (const [i, j] of [[70, 18], [100, 8], [120, 28], [148, 18]]) K.bulb(i, j, { col: 0xd8a070, flicker: 1, i: 0.5 });
+      for (const [i, j] of [[90, 10], [112, 22], [140, 8], [150, 26]]) K.sheeted(i, j, Math.random() * 3); K.hanged(96, 20, 3.4); K.hanged(118, 14, 3.4);
+      for (let k = 0; k < 12; k++) K.blood(60 + Math.random() * 94, 4 + Math.random() * 28, 1.8);
+      // the stair tower
+      K.bulb(48, 18, { col: 0xd8c8a0, flicker: 1 }); K.bulb(18, 14, { col: 0xd8c8a0 }); K.sign('PRIVATE', 9.6, 19, PI / 2, { w: 1.4, h: 0.4, y: 2.4, bg: '#3a1a14', fg: '#e8d8b0' });
+    },
+  },
 };

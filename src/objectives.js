@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=40';
-import { HAND } from './handplans.js?v=40';
-import { makeHunterWeapon, Person } from './body.js?v=40';
-import { GANG_SETS } from './hunters.js?v=40';
-import { T } from './paint.js?v=40';
+import { PLANS } from './plans.js?v=41';
+import { HAND } from './handplans.js?v=41';
+import { makeHunterWeapon, Person } from './body.js?v=41';
+import { GANG_SETS } from './hunters.js?v=41';
+import { T } from './paint.js?v=41';
 
 const V = THREE.Vector3;
 
@@ -177,6 +177,57 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Deliverance. Hunter 0 is Piggsy; 1-5 the last Cerberus team behind the locked door; 6 Starkweather in his office.
+  'deliverance'(O, G) {
+    const H = G.hunters, W = G.world, K = G.kit, { X, Z } = O;
+    O.lockExit = true;
+    const pig = H[0];
+    if (pig) { pig.hp = 99999; pig.noExec = true; }
+    for (let k = 1; k <= 6; k++) { const h = H[k]; if (!h) continue; h.saw?.(null, 0, true); h.saw = null; h.boss = false; h.hp = 100; }
+    for (let k = 1; k <= 5; k++) { O.reskin(H[k], { ...GANG_SETS.cerberus.members[k % GANG_SETS.cerberus.members.length], weapon: null }); O.arm(H[k], 'rifle'); O.hold(H[k]); }
+    const S = H[6];
+    if (S) { O.reskin(S, { mask: null, weapon: null, skin: [0.7, 0.55, 0.47], bulk: 1.05, stubble: false, hair: [0.55, 0.55, 0.52], top: [0.22, 0.22, 0.24], legs: [0.22, 0.22, 0.24], legsMap: 'fleece', boots: [0.05, 0.04, 0.035], dirt: 0.1, stains: 0, gear: [] }); O.arm(S, 'revolver'); S.noExec = true; S.hp = 140; O.hold(S);
+      S.shots = 0; const shoot = S.shoot.bind(S); S.shoot = (P, d) => { shoot(P, d); if (++S.shots >= 3) { S.gun = false; S.flee = { goal: O.cell(62, 54), speed: 2.6 }; } }; }
+    O.hold(pig);
+    const atticDoor = O.gateRow(52, 125, 133, () => 'chain'), towerDoor = O.gateCol(8.5, 16, 22, () => 'chain'), office = O.gateCol(87.5, 60, 64, () => 'chain');
+    for (const at of [[143, 54.5], [92, 79], [118, 71]]) K.spawn('shard', new V(X(at[0]), 0.015, Z(at[1])));
+    // the grating at the top of the stair tower
+    const grate = new THREE.Mesh(new THREE.BoxGeometry(6 * O.m, 0.05, 6 * O.m), new THREE.MeshStandardMaterial({ color: 0x3a3632, metalness: 0.7, roughness: 0.6, wireframe: true })); grate.position.set(X(15), 7.22, Z(19.5)); O.mesh(grate);
+    const onGrate = (p) => p.x > X(12) && p.x < X(18) && p.z > Z(16.5) && p.z < Z(22.5);
+    let phase = 0, wounds = 0, scares = 0, runT = 0;
+    const held = (kind) => G.hands.find((h) => h.item?.kind === kind);
+    const st = () => O.set(phase === 0 ? `Kill Piggsy  ·  wounds ${wounds}/3  (glass shards and a wooden spike are all that hurt him)` : phase === 1 ? 'Piggsy has fled to the attic. Follow him up' : phase === 2 ? 'Lure Piggsy onto the grating at the top of the stair tower' : phase === 3 ? 'Use the chainsaw to cut through the locked door' : phase === 4 ? 'Kill the last of the Cerberus' : phase === 5 ? 'Cut through the door to Starkweather\'s office' : phase === 6 ? 'Kill Starkweather' : 'Get out');
+    O.set('Kill Piggsy  ·  wounds 0/3  (glass shards and a wooden spike are all that hurt him)', 'dir_dl_intro');
+    // a stab in the back: he howls, swats Cash down and runs
+    O.spots.push({ at: new V(), r: 2.2, reach: 1.2, label: 'E — drive it into his back', live: () => phase === 0 && pig && !pig.dormant && held('shard') && pig.pos.distanceTo(G.player.pos) < 2.2 && runT <= 0,
+      act: () => { const hd = held('shard'); K.remove(hd.item); wounds++; G.sound.stab(pig.eye(new V()), 1.4); G.sound.say('piggsy_3', { at: pig.pos }); G.blood?.spray?.(pig.eye(new V()), new V(0, 0.4, 0), 30, 1); G.player.hurt?.(12, pig); pig.stun = 1.0;
+        runT = 7; pig.flee = { goal: O.cell(...[[100, 62], [126, 90], [145, 56]][wounds % 3]), speed: 3.0 };
+        if (wounds >= 3) { phase = 1; runT = 0; pig.flee = null; setTimeout(() => { O.hold(pig); for (const g of atticDoor) g.unlock(); G.sound.say('dir_dl_attic'); st(); }, 2500); } else st(); } });
+    const stab = O.spots[O.spots.length - 1]; Object.defineProperty(stab, 'at', { get: () => pig.pos });
+    O.spots.push({ at: O.cell(11, 19), at3: new V(X(10), 8.4, Z(19)), r: 2.4, reach: 1, label: 'E — saw through the door', live: () => phase === 3 && held('chainsaw'),
+      act: () => { phase = 4; for (const g of towerDoor) g.unlock(); G.sound.say('dir_dl_cerberus'); for (let k = 1; k <= 5; k++) O.wake(H[k], O.cell(3 + (k % 3), 15 + k * 2), true); st(); } });
+    O.spots.push({ at: O.cell(90, 62), r: 2.4, reach: 1, label: 'E — saw through the office door', live: () => phase === 5 && held('chainsaw'),
+      act: () => { phase = 6; for (const g of office) g.unlock(); G.sound.say('dir_dl_office'); O.wake(S, O.cell(70, 60), true); st(); } });
+    let saw = null;
+    O.tick = (dt) => {
+      // Piggsy comes for Cash as soon as he leaves the elevator
+      if (phase === 0 && pig?.dormant && G.player.pos.distanceTo(O.cell(146, 91)) > 7) { O.wake(pig, O.cell(145, 60), true); G.sound.say('piggsy_2', { at: pig.pos }); }
+      if (runT > 0) { runT -= dt; if (runT <= 0 && pig) { pig.flee = null; pig.state = 'hunt'; pig.last.copy(G.player.pos); } }
+      if (phase === 1 && O.inCells(56, 156, 2, 33)) { phase = 2; O.wake(pig, O.cell(150, 18), false); pig.state = 'patrol'; pig.route = [[X(150), Z(18)], [X(150), Z(10)]]; pig.susp = 0; G.sound.say('dir_dl_lure'); st(); }
+      if (phase === 2 && pig && onGrate(pig.pos) && runT <= 0) {
+        if (scares === 0) { scares = 1; runT = 8; pig.flee = { goal: O.cell(140, 18), speed: 2.4 }; G.sound.creak?.(pig.pos); G.sound.say('piggsy_1', { at: pig.pos }); G.sound.say('dir_dl_grate'); }
+        else { // the grating gives: he hangs on by his hands, the saw drops at Cash's feet
+          phase = 3; grate.visible = false; O.box({ x0: X(12), x1: X(18), z0: Z(16.5), z1: Z(22.5), y0: 0, y1: 9, see: true }); W.bakeWalk();
+          G.sound.crunch?.(pig.eye(new V())); G.sound.say('piggsy_2', { at: pig.pos }); pig.flee = null; pig.kill(new V(0, -3, 0), pig.eye(new V()), 'fall'); pig.body.root.visible = false; pig.saw?.(null, 0, true); pig.saw = null;
+          K.spawn('chainsaw', new V(X(19.5), 7.25, Z(19.5))); G.sound.say('dir_dl_saw'); st(); }
+      }
+      if (phase === 4 && [1, 2, 3, 4, 5].every((k) => !H[k]?.alive)) { phase = 5; G.sound.say('dir_dl_last'); st(); }
+      if (phase === 6 && S && !S.alive) { phase = 7; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('It\'s over. Get out through the window'); }
+      if (phase === 6 && S?.flee && S.pos.distanceTo(S.flee.goal) < 1.5) S.flee.goal = O.cell(...[[62, 54], [85, 76], [62, 76], [85, 54]][Math.floor(Math.random() * 4)]);
+      // the saw in Cash's hands: it runs while he holds it
+      const hs = held('chainsaw'); if (hs && !saw) saw = G.sound.sawLoop?.(); if (saw) { if (hs) saw(hs.item.mesh.getWorldPosition(new V()), 1); else { saw(null, 0, true); saw = null; } }
     };
   },
   // Key Personnel. Hunters: 0 the balcony chamber, 1-2 the octagon, 3-4 the dining room, 5-6 the hallway, 7 the rec
