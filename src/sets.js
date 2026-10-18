@@ -360,4 +360,31 @@ export const SETS = {
       K.sign('DARKWOODS PENITENTIARY', 6.4, 25.5, PI / 2, { w: 4.2, h: 0.7, y: 4, bg: '#1a2a3a', fg: '#c8d8e8', lit: true }); K.graffiti(52, 45.4, PI, 2.2, 3, 2);
     },
   },
+  // Divided They Fall: the projects. Ramirez's hide and seek in the courtyard, then up through the five floors of
+  // the old apartment block (laid out as bands, F1 south to F5 north, stairwells at alternating ends) after him.
+  'divided': {
+    start: [32, 104, PI], exit: [32, 110], noJunk: true,
+    look: { ground: 'asphalt', wall: 'brick', wallCol: 0x8a6a58, facadeTex: 'brick', facadeCol: 0x7a6252, bldTex: 'brick', bldCol: 0x6a5446, facade: [5, 5], bld: [18, 20], lineCol: { plaster: 0xb8b0a0, wallpaper: 0xa89880 } }, inner: 'wallpaper', innerFloor: 'ifloor',
+    linings: [{ x0: 74, y0: 0, x1: 172, y1: 112, mat: 'wallpaper' }],
+    zones: [2, 3, 4, 5].map((k) => ({ x0: 60, x1: 172, y0: 4 + (5 - k) * 18, y1: 4 + (5 - k) * 18 + 18, h: (k - 1) * 3.6 })),
+    ramps: [[160, 76, 1], [76, 58, 2], [160, 40, 3], [76, 22, 4]].map(([s, j0, k]) => ({ x0: s, x1: s + 5, y0: j0 - 3, y1: j0 + 10.6, axis: 'y', h0: k * 3.6, h1: (k - 1) * 3.6 })),
+    patrols: [[[20, 80], [50, 100]], [[44, 64], [62, 70]], [[30, 70], [60, 90]],
+      [[80, 88], [80, 88]], [[84, 88], [84, 88]], [[88, 88], [88, 88]],
+      [[120, 88], [150, 88]], [[96, 80], [98, 82]],
+      [[110, 62], [112, 70]], [[140, 62], [138, 70]],
+      [[84, 52], [84, 52]], [[166, 52], [166, 52]],
+      [[130, 34], [110, 34]], [[120, 34], [100, 34]], [[100, 34], [140, 34]],
+      [[166, 16], [166, 16]], [[120, 8], [120, 8]],
+      [[90, 34], [90, 34]], [[140, 34], [140, 34]], [[120, 52], [120, 52]], [[30, 100], [30, 100]], [[34, 100], [34, 100]]],
+    dress(K) {
+      // the courtyard: the outhouse, a telephone pole, dumpsters and bags, a burning bin
+      K.lamp(20, 96, { h: 6, r: 14, col: 0xd8c890 }); K.lamp(60, 50, { h: 6, r: 14, col: 0xd8c890 }); K.lamp(44, 34, { h: 6, r: 12, col: 0xd8c890 });
+      for (const [i, j] of [[10, 100], [62, 100], [30, 34]]) K.prop('dumpster', i, j, 0); K.bins(60, 34, 0); K.bins(8, 70, PI / 2); K.fire(14, 88);
+      K.graffiti(27, 45, PI / 2, 2.2, 3, 1); K.graffiti(65.4, 60, -PI / 2, 2.2, 3, 2); K.sign('NO LOITERING', 50, 75.4, PI, { w: 2, h: 0.5, y: 2.4 });
+      // the apartment block: bulbs down every hallway, junk and blood in the rooms
+      for (let k = 0; k < 5; k++) { const j0 = 4 + k * 18; for (let i = 84; i < 170; i += 16) K.bulb(i, j0 + 12, { col: 0xe8d0a0, flicker: Math.random() < 0.4 ? 1 : 0 }); for (let n = 0; n < 4; n++) K.blood(80 + Math.random() * 85, j0 + 10 + Math.random() * 4, 1.1); }
+      for (const [i, j] of [[100, 44], [104, 46], [96, 42]]) K.sheeted(i, j, Math.random() * 3); // floor 3: the body room
+      K.sign('3', 84, 49.6, 0, { w: 0.5, h: 0.5, y: 2.4 }); K.sign('5', 84, 13.6, 0, { w: 0.5, h: 0.5, y: 2.4 + 14.4 });
+    },
+  },
 };

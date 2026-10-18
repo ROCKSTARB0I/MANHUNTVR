@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=34';
+import { T } from './paint.js?v=35';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -455,7 +455,7 @@ export class Kit {
     const G = this.game, it = hand.item; if (!it || isGun(it.kind) || this.exec || this.struggle) return null;
     let best = null, bd = hand.desktop ? 1.7 : 2.4; // VR: lock on from further away; he's pulled in when you commit
     for (const h of G.hunters) {
-      if (!h.alive || h.dormant || h.boss || h.aware() || h.state === 'bagged' || h.state === 'executed') continue;
+      if (!h.alive || h.dormant || h.boss || h.noExec || h.aware() || h.state === 'bagged' || h.state === 'executed') continue;
       const d = h.pos.distanceTo(G.player.pos);
       if (d < bd && h.behind(G.player.pos)) { bd = d; best = h; }
     }

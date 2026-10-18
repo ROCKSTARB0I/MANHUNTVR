@@ -3,17 +3,17 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=34';
-import { HAND } from './handplans.js?v=34';
-import { makeHunterWeapon, Person } from './body.js?v=34';
-import { T } from './paint.js?v=34';
+import { PLANS } from './plans.js?v=35';
+import { HAND } from './handplans.js?v=35';
+import { makeHunterWeapon, Person } from './body.js?v=35';
+import { T } from './paint.js?v=35';
 
 const V = THREE.Vector3;
 
 export class Objectives {
   constructor(G) {
     this.G = G; this.text = ''; this.lockExit = false; this.parts = []; this.boxes = []; this.spots = []; this.tick = null;
-    const def = G.world.def, P = PLANS[def.plan] || HAND[def.plan];
+    const def = G.world.def, P = HAND[def.plan] || PLANS[def.plan];
     if (P) { this.X = (i) => (i - P.w / 2) * P.m; this.Z = (j) => (j - P.h / 2) * P.m; this.m = P.m; }
     const script = SCRIPTS[def.id];
     if (script && P) { script(this, G); G.world.bakeWalk(); }
@@ -171,6 +171,41 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Divided They Fall. Hunters: 0-2 the machete stalkers in the courtyard, 3-5 the shotgun team that comes out of
+  // the block, 6-15 the floors (F1 6-7, F2 8-9, F3 10-11, F4 12-14, F5 15), 16 Ramirez, 17-19 cover his escape,
+  // 20-21 the snipers who come through the gate if he gets his call off.
+  'divided'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const arm = (h, kind) => { if (!h) return; h.gun = true; h.dropOnDeath = kind === 'revolver' ? 'revolver' : 'rifle'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(kind); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); };
+    for (const k of [3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 17, 18, 19, 20, 21]) arm(H[k], 'shotgun');
+    for (const k of [3, 4, 5, 17, 18, 19, 20, 21]) O.hold(H[k]);
+    const door = O.gateCol(70, 84, 92, () => 'chain');
+    // Ramirez: the Wardogs' boss. Shaved head, beret, black vest over a tan tee, camo trousers; nobody executes him
+    const R = H[16];
+    if (R) {
+      G.scene.remove(R.body.root); R.torch = null; R.beam = null;
+      const P = new Person({ mask: null, weapon: null, skin: [0.55, 0.38, 0.27], bulk: 1.22, stubble: true, top: [0.55, 0.47, 0.34], sleeves: 'short', legs: [0.9, 0.9, 0.9], legsMap: 'camoUrban', boots: [0.08, 0.08, 0.07], gloves: [0.06, 0.06, 0.05], dirt: 0.6, stains: 0.3, seed: 316,
+        gear: [{ t: 'vest', col: [0.06, 0.06, 0.05] }, { t: 'cap', col: [0.12, 0.05, 0.04] }, { t: 'bandolier' }, { t: 'thighPouch' }] });
+      R.body = P; G.scene.add(P.root); P.weapon = makeHunterWeapon('shotgun'); P.weapon.position.set(0, -0.1, 0.02); P.bones[10]?.add(P.weapon);
+      R.gun = true; R.noExec = true; R.hp = 260; R.dropOnDeath = 'rifle'; R.place();
+    }
+    let phase = 0, clock = 150, backup = false;
+    const dead = (ks) => ks.every((k) => !H[k]?.alive);
+    const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    O.set('Dispose of the three stalking hunters', 'dir_df_intro');
+    O.tick = (dt) => {
+      if (phase === 0 && dead([0, 1, 2])) { phase = 1; for (const g of door) g.unlock(); [3, 4, 5].forEach((k, n) => O.wake(H[k], O.cell(78 + n * 4, 88), true)); G.sound.say('rz_shotguns'); O.set('Get into the old apartment block and track down Ramirez', 'dir_df_block'); }
+      // he sees Cash come up onto the top floor and runs for it
+      if (phase === 1 && R?.alive && O.inCells(74, 171, 4, 19)) { phase = 2; R.flee = { goal: O.cell(78, 16), speed: 3.6, taunt: () => G.sound.say('rz_run') }; R.legs = [[78, 34], [162, 34], [162, 52], [78, 52], [78, 70], [162, 70], [162, 88], [68, 88], [40, 92]].map(([i, j]) => O.cell(i, j)); [17, 18, 19].forEach((k) => O.wake(H[k], null, false)); G.sound.say('dir_df_run'); }
+      if (phase === 2 || phase === 3) {
+        if (R && R.flee && R.pos.distanceTo(R.flee.goal) < 1.6 && R.legs.length) { R.flee.goal = R.legs.shift(); R.pathT = 0; } // down the block a flight at a time
+        else if (R && R.flee && !R.legs.length && R.pos.distanceTo(R.flee.goal) < 2) { R.flee = null; R.state = 'hunt'; R.susp = 1.4; R.last.copy(G.player.pos); }
+        if (!backup) { clock -= dt; O.text = `Kill Ramirez before he calls in back up  ${mmss(Math.max(0, clock))}`; if (clock <= 0) { backup = true; phase = 3; O.wake(H[20], O.cell(30, 100)); O.wake(H[21], O.cell(34, 100)); O.set('Kill Ramirez', 'dir_df_backup'); } }
+        if (R && !R.alive) { phase = 4; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Make your way to the gate', 'dir_df_done'); }
+      }
     };
   },
   // Kill the Rabbit. Hunters: 0-3 in the cellblock's cells (let out when the gate slams), 4-6 the showers,
