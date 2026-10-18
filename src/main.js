@@ -1,20 +1,21 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=41';
-import { District, SCENES } from './district.js?v=41';
-import { spawnHunters } from './hunters.js?v=41';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=41';
-import { Blood } from './blood.js?v=41';
-import { Objectives } from './objectives.js?v=41';
-import { Director } from './director.js?v=41';
-import { Sound } from './sound.js?v=41';
-import { makeHand, Person, BONE } from './body.js?v=41';
-import { VHS } from './vhs.js?v=41';
-import { Grime } from './grime.js?v=41';
-import { Cutscene } from './cutscene.js?v=41';
-import { Arms } from './arms.js?v=41';
-import { Finisher } from './finisher.js?v=41';
+import { paintAll, T } from './paint.js?v=42';
+import { District, SCENES } from './district.js?v=42';
+import { spawnHunters } from './hunters.js?v=42';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=42';
+import { Blood } from './blood.js?v=42';
+import { Objectives } from './objectives.js?v=42';
+import { Director } from './director.js?v=42';
+import { Sound } from './sound.js?v=42';
+import { makeHand, Person, BONE } from './body.js?v=42';
+import { VHS } from './vhs.js?v=42';
+import { Grime } from './grime.js?v=42';
+import { Cutscene } from './cutscene.js?v=42';
+import { Story } from './story.js?v=42';
+import { Arms } from './arms.js?v=42';
+import { Finisher } from './finisher.js?v=42';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -48,6 +49,7 @@ const moon = new THREE.DirectionalLight(0x9a9488, 0.2); moon.position.set(-30, 5
 paintAll(QUEST);
 let world = new District(scene, 0);
 const cut = new Cutscene(renderer, camera, null, world);
+const story = new Story(renderer, camera, null); // the cutscenes between scenes
 const sound = new Sound();
 const G = {
   scene, world, sound, vhs: null, slot: 1, time: 0, hunters: [], hands: [],
@@ -63,7 +65,8 @@ const G = {
 };
 G.vhs = vhs; G.cut = cut; G.camera = camera;
 const flashLight = new THREE.PointLight(0xffd090, 0, 9, 1.6); scene.add(flashLight); let flashT = 0;
-G.flash = (p) => { flashLight.position.copy(p); flashLight.intensity = 30; flashT = 0.06; }; G.goScene = (i) => goScene(i); window.manhunt = G; // for debugging from the console
+G.flash = (p) => { flashLight.position.copy(p); flashLight.intensity = 30; flashT = 0.06; }; G.playStory = (id) => playStory(id, () => { G.state = 'play'; });
+G.goScene = (i) => goScene(i); window.manhunt = G; // for debugging from the console
 
 // the start door belongs to the scene; the Director opens it
 function closePen() { world.closeStart(); }
@@ -184,7 +187,7 @@ const hud = (() => {
     },
   };
 })();
-sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound;
+sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound; story.sound = sound; G.story = story;
 // a scene can move Cash (the last train, a lift): the dolly carries the player, VR room offset and all
 G.teleport = (x, z, yaw) => { dolly.position.set(x, world.heightAt(x, z), z); P.pos.set(x, world.heightAt(x, z), z); if (yaw !== undefined) { P.yaw = yaw; if (renderer.xr.isPresenting) dolly.rotation.y = yaw; } };
 // ------------------------------------------------------------- weapon icon
@@ -306,6 +309,11 @@ function resetScene(fromSave = false) {
   populate(); hud.fadeTo(0); $('hud').hidden = false;
   G.state = 'play'; G.time = 0; if (!fromSave) G.director.intro();
 }
+// a story cutscene between scenes (story.js), if this one has one; then carry on
+function playStory(id, then) {
+  sound.hush(); hud.fadeTo(0); $('hud').hidden = true; G.state = 'story';
+  if (!story.start(id, () => { if (G.state === 'story') then(); })) then();
+}
 function playIntro() {
   G.state = 'cut'; hud.fadeTo(0); $('hud').hidden = true;
   cut.start(() => { if (G.state === 'cut') loadingThen(resetScene); }, renderer.xr.isPresenting);
@@ -362,8 +370,8 @@ function win() {
   if (next < SCENES.length) {
     // Manhunt saves at the end of every scene: the profile now starts at the next one
     try { localStorage.setItem(slotKey(G.slot), JSON.stringify({ v: 2, scene: next, fresh: true, time: 0, savedAt: Date.now(), stars, quota: 0, dir: { kills: 0 } })); } catch (e) {}
-    setTimeout(() => { $('banner').hidden = true; loadingThen(() => { goScene(next); resetScene(); }, next); }, 9000);
-  } else setTimeout(() => { $('banner').innerHTML = 'THE END'; setTimeout(() => { $('banner').hidden = true; if (renderer.xr.isPresenting) renderer.xr.getSession().end(); $('screen').hidden = false; G.state = 'menu'; document.exitPointerLock?.(); }, 6000); }, 9000);
+    setTimeout(() => { $('banner').hidden = true; playStory(SCENES[next].id, () => loadingThen(() => { goScene(next); resetScene(); }, next)); }, 9000);
+  } else setTimeout(() => { $('banner').hidden = true; playStory('ending', () => { G.state = 'won'; $('banner').hidden = false; $('banner').innerHTML = 'THE END'; setTimeout(() => { $('banner').hidden = true; if (renderer.xr.isPresenting) renderer.xr.getSession().end(); $('screen').hidden = false; G.state = 'menu'; document.exitPointerLock?.(); }, 6000); }); }, 9000);
 }
 // swap the whole world for another scene
 // Manhunt's night: dirty orange street light everywhere you can see, shadows deep enough to hide in, but never a black screen
@@ -412,9 +420,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyN') { freecam = !freecam; fc.p.copy(camera.getWorldPosition(new V())); fc.yaw = P.yaw; fc.pitch = pitch; }
   if (e.code === 'Escape' && !document.pointerLockElement) { /* menu stays reachable via the pause button */ }
 });
-addEventListener('keydown', () => { if (G.state === 'cut') cut.skip(); });
-addEventListener('mousedown', () => { if (G.state === 'cut') cut.skip(); });
-function vrSkip() { for (const h of vHands) { const gp = h.src?.gamepad; if (gp && gp.buttons.some((b, i) => i !== 1 && b.pressed && !(h.skipLatch?.[i]))) { cut.skip(); } h.skipLatch = gp ? gp.buttons.map((b) => b.pressed) : null; } }
+addEventListener('keydown', () => { if (G.state === 'cut') cut.skip(); if (G.state === 'story') story.skip(); });
+addEventListener('mousedown', () => { if (G.state === 'cut') cut.skip(); if (G.state === 'story') story.skip(); });
+function vrSkip() { for (const h of vHands) { const gp = h.src?.gamepad; if (gp && gp.buttons.some((b, i) => i !== 1 && b.pressed && !(h.skipLatch?.[i]))) { cut.skip(); story.skip(); } h.skipLatch = gp ? gp.buttons.map((b) => b.pressed) : null; } }
 addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'KeyE') dHands[0].useHeld = false; });
 let drag = null;
 canvas.addEventListener('mousedown', (e) => {
@@ -667,6 +675,7 @@ renderer.setAnimationLoop(() => {
   if ((G.state === 'cut' || G.state === 'menu' || G.state === 'loading') && sound.score) sound.score.set(G.state === 'menu' ? 'silent' : G.state === 'loading' ? 'hiding' : 'theme');
   if (G.state === 'loading') { loadingTick(dt); renderer.render(renderer.xr.isPresenting ? loadRoom : scene, camera); return; }
   if (G.state === 'cut') { cut.update(dt); if (renderer.xr.isPresenting) vrSkip(); cut.render(); return; }
+  if (G.state === 'story') { story.update(dt); if (renderer.xr.isPresenting) vrSkip(); story.render(); return; }
   if (G.cineCam && !renderer.xr.isPresenting) { camera.position.copy(G.cineCam.p).sub(dolly.position); camera.lookAt(G.cineCam.look); camera.updateMatrixWorld(true); }
 
   vhs.render(scene, camera);

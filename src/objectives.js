@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=41';
-import { HAND } from './handplans.js?v=41';
-import { makeHunterWeapon, Person } from './body.js?v=41';
-import { GANG_SETS } from './hunters.js?v=41';
-import { T } from './paint.js?v=41';
+import { PLANS } from './plans.js?v=42';
+import { HAND } from './handplans.js?v=42';
+import { makeHunterWeapon, Person } from './body.js?v=42';
+import { GANG_SETS } from './hunters.js?v=42';
+import { T } from './paint.js?v=42';
 
 const V = THREE.Vector3;
 
