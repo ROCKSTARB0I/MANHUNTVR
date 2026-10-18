@@ -6,10 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=39';
-import { PLANS } from './plans.js?v=39';
-import { HAND } from './handplans.js?v=39';
-import { SETS } from './sets.js?v=39';
+import { T, seeded } from './paint.js?v=40';
+import { PLANS } from './plans.js?v=40';
+import { HAND } from './handplans.js?v=40';
+import { SETS } from './sets.js?v=40';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -66,7 +66,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=39';
+import { makeKit } from './setkit.js?v=40';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = HAND[def.plan] || PLANS[def.plan], R = seeded(4000 + D.idx);
@@ -234,7 +234,8 @@ export function buildPlan(D, matFor) {
     L.push([x, z]);
   }
   // ---------- CCTV on walls facing into the open
-  for (let k = 0, t = 0; k < (def.cams ?? 4) && t < 600; t++) {
+  for (const [i, j, yaw, sweep] of SET.cams || []) D.cams.push({ p: new V(X(i), 2.9 + Hc(i, j), Z(j)), yaw, sweep: sweep ?? 0.6 }); // placed by the set
+  for (let k = 0, t = 0; k < (SET.cams ? 0 : def.cams ?? 4) && t < 600; t++) {
     const i = (R() * W) | 0, j = (R() * H) | 0; if (!reach[j * W + i]) continue;
     for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const c = at(i + a, j + b); if (c === '#' || c === ' ' || c === 'B') { D.cams.push({ p: new V(X(i + 0.5) + a * 0.3, 4.2 + Hc(i + 0.5, j + 0.5), Z(j + 0.5) + b * 0.3), yaw: Math.atan2(-a, -b), sweep: 0.6 + R() * 0.4 }); k++; break; } }
   }

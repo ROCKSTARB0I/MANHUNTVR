@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=39';
-import { HAND } from './handplans.js?v=39';
-import { makeHunterWeapon, Person } from './body.js?v=39';
-import { GANG_SETS } from './hunters.js?v=39';
-import { T } from './paint.js?v=39';
+import { PLANS } from './plans.js?v=40';
+import { HAND } from './handplans.js?v=40';
+import { makeHunterWeapon, Person } from './body.js?v=40';
+import { GANG_SETS } from './hunters.js?v=40';
+import { T } from './paint.js?v=40';
 
 const V = THREE.Vector3;
 
@@ -177,6 +177,32 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Key Personnel. Hunters: 0 the balcony chamber, 1-2 the octagon, 3-4 the dining room, 5-6 the hallway, 7 the rec
+  // room, 8-9 the grand hall, 10 the camera operator, 11 upstairs, 12 the Cerberus Leader, 13-15 his guards,
+  // 16-17 the west wing, 18-19 the basement.
+  'key-personnel'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    H.forEach((h, k) => O.arm(h, [6, 7, 13, 14, 15, 18, 19].includes(k) ? 'rifle' : 'revolver'));
+    const L = H[12];
+    if (L) { O.reskin(L, { mask: null, weapon: null, skin: [0.62, 0.45, 0.35], bulk: 1.2, stubble: true, top: [0.06, 0.06, 0.06], legs: [0.06, 0.06, 0.07], legsMap: 'fleece', boots: [0.04, 0.04, 0.04], gloves: [0.04, 0.04, 0.04], gear: [{ t: 'vest', col: [0.05, 0.05, 0.05] }, { t: 'print', side: 'back', text: 'CERBERUS', fg: '#a83020', w: 0.26, y: 0.04 }, { t: 'thighPouch' }] }); O.arm(L, 'revolver'); L.hp = 220; L.noExec = true; }
+    const lift = O.gateCol(56, 70, 74, () => 'chain');
+    let motor = false, key = false, keyMesh = null;
+    const st = () => O.set(!motor ? 'Reach the basement in the west wing and turn Starkweather\'s ELEVATOR on' : !key ? 'Find the LEADER of the Cerberus team and acquire the ELEVATOR KEY' : 'Use the ELEVATOR to reach Starkweather');
+    O.set('Reach the basement in the west wing and turn Starkweather\'s ELEVATOR on', 'dir_kp_intro');
+    const ready = () => { if (motor && key) { for (const g of lift) g.unlock(); W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_kp_lift'); } st(); };
+    O.spots.push({ at: O.cell(10, 11), at3: new V(X(8.4), -3.6 + 1.3, Z(10)), r: 2.6, reach: 0.8, label: 'E — start the elevator motor', live: () => !motor,
+      act: () => { motor = true; G.sound.buzz?.(O.cell(8, 10)); G.noise?.(O.cell(8, 10), 14, 'player'); G.sound.say(key ? 'dir_kp_motor' : 'dir_kp_motor'); ready(); } });
+    // smashing the surveillance monitors blinds the cameras
+    O.spots.push({ at: O.cell(62, 6), r: 2.4, reach: 0.8, label: 'E — smash the monitors', live: () => !O.blind,
+      act: () => { O.blind = true; G.sound.bang?.(O.cell(62, 4)); for (const c of G.director.cams) { c.alive = false; c.led.visible = false; } G.sound.say('dir_kp_blind'); } });
+    O.spots.push({ at: new V(), r: 2, reach: 0.7, label: 'E — take the ELEVATOR KEY', live: () => keyMesh?.visible,
+      act: () => { keyMesh.visible = false; key = true; ready(); } });
+    const keySpot = O.spots[O.spots.length - 1];
+    O.tick = () => {
+      if (L && !L.alive && !keyMesh) { keyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.16), new THREE.MeshStandardMaterial({ color: 0xc8a848, metalness: 0.9, roughness: 0.3, emissive: 0x3a2a08 })); keyMesh.position.copy(L.pos).setY(W.heightAt(L.pos.x, L.pos.z) + 0.03); O.mesh(keyMesh); keySpot.at = keyMesh.position; keySpot.at3 = keyMesh.position; G.sound.say('dir_kp_leader'); }
     };
   },
   // Border Patrol. Hunters: 0 the merc who comes to check the garage, 1-4 the front yard (4 faces the padlocked gate),

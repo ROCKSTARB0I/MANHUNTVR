@@ -505,4 +505,32 @@ export const SETS = {
       K.sign('CELLAR', 160.6, 18, -PI / 2, { w: 1.4, h: 0.45, y: 2.4, bg: '#2a2620', fg: '#d8c8a8' });
     },
   },
+  // Key Personnel: inside the mansion, hand-built. The cellar, the east wing (L hallway, balcony chamber, octagon hall,
+  // study, dining room, rec room) under CCTV, the grand hall and its stairs to the surveillance room and the Head of
+  // Security, the west wing stairs down to the basement and the elevator motor; the elevator off the grand hall.
+  'key-personnel': {
+    start: [167, 92, PI], exit: [51, 73], noJunk: true,
+    look: { ground: 'tiles', wall: 'plaster', wallCol: 0xc8b898, facadeTex: 'stucco', facadeCol: 0xc8c0a8, lineCol: { wallpaper: 0x8a6a4a, plaster: 0xc8b898, planks: 0x8a6a4a, cinder: 0x9a968c } }, inner: 'wallpaper', innerFloor: 'ifloor',
+    linings: [{ x0: 158, y0: 80, x1: 178, y1: 98, mat: 'cinder' }, { x0: 4, y0: 4, x1: 49, y1: 37, mat: 'cinder' }, { x0: 98, y0: 26, x1: 129, y1: 55, mat: 'planks' }, { x0: 56, y0: 26, x1: 99, y1: 93, mat: 'plaster' }],
+    zones: [{ x0: 54, x1: 101, y0: 2, y1: 25, h: 3.8 }, { x0: 4, x1: 49, y0: 4, y1: 36, h: -3.6 }],
+    ramps: [{ x0: 76, x1: 85, y0: 24.6, y1: 41, axis: 'y', h0: 3.8, h1: 0 }, { x0: 36, x1: 45, y0: 35.6, y1: 52, axis: 'y', h0: -3.6, h1: 0 }],
+    tall: [{ x0: 75, x1: 76, y0: 25, y1: 41, h: 1.0 }, { x0: 85, x1: 86, y0: 25, y1: 41, h: 1.0 }, { x0: 35, x1: 36, y0: 36, y1: 52, h: 1.0 }, { x0: 45, x1: 46, y0: 36, y1: 52, h: 1.0 }],
+    cams: [[149.6, 75, -PI / 2, 0.5], [129, 60, PI / 2, 0.6], [99, 64, PI / 2, 0.5], [97.4, 50, -PI / 2, 0.6], [57, 80, PI / 2, 0.7]],
+    patrols: [[[166, 56], [166, 56]], [[134, 66], [144, 70]], [[145, 58], [145, 58]],
+      [[104, 34], [104, 34]], [[110, 46], [124, 46]], [[115, 63], [115, 63]], [[102, 58], [126, 58]], [[110, 82], [114, 70]],
+      [[64, 60], [92, 84]], [[66, 44], [92, 46]], [[60, 8], [60, 8]], [[60, 21], [96, 21]],
+      [[94, 8], [94, 8]], [[82, 6], [82, 6]], [[96, 13], [96, 13]], [[84, 14], [92, 14]],
+      [[34, 56], [52, 60]], [[52, 62], [34, 62]], [[12, 24], [12, 30]], [[32, 12], [44, 30]]],
+    dress(K) {
+      // the cellar: racks, gas tanks; the east wing's lamps and furniture
+      K.bulb(167, 88, { col: 0xd8c8a0, flicker: 1 }); K.drums(174, 94, 2); K.counter(162, 84, 0, 3);
+      for (const [i, j] of [[160, 76], [170, 60], [138, 66], [144, 44], [112, 40], [112, 60], [112, 80], [78, 34], [78, 60], [78, 84], [66, 10], [88, 10], [76, 21], [40, 58], [26, 20], [12, 10]]) K.bulb(i, j, { col: 0xffe2b0, flicker: Math.random() < 0.15 ? 1 : 0 });
+      K.counter(113, 40, 0, 12); K.sign('L. STARKWEATHER', 113, 26.6, 0, { w: 3, h: 1.6, y: 2.4, bg: '#3a2a1a', fg: '#d8c8a0', font: 'italic 48px Georgia, serif' });
+      K.counter(118, 88, 0, 6); K.counter(106, 76, 0, 3); K.vending(126, 70, -PI / 2, 0x2a2a2a);
+      // the grand hall: chandelier bulbs, the stairs; upstairs: the monitors, the Head of Security's desk
+      K.counter(62, 4, 0, 6); K.sign('SURVEILLANCE', 66, 17.4, PI, { w: 2.4, h: 0.45, y: 2.5, bg: '#202a30', fg: '#c8d8e8' }); K.counter(90, 6, 0, 4); K.sign('HEAD OF SECURITY', 89, 17.4, PI, { w: 2.8, h: 0.45, y: 2.5, bg: '#202a30', fg: '#c8d8e8' });
+      // the basement: the elevator motor
+      K.fusebox(8, 10, PI / 2); K.tank(14, 8, 0); K.sign('ELEVATOR MOTOR', 10, 4.6, 0, { w: 2.6, h: 0.45, y: 2.4, bg: '#3a2a1a', fg: '#e8c040' }); K.sign('ELEVATOR', 56.4, 72, PI / 2, { w: 1.8, h: 0.45, y: 2.8, bg: '#2a2620', fg: '#d8c8a0' });
+    },
+  },
 };
