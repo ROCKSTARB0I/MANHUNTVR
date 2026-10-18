@@ -123,3 +123,13 @@ Smileys 11-13, SWAT Press Coverage / Wrong Side of the Tracks / Trained to Kill,
   shop with the fire exit. Revolvers and tranquilliser rifles on the Wardogs; scoped sniping.
 - The wiki's radar for this scene has the same outline as Grounds for Assault (same zoo, "zoo2").
 - Outro (cutscene list): the Cerberus take Cash again; this time he goes quietly.
+
+## View of Innocence (video 163:47–~189:00) — the unfinished mall, the Innocentz with revolvers
+- Intro (cutscene list): the Innocentz roam; Ramirez sends them after Cash. Title card over a TV.
+- Three floors round an atrium with escalators: tiled floors with red/white medallions, planters full of
+  shrubs, roller shutters, graffiti, balconies with railings; a laundromat (the gun), a red pharmacy front,
+  the record store (tape behind the counter, top floor), the toy store with yellow walls and red polka dots
+  (the broken camera, second floor), the bar with a long counter and its TV, the basement power switch,
+  green-tiled toilets (an Innocent jumps out), the emergency exit stairs.
+- No radar map exists for this scene: src/handplans.js holds a hand-built split-level plan.
+- Ending (cutscene list): the tape shows Cash's family killed; Cash smashes the TV.
