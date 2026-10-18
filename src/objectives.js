@@ -3,10 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=37';
-import { HAND } from './handplans.js?v=37';
-import { makeHunterWeapon, Person } from './body.js?v=37';
-import { T } from './paint.js?v=37';
+import { PLANS } from './plans.js?v=38';
+import { HAND } from './handplans.js?v=38';
+import { makeHunterWeapon, Person } from './body.js?v=38';
+import { GANG_SETS } from './hunters.js?v=38';
+import { T } from './paint.js?v=38';
 
 const V = THREE.Vector3;
 
@@ -121,6 +122,9 @@ export class Objectives {
     const spot = this.spots[this.spots.length - 1]; Object.defineProperty(spot, 'label', { get: () => c.follow ? `E — tell the ${name} to wait here` : `E — tell the ${name} to follow you` });
     this.comp = c; return c;
   }
+  // dress a hunter as someone else (another gang's member, a named character): a fresh body, no torch
+  reskin(h, look) { if (!h) return; const G = this.G; G.scene.remove(h.body.root); h.torch = null; h.beam = null; const P = new Person(Object.assign({ hood: false, dirt: 1, stains: 0.5, seed: 200 + h.idx }, look)); h.body = P; G.scene.add(P.root); h.place(); return P; }
+  arm(h, kind) { if (!h) return; h.gun = true; h.dropOnDeath = kind === 'revolver' ? 'revolver' : 'rifle'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(kind); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); }
   noCrowbars() { const K = this.G.kit; for (const it of [...K.items]) if (it.kind === 'crowbar' && !it.hand) K.remove(it); }
   hasItem(kind) { const G = this.G; return G.hands.some((h) => h.item?.kind === kind) || Object.values(G.kit.inv || {}).some((it) => it?.kind === kind); }
   nearPlayer(p, r) { const P = this.G.player.pos; return Math.hypot(P.x - p.x, P.z - p.z) < r; }
@@ -174,6 +178,22 @@ const SCRIPTS = {
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
     };
+  },
+  // Trained to Kill. Hunters: 0-5 the stairs, parking and station cops, 6 SWAT on platform 1, 7-14 yard 1 (revolvers),
+  // 15-22 yard 2 (shotguns), 23-28 yard 3 (SWAT). The only way into yard 3 is over the blue train's roof.
+  'trained'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    for (const k of [6, 23, 24, 25, 26, 27, 28]) { const sw = GANG_SETS.swat.members[k % 3]; O.reskin(H[k], { ...sw, skin: [0.6, 0.44, 0.34], weapon: null }); O.arm(H[k], 'rifle'); }
+    H.forEach((h, k) => { if (k <= 5 || (k >= 7 && k <= 14)) O.arm(h, 'revolver'); else if (k >= 15 && k <= 22) O.arm(h, 'shotgun'); });
+    const yardGate = O.gateCol(111, 59, 65, () => 'chain'), endGate = O.gateCol(2, 19, 25, () => 'chain');
+    O.set('Make your way to the end of the Trainyard', 'dir_tk_intro');
+    O.spots.push({ at: O.cell(109, 62), r: 2.2, reach: 0.8, label: 'E — break the lock on the yard gate', live: () => !yardGate[0]?.open,
+      act: () => { for (const g of yardGate) g.unlock(); G.sound.bang?.(O.cell(111, 62)); G.noise?.(O.cell(111, 62), 12, 'player'); G.sound.say('dir_tk_yard'); } });
+    O.spots.push({ at: O.cell(4, 22), r: 2.4, reach: 0.8, label: 'E — pry the lock off the last gate', live: () => !endGate[0]?.open,
+      act: () => { for (const g of endGate) g.unlock(); G.sound.bang?.(O.cell(2, 22)); W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Go through the gate', 'dir_tk_gate'); } });
+    let said = false;
+    O.tick = () => { if (!said && O.inCells(92, 140, 19, 25) && G.player.pos.y > 2) { said = true; G.sound.say('dir_tk_roof'); } };
   },
   // Wrong Side of the Tracks. Hunters: 0-1 platform cops, 2 the hallway gunman, 3-5 Bravo team in the tunnels, 6-7 the
   // team down the stairs behind Cash, 8-12 SWAT in the control building, 13-15 waiting at the train, 16-26 Carcer Point.

@@ -451,4 +451,27 @@ export const SETS = {
       K.sign('EXIT', 28, 2.6, 0, { w: 1.4, h: 0.45, y: 2.8, bg: '#1a6a1a', fg: '#e8e8e8', lit: true });
     },
   },
+  // Trained to Kill: up out of the subway, the parking area, the station's two levels and basement, platform 1, the
+  // rusty gate, the three trainyards (revolvers, shotguns, SWAT), over the blue train's roof, the last gate.
+  'trained': {
+    start: [9, 104, PI], exit: [0, 22], noJunk: true, blockH: [3.2, 3.6], blockMat: 'metal',
+    look: { ground: 'gravel', wall: 'concreteWall', wallCol: 0x8a8a84, facadeTex: 'concreteWall', bldTex: 'metal', lineCol: { tiles: 0xc8c8b8, metal: 0x6a6e70 } }, inner: 'tiles', innerFloor: 'tfloor',
+    linings: [{ x0: 4, y0: 79, x1: 16, y1: 108, mat: 'cinder' }],
+    zones: [{ x0: 92, x1: 139, y0: 20, y1: 24, h: 3.2 }],
+    ramps: [{ x0: 139, x1: 152.9, y0: 20, y1: 24, axis: 'x', h0: 3.2, h1: 0 }, { x0: 78, x1: 91.99, y0: 20, y1: 24, axis: 'x', h0: 0, h1: 3.2 }],
+    tall: [{ x0: 146, x1: 164, y0: 47, y1: 50, h: 1.2 }, { x0: 91, x1: 94, y0: 46, y1: 81, h: 3.4 }, { x0: 10, x1: 28, y0: 58, y1: 65, h: 2.4 }],
+    patrols: [[[9, 76], [9, 76]], [[20, 66], [34, 54]], [[50, 50], [66, 58]], [[60, 49], [60, 49]], [[50, 75], [50, 75]], [[80, 50], [86, 52]], [[100, 60], [100, 74]],
+      [[120, 58], [160, 58]], [[130, 70], [190, 70]], [[200, 60], [200, 100]], [[140, 82], [180, 82]], [[120, 94], [170, 94]], [[180, 104], [130, 104]], [[150, 51], [150, 51]], [[158, 51], [158, 51]],
+      [[120, 14], [200, 14]], [[130, 26], [190, 26]], [[200, 6], [200, 42]], [[115, 35], [160, 35]], [[170, 43], [200, 43]], [[150, 4], [180, 4]], [[190, 20], [190, 34]], [[160, 18], [160, 18]],
+      [[20, 14], [80, 14]], [[30, 34], [100, 34]], [[60, 16], [100, 16]], [[60, 4], [100, 4]], [[6, 18], [6, 18]], [[6, 26], [6, 26]]],
+    dress(K) {
+      for (let j = 84; j < 106; j += 8) K.bulb(9, j, { col: 0xd8d8c8, flicker: Math.random() < 0.4 ? 1 : 0 });
+      K.lamp(20, 52, { h: 6, r: 14, col: 0xffd890 }); K.lamp(36, 76, { h: 6, r: 14, col: 0xffd890 });
+      for (const [i, j] of [[50, 55], [62, 55], [50, 72], [80, 70], [80, 50], [80, 60]]) K.bulb(i, j, { col: 0xe8f0e8, flicker: Math.random() < 0.3 ? 1 : 0 });
+      K.sign('CARCER POINT', 41.4, 53, -PI / 2, { w: 3.4, h: 0.6, y: 3.2, bg: '#1a3a6a', fg: '#e8e8e8', lit: true }); K.counter(60, 51, 0, 4); K.counter(50, 73, 0, 4);
+      K.vending(100, 79.4, PI); K.vending(104, 79.4, PI); K.lamp(100, 50, { h: 6, r: 14, col: 0xffd890 }); K.lamp(100, 70, { h: 6, r: 14, col: 0xffd890 });
+      for (const [i, j] of [[140, 56], [180, 56], [140, 90], [190, 90], [160, 70], [130, 20], [190, 30], [150, 40], [30, 20], [80, 30], [50, 40]]) K.lamp(i, j, { h: 9, r: 20, col: 0xe8e0c0 });
+      K.tank(154, 48, 0); K.sign('YARD 2', 154, 45.4, PI, { w: 1.6, h: 0.5, y: 3.6 }); K.sign('NO EXIT', 3.4, 22, PI / 2, { w: 1.6, h: 0.5, y: 3, bg: '#c8b020', fg: '#1a1a1a' });
+    },
+  },
 };
