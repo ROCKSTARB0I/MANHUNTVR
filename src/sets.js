@@ -198,4 +198,21 @@ export const SETS = {
       K.platform(50, 9.6, 0); K.lamp(40, 20, { h: 5, r: 12, col: 0xffd8a0 }); K.lamp(80, 12, { h: 5, r: 12, col: 0xffd8a0 });
     },
   },
+  // Strapped for Cash: the other half of the zoo, foggy, from the restaurant down to the aquarium. Cash's
+  // family are held as bait round the zoo; the shark's mouth opens once they're all saved or dead.
+  'strapped': {
+    start: [85, 10], exit: [7, 197], noJunk: true,
+    patrols: [[[46, 12], [50, 16]], [[40, 64], [38, 66]], [[52, 58], [50, 64]], [[17, 106], [17, 118]], [[75, 143], [72, 138]], [[26, 156], [24, 162]], [[60, 90], [29, 95]], [[30, 186], [30, 186]], [[50, 190], [50, 190]], [[40, 145], [80, 145]]],
+    dress(K) {
+      // the restaurant end where the last scene finished; the store room
+      K.restaurant(60, 6.5, 0, 18, 4.4); K.kiosk(70, 16, 0); K.vending(50, 20, PI); K.lamp(80, 12, { h: 5, r: 12, col: 0xffd8a0 }); K.lamp(40, 18, { h: 5, r: 12, col: 0xffd8a0 });
+      // the gorilla enclosure in the pens: rocks, old trees, a statue
+      K.rocks(60, 72, 2.6, 2.4); K.rocks(56, 78, 2.2, 2); K.tree(62, 64, 5); K.tree(50, 82, 4.5); K.statue(70, 100, -0.8);
+      K.lamp(50, 70, { h: 5, r: 12, col: 0xd8d8c0 }); K.lamp(30, 96, { h: 5, r: 12, col: 0xd8d8c0 });
+      // the court: the cafeteria, the monkey dome
+      K.cafe(85.6, 142, -PI / 2); K.dome(30, 166, 4); K.lamp(60, 140, { h: 5, r: 12, col: 0xd8d8c0 }); K.lamp(20, 152, { h: 5, r: 12, col: 0xd8d8c0 });
+      // behind the shark's mouth: the emptied pool, the souvenir shop and its fire exit
+      K.pool(30, 190, 8, 5); K.shop(58, 194, PI); K.lamp(44, 184, { h: 4, r: 10, col: 0xc8e0ff });
+    },
+  },
 };

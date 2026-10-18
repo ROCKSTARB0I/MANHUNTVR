@@ -3,9 +3,9 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=26';
-import { makeHunterWeapon } from './body.js?v=26';
-import { T } from './paint.js?v=26';
+import { PLANS } from './plans.js?v=27';
+import { makeHunterWeapon, Person } from './body.js?v=27';
+import { T } from './paint.js?v=27';
 
 const V = THREE.Vector3;
 
@@ -26,7 +26,11 @@ export class Objectives {
     const W = this.G.world, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, alongX = x1 - x0 > z1 - z0, len = Math.max(x1 - x0, z1 - z0), y = W.heightAt(cx, cz);
     const g = new THREE.Group(); g.position.set(cx, y, cz); if (!alongX) g.rotation.y = Math.PI / 2;
     const metal = W.mat('ogate', { color: 0x4a4640, metalness: 0.7, roughness: 0.55 });
-    if (kind === 'scrap') {
+    if (kind === 'facade') { // the aquarium's front wall: blue paint and white waves
+      if (!this.waveTex) { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#1e3a6a'; x.fillRect(0, 0, 256, 128); x.strokeStyle = '#c8d8e8'; x.lineWidth = 6; for (let r = 0; r < 3; r++) { x.beginPath(); for (let k = 0; k <= 256; k += 4) x.lineTo(k, 30 + r * 34 + Math.sin(k / 256 * Math.PI * 4) * 8); x.stroke(); } this.waveTex = new THREE.CanvasTexture(c); this.waveTex.colorSpace = THREE.SRGBColorSpace; this.waveTex.wrapS = THREE.RepeatWrapping; }
+      const t = this.waveTex.clone(); t.needsUpdate = true; t.repeat.set(len / 4, 1);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(len, 4.2, 0.5), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); b.position.y = 2.1; b.castShadow = true; g.add(b);
+    } else if (kind === 'scrap') {
       const m = W.mats.pscrap || W.mat('oscrap', { color: 0x4a4038, roughness: 0.8 });
       const b = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 3.4, 1.2), m); b.position.y = 1.7; b.castShadow = true; g.add(b);
     } else {
@@ -43,7 +47,7 @@ export class Objectives {
       g.userData.panel = panel;
     }
     this.mesh(g);
-    const b = this.box({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0: 0, y1: 3.4, see: kind !== 'scrap' });
+    const b = this.box({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y0: 0, y1: 3.4, see: kind !== 'scrap' && kind !== 'facade' });
     const gt = { g, b, kind, open: false, swing: 0, at: new V(cx, y, cz), len };
     gt.unlock = () => { if (gt.open) return; gt.open = true; this.unbox(b); if (kind === 'scrap') { g.visible = false; this.G.sound.thud?.(gt.at, 1.5); } else this.G.sound.rattle?.(gt.at); };
     this.gates = this.gates || []; this.gates.push(gt);
@@ -71,6 +75,14 @@ export class Objectives {
     if (!h || !h.dormant) return; h.dormant = false; h.body.root.visible = true; if (at) { h.pos.copy(at); h.place(); }
     const P = this.G.player.pos.clone(); h.investigate?.(P); if (charge) { h.susp = 1.4; h.last?.copy(P); } h.say?.('spot');
   }
+  // a member of Cash's family, kneeling with hands tied behind, head down
+  captive(at, look) {
+    const G = this.G, P = new Person(Object.assign({ mask: null, weapon: null, hood: false, dirt: 0.6, stains: 0.4, seed: 70 + this.parts.length, skin: [0.48, 0.32, 0.23], bulk: 0.95 }, look));
+    P.root.position.set(at.x, G.world.heightAt(at.x, at.z), at.z); P.root.rotation.y = Math.random() * 6.28;
+    P.pose = (rot, b, dt, t, B) => { b[B.hips].position.y -= 0.5; rot('thighL', -0.1, 0, 0.08); rot('thighR', -0.1, 0, -0.08); rot('shinL', 1.75); rot('shinR', 1.75); rot('footL', -0.5); rot('footR', -0.5);
+      rot('spine', 0.25); rot('neck', 0.45 + Math.sin(t * 2.3) * 0.08, Math.sin(t * 1.1) * 0.25); rot('armL', 0.55, 0, 0.3); rot('armR', 0.55, 0, -0.3); rot('foreL', -1.3, 0.4); rot('foreR', -1.3, -0.4); };
+    P.animate(0.016, 0); this.mesh(P.root); this.captives = this.captives || []; const c = { P, at: at.clone(), alive: true, saved: false }; this.captives.push(c); return c;
+  }
   noCrowbars() { const K = this.G.kit; for (const it of [...K.items]) if (it.kind === 'crowbar' && !it.hand) K.remove(it); }
   hasItem(kind) { const G = this.G; return G.hands.some((h) => h.item?.kind === kind) || Object.values(G.kit.inv || {}).some((it) => it?.kind === kind); }
   nearPlayer(p, r) { const P = this.G.player.pos; return Math.hypot(P.x - p.x, P.z - p.z) < r; }
@@ -81,6 +93,7 @@ export class Objectives {
     for (const gt of this.gates || []) if (gt.open && gt.g.userData.panel && gt.swing < 1.5) { gt.swing = Math.min(1.5, gt.swing + dt * 1.4); gt.g.userData.panel.rotation.y = gt.swing; }
     // VR: squeeze grip with a hand on the spot (the knife does the cutting by touch)
     for (const h of this.G.hands) { if (h.desktop) continue; const g = h.grip > 0.6, was = h.gripPrev > 0.6; if (g && !was) for (const s of this.spots) if (s.live() && h.pos.distanceTo(s.at3 || s.at) < (s.reach || 0.6)) { s.act(); break; } }
+    for (const c of this.captives || []) c.P.animate(dt, this.G.time);
     this.tick?.(dt);
   }
   dispose() {
@@ -92,6 +105,43 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Strapped for Cash. The Wardogs hold Cash's family as bait, four of them, each under guard: if a guard
+  // spots Cash near one, that one dies. Save at least one; then the shark's mouth opens; the switch in the
+  // souvenir shop opens the fire exit. Hunters: 0 guards the store room, 1-2 the pens captive, 3 the tunnels,
+  // 4 the cafeteria captive, 5 the monkey dome captive, 6 and 9 patrol, 7-8 wait behind the shark's mouth.
+  'strapped'(O, G) {
+    const H = G.hunters, W = G.world;
+    O.lockExit = true;
+    const front = []; for (const [a, b] of O.runs(176, 0, 92)) { // the aquarium front across the bottom yard, the shark's mouth in it
+      const mid = Math.round((a + b) / 2); front.push(O.gate(O.X(a), O.X(mid - 2), O.Z(176.2), O.Z(176.8), 'facade'), O.gate(O.X(mid + 2), O.X(b + 1), O.Z(176.2), O.Z(176.8), 'facade')); front.push(O.mouth = O.gate(O.X(mid - 2), O.X(mid + 2), O.Z(176.2), O.Z(176.8), 'chain')); }
+    for (const k of [7, 8]) O.hold(H[k]);
+    const looks = [{ top: [0.5, 0.12, 0.1], legs: [0.25, 0.28, 0.4] }, { top: [0.6, 0.55, 0.4], legs: [0.18, 0.18, 0.2], skin: [0.42, 0.28, 0.2] }, { top: [0.12, 0.25, 0.4], legs: [0.3, 0.32, 0.4] }, { top: [0.62, 0.6, 0.58], legs: [0.35, 0.3, 0.22], skin: [0.52, 0.36, 0.26] }];
+    const fam = [[40, 8, [0]], [44, 62, [1, 2]], [70, 140, [4]], [20, 160, [5]]].map(([i, j, guards], k) => Object.assign(O.captive(O.cell(i, j), looks[k]), { guards }));
+    for (const k of [0, 4, 5]) if (H[k]) { H[k].gun = true; H[k].dropOnDeath = 'rifle'; const b = H[k].body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon('rifle'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); }
+    let saved = 0, lost = 0, open = false, done = false;
+    const status = () => O.set(open ? (done ? 'Get out through the fire exit' : 'Find the switch to open the exit door') : `Save at least one of the four family members (${saved} saved, ${lost} dead)`);
+    O.set('Save at least one of the four family members', 'dir_sc_intro');
+    const execute = (c) => {
+      c.alive = false; lost++; const p = c.P.root.position.clone().add(new V(0, 1, 0));
+      G.sound.bang?.(p); G.sound.painScream?.(p); G.blood?.spray?.(p, new V(0, 0.3, 1), 20, 1); G.blood?.pool?.(c.at.clone(), 1.2);
+      c.P.pose = null; c.P.die(new V(Math.random() - 0.5, 0, Math.random() - 0.5), null, W);
+      G.sound.say(lost === 4 ? 'dir_sc_fail' : 'dir_sc_dead'); status();
+      if (lost === 4) setTimeout(() => G.player.hurt?.(999, null), 5000);
+    };
+    O.spots.push({ at: new V(), r: 0, live: () => false, act: () => {} });
+    O.spots.push({ at: O.cell(58, 193.5), at3: new V(O.X(59.5), 1.3, O.Z(192.8)), r: 2.6, reach: 0.7, label: 'E — open the fire exit', live: () => open && !done,
+      act: () => { done = true; G.sound.buzz?.(O.cell(58, 193)); W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_sc_switch'); status(); } });
+    O.tick = () => {
+      for (const c of fam) {
+        if (!c.alive || c.saved) continue;
+        const near = G.player.pos.distanceTo(c.at) < 16;
+        if (near && c.guards.some((k) => H[k]?.alive && H[k].aware?.())) { execute(c); continue; }
+        if (c.guards.every((k) => !H[k] || !H[k].alive)) { c.saved = true; saved++; G.sound.say('dir_sc_saved'); status(); }
+      }
+      if (!open && fam.every((c) => c.saved || !c.alive) && saved > 0) { open = true; O.mouth?.unlock(); for (const k of [7, 8]) O.wake(H[k], O.cell(k === 7 ? 30 : 50, k === 7 ? 186 : 190), false); G.sound.say('dir_sc_shark'); status(); }
+      if (!O.cafeSaid && G.player.pos.distanceTo(O.cell(70, 140)) < 22) { O.cafeSaid = 1; G.sound.say('dir_sc_cafe'); }
+    };
+  },
   // Grounds for Assault. Hunters: 0-1 the entrance (machetes), 2-3 the pens, 4 the cave guard,
   // 5 the sniper (appears on his platform once the padlock is broken), 6-7 the restaurant.
   'grounds'(O, G) {

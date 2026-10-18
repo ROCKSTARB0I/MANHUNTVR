@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=26';
+import { T } from './paint.js?v=27';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -147,6 +147,24 @@ export function makeKit(D, { X, Z, Hc, m }) {
       for (let k = 0; k < 5; k++) { const w = new THREE.Mesh(box(1.4, 1, 0.05), mat('restW', { color: 0x5a7a4a, emissive: 0x2a3a1a, emissiveIntensity: 0.5 })); w.position.set(-L / 2 + 2 + k * (L - 4) / 4, 1.9, D / 2 + 0.03); g.add(w); }
       const d = new THREE.Mesh(box(1.2, 2.2, 0.06), mat('restD', { color: 0x7a1c14, roughness: 0.6 })); d.position.set(L / 2 - 1.2, 1.1, D / 2 + 0.04); g.add(d);
       return place(g, i, j, ry, L, D, 4.5); },
+    // Strapped for Cash
+    dome: (i, j, r = 4) => { const g = new THREE.Group(); const geo = new THREE.IcosahedronGeometry(r, 1);
+      const frame = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x9a9a92 })); const glass = new THREE.Mesh(geo, mat('domeGlass', { color: 0x7a8a8a, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+      for (const o of [frame, glass]) { o.position.y = 0; g.add(o); } const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.05, 0.5, 20), mat('domeBase', { map: T.concrete.map, color: 0x8a867a })); base.position.y = 0.25; g.add(base);
+      g.userData.cut = true; return place(g, i, j, 0, r * 1.6, r * 1.6, r); },
+    pool: (i, j, w = 8, d = 5) => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat('poolT', { map: T.walltile.map, color: 0x6a90a8, roughness: 0.3 })); t.rotation.x = -Math.PI / 2; t.position.y = 0.02; g.add(t);
+      for (const [x, z, ww, dd] of [[0, d / 2, w, 0.3], [0, -d / 2, w, 0.3], [w / 2, 0, 0.3, d], [-w / 2, 0, 0.3, d]]) { const r = new THREE.Mesh(box(ww, 0.12, dd), mat('poolR', { color: 0xd8d4c8, roughness: 0.6 })); r.position.set(x, 0.06, z); g.add(r); }
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.4, d * 0.3), mat('poolScum', { color: 0x2a3a1a, transparent: true, opacity: 0.6 })); s.rotation.x = -Math.PI / 2; s.position.set(w * 0.15, 0.03, 0.4); g.add(s);
+      return place(g, i, j, 0); },
+    shop: (i, j, ry) => { const g = new THREE.Group(), sh = mat('shelf', { color: 0x6a5a48, roughness: 0.8 });
+      for (const x of [-1.6, 0, 1.6]) { const s2 = new THREE.Mesh(box(1.2, 1.6, 0.4), sh); s2.position.set(x, 0.8, -1); g.add(s2); for (let k = 0; k < 6; k++) { const toy = new THREE.Mesh(box(0.15, 0.2, 0.12), mat('toy' + (k % 3), { color: [0x3a7ab0, 0xc8a020, 0xb03a3a][k % 3], roughness: 0.6 })); toy.position.set(x - 0.45 + (k % 3) * 0.45, 0.6 + Math.floor(k / 3) * 0.6, -0.9); g.add(toy); } }
+      const counter = new THREE.Mesh(box(2.4, 1, 0.7), sh); counter.position.set(0, 0.5, 1); g.add(counter);
+      const sw = new THREE.Mesh(box(0.35, 0.45, 0.1), mat('exitSw', { color: 0x1a8a20, emissive: 0x106a14, emissiveIntensity: 0.8 })); sw.position.set(2.4, 1.3, -1.2); g.add(sw);
+      return place(g, i, j, ry, 4.4, 3, 1.6); },
+    cafe: (i, j, ry) => { const g = new THREE.Group(), c = mat('cafeW', { color: 0xb87a78, roughness: 0.9 }); const b = new THREE.Mesh(box(7, 3, 0.4), c); b.position.y = 1.5; g.add(b);
+      const win = new THREE.Mesh(box(3, 1.2, 0.05), mat('cafeWin', { color: 0xd8c890, emissive: 0x8a7a40, emissiveIntensity: 0.6 })); win.position.set(-1.2, 1.6, 0.23); g.add(win);
+      const door = new THREE.Mesh(box(1.1, 2.2, 0.06), mat('cafeD', { color: 0x3a2a20 })); door.position.set(2.2, 1.1, 0.23); g.add(door);
+      return place(g, i, j, ry, 7, 0.4, 3); },
     kiosk: (i, j, ry) => { const g = new THREE.Group(), c = mat('kiosk', { map: T.concrete.map, color: 0xb0a890, roughness: 0.9 }); const b = new THREE.Mesh(box(3, 2.4, 2.4), c); b.position.y = 1.2; g.add(b);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1, 4), mat('kioskR', { color: 0x8a2a1c, roughness: 0.8 })); roof.position.y = 2.9; roof.rotation.y = Math.PI / 4; g.add(roof);
       const w = new THREE.Mesh(box(1.8, 0.7, 0.05), mat('kioskW', { color: 0x2a2a20, roughness: 0.5 })); w.position.set(0, 1.5, 1.22); g.add(w); return place(g, i, j, ry, 3, 2.4, 3); },

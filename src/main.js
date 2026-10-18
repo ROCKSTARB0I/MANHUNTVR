@@ -1,20 +1,20 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=26';
-import { District, SCENES } from './district.js?v=26';
-import { spawnHunters } from './hunters.js?v=26';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=26';
-import { Blood } from './blood.js?v=26';
-import { Objectives } from './objectives.js?v=26';
-import { Director } from './director.js?v=26';
-import { Sound } from './sound.js?v=26';
-import { makeHand, Person, BONE } from './body.js?v=26';
-import { VHS } from './vhs.js?v=26';
-import { Grime } from './grime.js?v=26';
-import { Cutscene } from './cutscene.js?v=26';
-import { Arms } from './arms.js?v=26';
-import { Finisher } from './finisher.js?v=26';
+import { paintAll, T } from './paint.js?v=27';
+import { District, SCENES } from './district.js?v=27';
+import { spawnHunters } from './hunters.js?v=27';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=27';
+import { Blood } from './blood.js?v=27';
+import { Objectives } from './objectives.js?v=27';
+import { Director } from './director.js?v=27';
+import { Sound } from './sound.js?v=27';
+import { makeHand, Person, BONE } from './body.js?v=27';
+import { VHS } from './vhs.js?v=27';
+import { Grime } from './grime.js?v=27';
+import { Cutscene } from './cutscene.js?v=27';
+import { Arms } from './arms.js?v=27';
+import { Finisher } from './finisher.js?v=27';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
