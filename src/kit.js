@@ -3,7 +3,7 @@
 // moving fast enough through a body part; the bag goes over a head when your
 // hand reaches it from behind, and only works while you keep hold and pull.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=27';
+import { T } from './paint.js?v=29';
 
 const V = THREE.Vector3;
 const _a = new V(), _b = new V(), _p = new V(), _g = new V();
@@ -20,8 +20,8 @@ export const LEVELS = [
 const CHARGE = [1.0, 2.2];                       // seconds to reach green, red
 const NEED = { shard: [1, 3, 5], crowbar: [1, 2, 4], brick: [1, 3, 4], bottle: [1, 2, 3], bag: [2.0, 3.5, 5.5] };
 // Manhunt-style inventory: one of each kind carried at once
-export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', rifle: 'gun', nailgun: 'gun' };
-export const isGun = (k) => k === 'rifle' || k === 'nailgun';
+export const SLOT = { bottle: 'lure', brick: 'lure', bag: 'single', shard: 'single', knife: 'single', crowbar: 'melee', machete: 'melee', rifle: 'gun', nailgun: 'gun', revolver: 'gun' };
+export const isGun = (k) => k === 'rifle' || k === 'nailgun' || k === 'revolver';
 const stabby = (k) => k === 'shard' || k === 'knife';
 export const SLOTS = ['melee', 'single', 'lure', 'gun'];
 export function levelOf(t) { return t >= CHARGE[1] ? 2 : t >= CHARGE[0] ? 1 : 0; }
@@ -36,6 +36,7 @@ const DEF = {
   rifle: { tip: [0, 0.03, -0.62], speed: 3.0, rest: 0.04, throwable: true },
   knife: { tip: [0, 0, -0.24], speed: 1.4, rest: 0.015, throwable: true },
   machete: { tip: [0, 0, -0.55], speed: 2.4, rest: 0.02, throwable: true },
+  revolver: { tip: [0, 0.03, -0.22], speed: 3, rest: 0.03, throwable: true },
   nailgun: { tip: [0, 0.04, -0.3], speed: 3.0, rest: 0.05, throwable: true },
 };
 
@@ -81,6 +82,12 @@ function makeMesh(kind) {
     g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.2, metalness: 0.95 })));
     const grip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.11), new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.7 })); grip.position.z = 0.04; g.add(grip);
     const guard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.01), new THREE.MeshStandardMaterial({ color: 0x6a6a66, metalness: 0.9 })); guard.position.z = -0.015; g.add(guard);
+  } else if (kind === 'revolver') { // a six-shooter: barrel forward along -Z, wooden grip
+    const st = new THREE.MeshStandardMaterial({ color: 0x2a2a2c, metalness: 0.85, roughness: 0.35 });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.17, 10), st); bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.04, -0.13); g.add(bar);
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.05, 12), st); cyl.rotation.x = Math.PI / 2; cyl.position.set(0, 0.03, -0.03); g.add(cyl);
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.09), st); fr.position.set(0, 0.035, -0.02); g.add(fr);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.09, 0.035), new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.6 })); grip.position.set(0, -0.02, 0.03); grip.rotation.x = 0.35; g.add(grip);
   } else if (kind === 'machete') { // a long, slightly curved blade, black grip
     const bl = new THREE.Shape(); bl.moveTo(-0.02, 0); bl.lineTo(0.022, 0); bl.quadraticCurveTo(0.04, 0.3, 0.03, 0.46); bl.lineTo(-0.005, 0.5); bl.quadraticCurveTo(-0.02, 0.25, -0.02, 0); bl.closePath();
     const geo = new THREE.ExtrudeGeometry(bl, { depth: 0.003, bevelEnabled: false }); geo.translate(0, 0.03, -0.0015); geo.rotateX(-Math.PI / 2);
@@ -109,7 +116,7 @@ class Item {
     this.floor = Math.max(0, pos.y - this.def.rest) || pos.y - this.def.rest; this.mesh.position.copy(pos); this.restPose(); // floor height under it
     this.glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, color: 0xfff0d0, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.glint.scale.setScalar(0.16);
-    this.tipPrev = new V(); this.tipVel = new V(); this.hitCool = 0; this.ammo = kind === 'rifle' ? 12 + Math.floor(Math.random() * 8) : kind === 'nailgun' ? 10 + Math.floor(Math.random() * 6) : 0;
+    this.tipPrev = new V(); this.tipVel = new V(); this.hitCool = 0; this.ammo = kind === 'rifle' ? 12 + Math.floor(Math.random() * 8) : kind === 'nailgun' ? 10 + Math.floor(Math.random() * 6) : kind === 'revolver' ? 6 + Math.floor(Math.random() * 6) : 0;
   }
   restPose() { this.mesh.rotation.set(this.kind === 'bag' || this.kind === 'pills' ? 0 : -Math.PI / 2 + 0.05, Math.random() * 6.28, 0, 'YXZ'); if (this.kind === 'bag') this.mesh.scale.set(1, 0.4, 1); this.mesh.position.y = this.def.rest + (this.floor || 0); }
   tip(out) { return this.mesh.localToWorld(out.set(...this.def.tip)); }

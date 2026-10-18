@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=27';
+import { T } from './paint.js?v=29';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -165,6 +165,18 @@ export function makeKit(D, { X, Z, Hc, m }) {
       const win = new THREE.Mesh(box(3, 1.2, 0.05), mat('cafeWin', { color: 0xd8c890, emissive: 0x8a7a40, emissiveIntensity: 0.6 })); win.position.set(-1.2, 1.6, 0.23); g.add(win);
       const door = new THREE.Mesh(box(1.1, 2.2, 0.06), mat('cafeD', { color: 0x3a2a20 })); door.position.set(2.2, 1.1, 0.23); g.add(door);
       return place(g, i, j, ry, 7, 0.4, 3); },
+    // View of Innocence: the mall
+    washers: (i, j, ry, n = 4) => { const g = new THREE.Group(), w = mat('washer', { color: 0xd8d4c8, roughness: 0.4, metalness: 0.2 }), dk = mat('washerD', { color: 0x1a1c1e, roughness: 0.1, metalness: 0.6 });
+      for (let k = 0; k < n; k++) { const b = new THREE.Mesh(box(0.7, 0.9, 0.7), w); b.position.set(k * 0.75 - (n - 1) * 0.375, 0.45, 0); g.add(b); const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), dk); d.position.set(k * 0.75 - (n - 1) * 0.375, 0.5, 0.36); g.add(d); }
+      return place(g, i, j, ry, n * 0.75, 0.7, 0.9); },
+    planter: (i, j, l = 3) => { const g = new THREE.Group(); const b = new THREE.Mesh(box(l, 0.6, 1.1), mat('planter', { map: T.walltile.map, color: 0x8a7a6a, roughness: 0.7 })); b.position.y = 0.3; g.add(b);
+      for (let k = 0; k < l * 2; k++) { const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35 + Math.random() * 0.2, 0), mat('bush', { color: 0x2a4a22, roughness: 1 })); bush.position.set(-l / 2 + 0.3 + k * 0.48, 0.8, (Math.random() - 0.5) * 0.4); g.add(bush); }
+      return place(g, i, j, 0, l, 1.1, 0.9); },
+    counter: (i, j, ry, l = 6) => { const g = new THREE.Group(); const b = new THREE.Mesh(box(l, 1.05, 0.7), mat('bar', { map: T.wood.map, color: 0x6a3a22, roughness: 0.5 })); b.position.y = 0.52; g.add(b); const top = new THREE.Mesh(box(l + 0.1, 0.06, 0.8), mat('barTop', { color: 0x2a1a12, roughness: 0.3 })); top.position.y = 1.08; g.add(top);
+      return place(g, i, j, ry, l, 0.7, 1.1); },
+    medallion: (i, j, r = 1.6) => { if (!K._med) { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.translate(128, 128); for (let k = 0; k < 8; k++) { x.rotate(Math.PI / 4); x.fillStyle = k % 2 ? '#8a1c18' : '#d8d0c0'; x.beginPath(); x.moveTo(0, 0); x.lineTo(30, 100); x.lineTo(0, 124); x.lineTo(-30, 100); x.closePath(); x.fill(); } x.fillStyle = '#2a2a2a'; x.beginPath(); x.arc(0, 0, 18, 0, 7); x.fill(); K._med = new THREE.CanvasTexture(c); K._med.colorSpace = THREE.SRGBColorSpace; }
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), new THREE.MeshStandardMaterial({ map: K._med, transparent: true, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2 })); d.rotation.x = -Math.PI / 2; d.position.set(wx(i), fy(i, j) + 0.02, wz(j)); D.root.add(d); },
+    shopfront: (i, j, ry, name, col = '#d8c890', bg = '#202020') => { K.sign(name, i, j, ry, { w: 3.4, h: 0.7, y: 3.0 + fy(i, j) * 0, bg, fg: col, font: 'bold 64px Arial', lit: true }); },
     kiosk: (i, j, ry) => { const g = new THREE.Group(), c = mat('kiosk', { map: T.concrete.map, color: 0xb0a890, roughness: 0.9 }); const b = new THREE.Mesh(box(3, 2.4, 2.4), c); b.position.y = 1.2; g.add(b);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1, 4), mat('kioskR', { color: 0x8a2a1c, roughness: 0.8 })); roof.position.y = 2.9; roof.rotation.y = Math.PI / 4; g.add(roof);
       const w = new THREE.Mesh(box(1.8, 0.7, 0.05), mat('kioskW', { color: 0x2a2a20, roughness: 0.5 })); w.position.set(0, 1.5, 1.22); g.add(w); return place(g, i, j, ry, 3, 2.4, 3); },

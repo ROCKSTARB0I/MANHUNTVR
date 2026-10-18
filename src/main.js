@@ -1,20 +1,20 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=27';
-import { District, SCENES } from './district.js?v=27';
-import { spawnHunters } from './hunters.js?v=27';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=27';
-import { Blood } from './blood.js?v=27';
-import { Objectives } from './objectives.js?v=27';
-import { Director } from './director.js?v=27';
-import { Sound } from './sound.js?v=27';
-import { makeHand, Person, BONE } from './body.js?v=27';
-import { VHS } from './vhs.js?v=27';
-import { Grime } from './grime.js?v=27';
-import { Cutscene } from './cutscene.js?v=27';
-import { Arms } from './arms.js?v=27';
-import { Finisher } from './finisher.js?v=27';
+import { paintAll, T } from './paint.js?v=29';
+import { District, SCENES } from './district.js?v=29';
+import { spawnHunters } from './hunters.js?v=29';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=29';
+import { Blood } from './blood.js?v=29';
+import { Objectives } from './objectives.js?v=29';
+import { Director } from './director.js?v=29';
+import { Sound } from './sound.js?v=29';
+import { makeHand, Person, BONE } from './body.js?v=29';
+import { VHS } from './vhs.js?v=29';
+import { Grime } from './grime.js?v=29';
+import { Cutscene } from './cutscene.js?v=29';
+import { Arms } from './arms.js?v=29';
+import { Finisher } from './finisher.js?v=29';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -186,13 +186,14 @@ const hud = (() => {
 })();
 sound.subs = (L, on) => hud.sub(L, on); G.hud = hud; cut.sound = sound;
 // ------------------------------------------------------------- weapon icon
-const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', knife: 'KNIFE', machete: 'MACHETE', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE', nailgun: 'NAIL GUN' };
+const WNAMES = { bag: 'PLASTIC BAG', shard: 'GLASS SHARD', knife: 'KNIFE', machete: 'MACHETE', crowbar: 'CROWBAR', bottle: 'BOTTLE', brick: 'BRICK', rifle: 'RIFLE', nailgun: 'NAIL GUN', revolver: 'REVOLVER' };
 function drawWeapon(g, kind, x = 0, y = 0, s = 1) {
   g.save(); g.translate(x, y); g.scale(s, s); g.lineCap = 'round'; g.lineJoin = 'round';
   if (kind === 'crowbar') { g.strokeStyle = '#8a1c14'; g.lineWidth = 9; g.beginPath(); g.moveTo(18, 82); g.lineTo(70, 22); g.quadraticCurveTo(80, 10, 88, 22); g.stroke(); g.strokeStyle = '#333'; g.lineWidth = 5; g.beginPath(); g.moveTo(12, 88); g.lineTo(22, 78); g.stroke(); }
   else if (kind === 'shard') { g.fillStyle = 'rgba(190,220,210,0.9)'; g.beginPath(); g.moveTo(30, 86); g.lineTo(44, 82); g.lineTo(70, 12); g.lineTo(52, 40); g.closePath(); g.fill(); g.fillStyle = '#5a4a3a'; g.fillRect(26, 78, 20, 14); }
   else if (kind === 'bag') { g.fillStyle = '#e4e2da'; g.beginPath(); g.moveTo(24, 36); g.quadraticCurveTo(14, 86, 48, 88); g.quadraticCurveTo(82, 86, 72, 36); g.closePath(); g.fill(); g.strokeStyle = '#e4e2da'; g.lineWidth = 5; g.beginPath(); g.arc(36, 32, 10, Math.PI, 0); g.arc(60, 32, 10, Math.PI, 0); g.stroke(); }
   else if (kind === 'bottle') { g.fillStyle = '#2f6a2c'; g.beginPath(); g.moveTo(42, 10); g.lineTo(54, 10); g.lineTo(54, 30); g.quadraticCurveTo(68, 38, 68, 52); g.lineTo(68, 88); g.lineTo(28, 88); g.lineTo(28, 52); g.quadraticCurveTo(28, 38, 42, 30); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(34, 50, 5, 30); }
+  else if (kind === 'revolver') { g.fillStyle = '#2a2a2c'; g.fillRect(30, 34, 52, 10); g.fillRect(34, 30, 22, 18); g.fillStyle = '#5a3a20'; g.save(); g.translate(36, 56); g.rotate(0.35); g.fillRect(-7, -4, 14, 30); g.restore(); }
   else if (kind === 'machete') { g.fillStyle = '#a8acb0'; g.beginPath(); g.moveTo(26, 74); g.lineTo(36, 80); g.quadraticCurveTo(80, 40, 90, 8); g.lineTo(80, 12); g.quadraticCurveTo(60, 44, 26, 74); g.fill(); g.fillStyle = '#1a1612'; g.save(); g.translate(22, 82); g.rotate(-0.8); g.fillRect(-14, -5, 26, 10); g.restore(); }
   else if (kind === 'knife') { g.fillStyle = '#c8ccd0'; g.beginPath(); g.moveTo(30, 70); g.lineTo(42, 76); g.lineTo(80, 18); g.lineTo(72, 16); g.closePath(); g.fill(); g.fillStyle = '#1a1612'; g.save(); g.translate(26, 80); g.rotate(-0.95); g.fillRect(-14, -5, 26, 10); g.restore(); }
   else if (kind === 'nailgun') { g.fillStyle = '#c8a018'; g.fillRect(22, 30, 46, 26); g.fillStyle = '#1a1a1a'; g.fillRect(68, 38, 20, 10); g.fillRect(34, 56, 12, 24); g.fillRect(24, 56, 44, 5); }
@@ -215,10 +216,10 @@ function drawStance() {
 }
 function updateWeapon() {
   const it = G.hands[0]?.item || G.hands[1]?.item, kind = it ? it.kind : null;
-  $('weapon').className = !kind ? '' : kind === 'crowbar' || kind === 'shard' || kind === 'knife' || kind === 'machete' ? 'red' : kind === 'bottle' || kind === 'brick' || kind === 'rifle' || kind === 'nailgun' ? 'blue' : ''; // the pill takes the item's colour, as in the game
-  const key = (kind === 'rifle' || kind === 'nailgun' ? kind + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
+  $('weapon').className = !kind ? '' : kind === 'crowbar' || kind === 'shard' || kind === 'knife' || kind === 'machete' ? 'red' : kind === 'bottle' || kind === 'brick' || kind === 'rifle' || kind === 'nailgun' || kind === 'revolver' ? 'blue' : ''; // the pill takes the item's colour, as in the game
+  const key = (kind === 'rifle' || kind === 'nailgun' || kind === 'revolver' ? kind + it.ammo : kind) + '|' + SLOTS.map((s) => G.kit.inv[s]?.kind || '').join(','); if (key === shownWeapon) return; shownWeapon = key;
   const g = $('wIcon').getContext('2d'); g.clearRect(0, 0, 96, 96); drawWeapon(g, kind);
-  $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' || kind === 'nailgun' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
+  $('wName').textContent = kind ? WNAMES[kind] + (kind === 'rifle' || kind === 'nailgun' || kind === 'revolver' ? ` · ${it.ammo}` : '') : 'BARE HANDS';
   $('wList').innerHTML = SLOTS.map((s, i) => { const c = G.kit.inv[s]; return `<span class="${c && c === it ? 'on' : ''}">${i + 1} ${c ? WNAMES[c.kind] : '—'}</span>`; }).join('');
 }
 function who(L) { return L.who === 'DIRECTOR' ? 'THE DIRECTOR' : L.who === 'CASH' ? 'CASH' : L.who === 'NEWS' ? 'CHANNEL 6' : 'HOOD'; }
@@ -751,7 +752,7 @@ function loadGame() {
   if (d.dir.gate) { G.director.gate = true; world.openGate(); }
   d.hunters.forEach((s, i) => { const h = G.hunters[i]; if (!h) return; h.pos.set(s.x, 0, s.z); h.yaw = s.yaw; h.wp = s.wp; h.place(); if (!s.alive) { h.alive = false; h.state = 'dead'; if (h.torch) { h.torch.intensity = 0; h.beam.visible = false; } if (h.body.weapon) h.body.weapon.parent?.remove(h.body.weapon); h.body.die(new V(), null, world); G.blood.pool(h.pos.clone(), 1.2); } });
   G.kit.clear(); d.items.forEach((it) => G.kit.spawn(it.kind, new V(it.x, it.y, it.z)));
-  if (d.inv) { const R = G.hands[0]; d.inv.forEach((k) => { if (k) { const it = G.kit.spawn(k, P.head.clone()); if (k === 'rifle' || k === 'nailgun') it.ammo = d.invAmmo; G.kit.grab(R, it); } }); const first = d.held && d.held[0]; if (first) G.kit.equip(R, SLOT[first]); }
+  if (d.inv) { const R = G.hands[0]; d.inv.forEach((k) => { if (k) { const it = G.kit.spawn(k, P.head.clone()); if (k === 'rifle' || k === 'nailgun' || k === 'revolver') it.ammo = d.invAmmo; G.kit.grab(R, it); } }); const first = d.held && d.held[0]; if (first) G.kit.equip(R, SLOT[first]); }
   else d.held.forEach((k, i) => { if (k && G.hands[i]) G.kit.grab(G.hands[i], G.kit.spawn(k, P.head.clone())); });
   d.cams.forEach((alive, i) => { const c = G.director.cams[i]; if (c && !alive) { c.alive = false; c.led.visible = false; c.head.rotation.x = 1.2; c.head.rotation.z = 0.6; } });
   G.state = 'play'; return true;

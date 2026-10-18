@@ -572,6 +572,93 @@ function makeScrap(n) {
   return { map: tex(c), bump: bumpFrom(c, n) };
 }
 
+// ---------------------------------------------------------------- more walls, after the game's own
+// All tile 3.6 m (canvas bottom = floor). Neutral-ish colours; the scene tints them.
+// cinder block, painted over and flaking (mall service areas, prison, asylum)
+function makeCinder(n) {
+  const S = surf(n), per = 9, bw = n / per, bh = n / 18, big = field(n, 4, 3, 301), fine = field(n, 128, 2, 302), mid = field(n, 16, 3, 303), r = seeded(304);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, row = Math.floor(y / bh), off = row % 2 ? bw / 2 : 0, u = (x + off) % bw, v = y % bh, e = Math.min(u, bw - u, v, bh - v), h = 1 - y / n;
+    const pit = fine[i] > 0.8 ? 0.82 : 1;
+    if (e < 2.2 * n / 1024 + 1) { S.C[i * 3] = 120; S.C[i * 3 + 1] = 118; S.C[i * 3 + 2] = 112; S.H[i] = 0.42; S.G[i] = 0.95; }
+    else { const b = (178 + hash2(Math.floor((x + off) / bw), row) * 22) * pit * (0.92 + mid[i] * 0.12); S.C[i * 3] = b; S.C[i * 3 + 1] = b * 0.98; S.C[i * 3 + 2] = b * 0.94; S.H[i] = 0.58 + fine[i] * 0.06; S.G[i] = 0.85; }
+    if (big[i] > 0.62 && mid[i] > 0.5) { mixC(S, i, [128, 124, 116], 0.7); S.H[i] -= 0.04; } // paint flaked off to bare block
+    mulC(S, i, 1 - Math.max(0, 0.28 - h) * 1.1 - Math.max(0, big[i] - 0.5) * 0.25);   // grime low down
+  }
+  for (let k = 0; k < 30; k++) { const x = r() * n, len = (80 + r() * 400) * n / 1024; for (let y = 0; y < len; y++) mixC(S, (y | 0) * n + (x | 0), [70, 64, 54], 0.3 * (1 - y / len)); }
+  return bake(S, 2.4);
+}
+// poured concrete: formwork panel seams, tie holes, rain streaks, a dark base
+function makeConcreteWall(n) {
+  const S = surf(n), big = field(n, 3, 4, 311), mid = field(n, 14, 4, 312), fine = field(n, 128, 2, 313), r = seeded(314), ph = n / 3, pw = n / 2;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, h = 1 - y / n, v = 132 + big[i] * 34 + mid[i] * 18 + fine[i] * 12;
+    S.C[i * 3] = v; S.C[i * 3 + 1] = v * 0.99; S.C[i * 3 + 2] = v * 0.95; S.H[i] = 0.5 + mid[i] * 0.05 + fine[i] * 0.05; S.G[i] = 0.9;
+    if (y % ph < 2 || x % pw < 2) { mulC(S, i, 0.72); S.H[i] -= 0.15; }
+    const tx = (x + pw / 4) % (pw / 2), ty = (y + ph / 2) % ph; if (Math.hypot(tx - pw / 4, ty - ph / 2) < 5 * n / 1024) { mulC(S, i, 0.35); S.H[i] -= 0.3; }
+    mulC(S, i, 1 - Math.max(0, 0.18 - h) * 2.2);
+  }
+  for (let k = 0; k < 60; k++) { const x = r() * n, y0 = r() * n * 0.4, len = (100 + r() * 600) * n / 1024, w = 2 + r() * 6; for (let y = 0; y < len && y0 + y < n; y++) for (let d = 0; d < w; d++) mixC(S, ((y0 + y) | 0) * n + ((x + d) | 0) % n, [60, 58, 52], 0.22 * (1 - y / len)); }
+  const cr = lineMask(n, 8, 0.7, 1.6, 315); for (let i = 0; i < n * n; i++) if (cr[i] > 0) { mulC(S, i, 1 - cr[i] * 0.6); S.H[i] -= cr[i] * 0.25; }
+  return bake(S, 2.6);
+}
+// riveted sheet-steel panels gone to rust (junkyard containers, sheds, docks)
+function makeMetalPanels(n) {
+  const S = surf(n), big = field(n, 4, 4, 321), mid = field(n, 20, 3, 322), fine = field(n, 128, 2, 323), r = seeded(324), pw = n / 4, ph = n / 2;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, px = x % pw, py = y % ph, pid = Math.floor(x / pw) + Math.floor(y / ph) * 7, paint = [[70, 84, 72], [96, 92, 80], [58, 66, 78]][Math.floor(hash2(pid, 3) * 3)];
+    S.C[i * 3] = paint[0] * (0.9 + mid[i] * 0.2); S.C[i * 3 + 1] = paint[1] * (0.9 + mid[i] * 0.2); S.C[i * 3 + 2] = paint[2] * (0.9 + mid[i] * 0.2); S.H[i] = 0.55; S.G[i] = 0.5 + fine[i] * 0.2;
+    if (px < 3 || py < 3) { mulC(S, i, 0.55); S.H[i] = 0.4; }
+    if ((px % (pw / 6) < 4 && py < 10) || (px < 10 && py % (ph / 8) < 4)) { const d = Math.hypot((px % (pw / 6)) - 2, (py % (ph / 8)) - 2); if (d < 3.5) { S.H[i] = 0.75; mulC(S, i, 1.1); } }
+    const rust = Math.max(0, big[i] - 0.45) * 2 + Math.max(0, fine[i] - 0.82) * 2; if (rust > 0) { mixC(S, i, [118, 58, 26], Math.min(0.9, rust)); S.G[i] = 0.92; S.H[i] += 0.03 * rust; }
+  }
+  for (let k = 0; k < 40; k++) { const x = r() * n, y0 = r() * n, len = (60 + r() * 300) * n / 1024; for (let y = 0; y < len; y++) mixC(S, ((y0 + y) | 0) % n * n + (x | 0), [110, 52, 22], 0.4 * (1 - y / len)); }
+  return bake(S, 2.4);
+}
+// rough-cut stone blocks in dark mortar (zoo enclosures, cemetery walls)
+function makeStoneWall(n) {
+  const S = surf(n), fine = field(n, 128, 2, 331), mid = field(n, 18, 3, 332), big = field(n, 3, 3, 333), r = seeded(334);
+  for (let i = 0; i < n * n; i++) { S.C[i * 3] = 62; S.C[i * 3 + 1] = 60; S.C[i * 3 + 2] = 54; S.H[i] = 0.25; S.G[i] = 0.95; }
+  let y = 0; while (y < n) { const h = (50 + r() * 40) * n / 1024; let x = -r() * 80; while (x < n) { const w = (80 + r() * 110) * n / 1024, tone = 120 + r() * 50, warm = r() * 14;
+      for (let yy = Math.max(0, y + 3); yy < Math.min(n, y + h - 3); yy++) for (let xx = Math.max(0, x + 3); xx < Math.min(n, x + w - 3); xx++) { const i = yy * n + xx, e = Math.min(xx - x, x + w - xx, yy - y, y + h - yy), dome = Math.min(1, e / (10 * n / 1024)); const v = tone * (0.8 + mid[i] * 0.3 + fine[i] * 0.1) * (0.85 + dome * 0.15); S.C[i * 3] = v + warm; S.C[i * 3 + 1] = v + warm * 0.5; S.C[i * 3 + 2] = v * 0.92; S.H[i] = 0.45 + dome * 0.2 + fine[i] * 0.08; S.G[i] = 0.9; }
+      x += w; } y += h; }
+  for (let i = 0; i < n * n; i++) { const hh = 1 - Math.floor(i / n) / n; if (big[i] > 0.6) mixC(S, i, [52, 66, 40], (big[i] - 0.6) * 1.2); mulC(S, i, 1 - Math.max(0, 0.2 - hh) * 1.6); } // moss and damp at the foot
+  return bake(S, 3);
+}
+// painted render over brick, peeling: a darker dado below, paint above, bare render in patches
+function makeStucco(n) {
+  const S = surf(n), big = field(n, 3, 4, 341), mid = field(n, 14, 4, 342), fine = field(n, 128, 2, 343), r = seeded(344);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = y * n + x, h = 1 - y / n, v = 196 * (0.88 + mid[i] * 0.16 + fine[i] * 0.05);
+    S.C[i * 3] = v; S.C[i * 3 + 1] = v; S.C[i * 3 + 2] = v; S.H[i] = 0.55 + fine[i] * 0.05; S.G[i] = 0.8;
+    if (h < 0.3) mulC(S, i, 0.68); else if (h < 0.31) mulC(S, i, 0.5);   // the dado band and its line
+    const peel = big[i] * 0.7 + mid[i] * 0.5; if (peel > 0.78) { mixC(S, i, [150, 140, 122], 0.85); S.H[i] -= 0.08; if (peel > 0.95) { mixC(S, i, [118, 60, 42], 0.8); S.H[i] -= 0.1; } }
+    mulC(S, i, 1 - Math.max(0, 0.15 - h) * 2);
+  }
+  for (let k = 0; k < 50; k++) { const x = r() * n, len = (60 + r() * 360) * n / 1024; for (let y = 0; y < len; y++) mixC(S, (y | 0) * n + (x | 0), [80, 72, 60], 0.25 * (1 - y / len)); }
+  const cr = lineMask(n, 10, 0.7, 1.4, 345); for (let i = 0; i < n * n; i++) if (cr[i] > 0) { mulC(S, i, 1 - cr[i] * 0.6); S.H[i] -= cr[i] * 0.2; }
+  return bake(S, 2);
+}
+// faded patterned wallpaper, water-stained and torn (shops, the mansion, the bar)
+function makeWallpaper(n, base = [150, 120, 90], ink = [96, 60, 44]) {
+  const [c, g] = cnv(n), r = seeded(351); g.fillStyle = `rgb(${base.join()})`; g.fillRect(0, 0, n, n);
+  const st = n / 12; g.fillStyle = `rgba(${ink.join()},0.55)`;
+  for (let x = 0; x < n; x += st) g.fillRect(x, 0, st * 0.12, n);
+  for (let y = 0; y < n; y += st) for (let x = 0; x < n; x += st) { g.save(); g.translate(x + st / 2, y + st / 2 + (Math.floor(x / st) % 2) * st / 2); g.rotate(Math.PI / 4); g.fillRect(-st * 0.16, -st * 0.16, st * 0.32, st * 0.32); g.restore(); }
+  const S = surf(n); const img = g.getImageData(0, 0, n, n).data, big = field(n, 3, 4, 352), fine = field(n, 96, 2, 353);
+  for (let i = 0; i < n * n; i++) { const h = 1 - Math.floor(i / n) / n; S.C[i * 3] = img[i * 4]; S.C[i * 3 + 1] = img[i * 4 + 1]; S.C[i * 3 + 2] = img[i * 4 + 2]; S.H[i] = 0.5 + fine[i] * 0.03; S.G[i] = 0.85;
+    mulC(S, i, 0.8 + fine[i] * 0.15 - Math.max(0, big[i] - 0.55) * 0.6); if (h < 0.12) mulC(S, i, 0.7); }
+  for (let k = 0; k < 6; k++) { const x = r() * n, y = r() * n * 0.7, w = (40 + r() * 120) * n / 1024, hh = (100 + r() * 300) * n / 1024; for (let yy = y; yy < Math.min(n, y + hh); yy++) for (let xx = x; xx < Math.min(n, x + w * (1 - (yy - y) / hh)); xx++) { const i = (yy | 0) * n + (xx | 0); mixC(S, i, [150, 146, 136], 0.9); S.H[i] = 0.42; } } // torn strips: bare plaster
+  return bake(S, 1.6);
+}
+// the toy store: yellow paint with red spots, scuffed
+function makePolka(n) {
+  const S = surf(n), fine = field(n, 96, 2, 361), big = field(n, 3, 3, 362), sp = n / 10;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, ox = (Math.floor(y / sp) % 2) * sp / 2, d = Math.hypot(((x + ox) % sp) - sp / 2, (y % sp) - sp / 2);
+    const c = d < sp * 0.22 ? [176, 40, 32] : [214, 188, 60]; S.C[i * 3] = c[0]; S.C[i * 3 + 1] = c[1]; S.C[i * 3 + 2] = c[2]; S.H[i] = 0.5; S.G[i] = 0.7; mulC(S, i, 0.82 + fine[i] * 0.15 - Math.max(0, big[i] - 0.6) * 0.5); }
+  return bake(S, 1.2);
+}
+
 // ---------------------------------------------------------------- gang masks
 // Each gang's head gear, painted from the descriptions of the real hunters.
 // 'wrap' kinds go all the way round the head (512 wide, the face in the middle
@@ -761,7 +848,9 @@ export function paintAll(low) {
   T.concrete = makeConcrete(1024);
   T.slab = makeTiles(1024);
   T.gravel = makeGravel(1024);
-  T.scrap = makeScrap(1024); T.plaster = makePlaster(1024); T.walltile = makeWallTiles(1024);
+  T.scrap = makeScrap(1024); T.plaster = makePlaster(1024);
+  T.cinder = makeCinder(1024); T.concreteWall = makeConcreteWall(1024); T.metal = makeMetalPanels(1024); T.stone = makeStoneWall(1024);
+  T.stucco = makeStucco(1024); T.wallpaper = makeWallpaper(1024); T.polka = makePolka(1024); T.walltile = makeWallTiles(1024);
   T.corrugated = makeCorrugated(n);
   T.dumpster = makePaintedMetal(n / 2, [34, 70, 44]);
   T.barrel = makePaintedMetal(n / 2, [70, 40, 30]);

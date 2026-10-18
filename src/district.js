@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=27';
-import { buildPlan } from './planlevel.js?v=27';
+import { T, seeded } from './paint.js?v=29';
+import { buildPlan } from './planlevel.js?v=29';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -617,14 +617,19 @@ export class District {
     const surf = (t, color, extra = {}) => ({ map: rep(t.map, 1, 1), normalMap: t.normal ? rep(t.normal, 1, 1) : undefined, roughnessMap: t.rough ? rep(t.rough, 1, 1) : undefined, bumpMap: t.normal ? undefined : rep(t.bump, 1, 1), bumpScale: 0.03, roughness: 1, color, ...extra });
     buildPlan(this, (S) => {
       const ground = { asphalt: surf(T.asphalt, 0xffffff, { roughness: 0.9 }), gravel: surf(T.gravel, 0x9a8a76), tiles: surf(T.slab, 0xb0aa9c, { roughness: 0.55 }), concrete: surf(T.concrete, 0x9a9890) }[S.ground];
-      const wallSurf = { brick: brickMat(0x9a958e), concrete: surf(T.concrete, 0x9a968c), corrugated: { map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: 0x9a9a98 }, stone: surf(T.concrete, 0x8a8478) }[S.wall];
+      // every wall material the levels use; a scene picks by name (S.wall / S.facadeTex / S.bldTex) and may tint it
+      const TEX = { brick: (c) => brickMat(c ?? 0x9a958e), concrete: (c) => surf(T.concrete, c ?? 0x9a968c), corrugated: (c) => ({ map: rep(T.corrugated.map, 1, 1), roughness: 0.6, metalness: 0.5, color: c ?? 0x9a9a98 }),
+        stone: (c) => surf(T.stone, c ?? 0xb0aca0), cinder: (c) => surf(T.cinder, c ?? 0xc8c4b8), concreteWall: (c) => surf(T.concreteWall, c ?? 0xb8b4ac), metal: (c) => surf(T.metal, c ?? 0xb0aca4, { metalness: 0.4, roughness: 0.7 }),
+        stucco: (c) => surf(T.stucco, c ?? 0xc8c0b0), wallpaper: (c) => surf(T.wallpaper, c ?? 0xc8c0b0), polka: (c) => surf(T.polka, c ?? 0xffffff), plaster: (c) => surf(T.plaster, c ?? 0xc8c0b0),
+        tiles: (c) => surf(T.walltile, c ?? 0xd0ccc0, { roughnessMap: undefined, roughness: 0.4 }), planks: (c) => ({ map: rep(T.wood.map, 1, 1), color: c ?? 0x8a7a66, roughness: 0.9 }), scrap: (c) => ({ map: rep(T.scrap.map, 1, 1), bumpMap: rep(T.scrap.bump, 1, 1), bumpScale: 0.05, roughness: 0.75, metalness: 0.25, color: c ?? 0xb0aca4 }) };
+      const wallSurf = TEX[S.wall](S.wallCol);
       return {
         floor: this.mat('pfloor' + this.idx, ground), grass: this.mat('pgrass', surf(T.gravel, 0x56663e)),
-        wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.tenement ? { map: rep(T.tenement.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenement.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: rep(T.brick.normal, 1, 1), roughness: 0.95 } : S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
-        building: this.mat('pbld' + this.idx, brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
+        wall: this.mat('pwall' + this.idx, wallSurf), facade: this.mat('pfacade' + this.idx, S.facadeTex ? TEX[S.facadeTex](S.facadeCol) : S.tenement ? { map: rep(T.tenement.map, 1, 1), emissive: 0xffffff, emissiveMap: rep(T.tenement.emissive, 1, 1), emissiveIntensity: 0.9, normalMap: rep(T.brick.normal, 1, 1), roughness: 0.95 } : S.wall === 'corrugated' ? brickMat(0x8a857e) : { ...wallSurf, color: 0x85817a }),
+        building: this.mat('pbld' + this.idx, S.bldTex ? TEX[S.bldTex](S.bldCol) : brickMat(0x7a756e)), block: this.mat('pblock' + this.idx, { map: rep(T.crate.map, 1, 1), color: 0x8a7a66, roughness: 0.9 }),
         ceil: this.mat('pceil', { color: 0x1c1b19, roughness: 1, side: THREE.DoubleSide }),
         scrap: this.mat('pscrap', { map: rep(T.scrap.map, 1, 1), bumpMap: rep(T.scrap.bump, 1, 1), bumpScale: 0.05, roughness: 0.75, metalness: 0.25, color: 0xb0aca4 }),
-        plaster: this.mat('pplaster', surf(T.plaster, 0xc8c0b0)), tiles: this.mat('ptiles', surf(T.walltile, 0xd0ccc0, { roughnessMap: undefined, roughness: 0.4 })),
+        ...Object.fromEntries(['plaster', 'tiles', 'cinder', 'concreteWall', 'metal', 'stone', 'stucco', 'wallpaper', 'polka', 'planks'].map((k) => [k, this.mat('pl_' + k + this.idx, TEX[k]((S.lineCol || {})[k]))])),
         ifloor: this.mat('pifloor', surf(T.concrete, 0x7a7266)), tfloor: this.mat('ptfloor', surf(T.slab, 0x9a9488, { roughness: 0.5 })),
       };
     });
@@ -1097,15 +1102,15 @@ export const SCENES = [
   { id: 'fuelled', title: 'FUELLED BY HATE', area: 'Dentons City Junkyard', build: 'buildPlan', plan: 'fuelled', style: 'yard', B: { x0: -30, x1: 30, z0: -20, z1: 20 }, gang: 'skinz', fog: 0.045 },
   { id: 'grounds', title: 'GROUNDS FOR ASSAULT', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'grounds', style: 'zoo', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'wardogs', fog: 0.045, hunters: 7 },
   { id: 'strapped', title: 'STRAPPED FOR CASH', area: 'Carcer City Zoo', build: 'buildPlan', plan: 'strapped', style: 'zoo', variant: 'house', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.65, hunters: 7 },
-  { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildStreets', variant: 'slums', B: { x0: -36, x1: 36, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
-  { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildPlan', plan: 'drunk-driving', style: 'street', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 },
+  { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildPlan', plan: 'innocence', style: 'mallFloors', B: { x0: -36, x1: 36, z0: -28, z1: 28 }, gang: 'innocentz', fog: 0.03, hunters: 12 },
+  { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildPlan', plan: 'drunk-driving', style: 'street', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 , look: { wall: 'cinder', wallCol: 0xa0988a, bldTex: 'stucco', bldCol: 0xa89a7a } },
   { id: 'graveyard', title: 'GRAVEYARD SHIFT', area: 'East Los Ablos', build: 'buildGraveyard', planWip: 'graveyard', style: 'cemetery', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'innocentz', fog: 0.05, hunters: 8 },
   { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', planWip: 'madness', style: 'asylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
   { id: 'doing-time', title: 'DOING TIME', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 7 },
   { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPrison', variant: 'yard', B: { x0: -34, x1: 34, z0: -20, z1: 20 }, gang: 'smileys', fog: 0.045, hunters: 8, rabbit: true },
-  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.6, hunters: 8 },
-  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'swat', fog: 0.05, amb: 0.7, hunters: 7 },
-  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'swat', fog: 0.045, hunters: 8 },
+  { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.6, hunters: 8 , look: { wall: 'concreteWall', bldTex: 'cinder', bldCol: 0x9a9a92 } },
+  { id: 'press', title: 'PRESS COVERAGE', area: 'Central', build: 'buildPlan', plan: 'press', style: 'street', B: { x0: -32, x1: 32, z0: -18, z1: 18 }, gang: 'swat', fog: 0.05, amb: 0.7, hunters: 7 , look: { bldTex: 'concreteWall' } },
+  { id: 'tracks', title: 'WRONG SIDE OF THE TRACKS', area: 'Central', build: 'buildPlan', plan: 'tracks', style: 'rail', B: { x0: -42, x1: 42, z0: -20, z1: 20 }, gang: 'swat', fog: 0.045, hunters: 8 , look: { wall: 'concreteWall', bldTex: 'metal' } },
   { id: 'trained', title: 'TRAINED TO KILL', area: 'Carcer Point', build: 'buildDocks', B: { x0: -36, x1: 36, z0: -22, z1: 22 }, gang: 'swat', fog: 0.045, hunters: 9 },
   { id: 'border', title: 'BORDER PATROL', area: 'Wapona Hills', build: 'buildEstate', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'cerberus', fog: 0.045, hunters: 8 },
   { id: 'key-personnel', title: 'KEY PERSONNEL', area: 'Wapona Hills', build: 'buildMansion', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'cerberus', fog: 0.055, amb: 0.65, hunters: 8 },

@@ -6,8 +6,8 @@
 // transparent 2D layer on top. Desktop shows it full screen; VR shows it as a
 // flat screen in a dark room. Any key, click or controller button skips.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=27';
-import { T } from './paint.js?v=27';
+import { Person, BONE as B } from './body.js?v=29';
+import { T } from './paint.js?v=29';
 
 const V = THREE.Vector3;
 const RW = 1280, RH = 720, W = 960, H = 540;

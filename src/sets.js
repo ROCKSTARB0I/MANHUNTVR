@@ -12,6 +12,7 @@ export const SETS = {
   // (box trucks, ambulance), then the mall's back corridor of shuttered shop
   // units to the REAR MALL DISPOSAL CHUTE.
   'born-again': {
+    look: { bldTex: 'cinder', bldCol: 0xa8a49a },
     start: [197, 52, PI / 2], exit: [5, 133],
     zones: [{ x0: 105, y0: 68, x1: 160, y1: 103, h: -1.8 }, { x0: 105, y0: 103, x1: 137, y1: 117, h: -1.8 }],
     ramps: [{ x0: 130, x1: 137.5, y0: 103, y1: 131, axis: 'y', h0: -1.8, h1: 0 }, { x0: 91, x1: 105, y0: 109, y1: 117, axis: 'x', h0: 0, h1: -1.8 }],
@@ -64,6 +65,7 @@ export const SETS = {
   // rusted cars and the FOR LEASE billboard, an abandoned house in the middle;
   // the crowbar in the next house; the yellow yard ("Hide yo shit"); the cellar.
   'doorway': {
+    look: { bldTex: 'stucco', bldCol: 0x9a8a76, lineCol: { wallpaper: 0xa89478 } }, inner: 'wallpaper', linings: [{ x0: 196, y0: 67, x1: 215, y1: 82, mat: 'concreteWall' }, { x0: 155, y0: 51, x1: 179, y1: 70, mat: 'plaster' }],
     start: [26, 118, -PI / 2], exit: [243, 61],
     patrols: [[[40, 88], [40, 90]], [[34, 102], [52, 101]], [[90, 30], [90, 82]], [[86, 118], [96, 146]], [[70, 68], [70, 63]], [[168, 58], [198, 46]], [[206, 74], [212, 70]]],
     dress(K) {
@@ -95,6 +97,7 @@ export const SETS = {
   // out of the cellar, through a warehouse and its tiled restroom, an alley, a long corridor,
   // across the street to the derelict library, through its cellar of hanging bodies, out a back gate.
   'road-to-ruin': {
+    look: { bldTex: 'concreteWall', bldCol: 0x9a968c },
     start: [192, 74, PI / 2], exit: [90, 5], inner: 'plaster',
     linings: [{ x0: 155, y0: 57, x1: 179, y1: 70, mat: 'tiles' }],
     patrols: [[[157, 53], [167, 53]], [[167, 63], [157, 63]], [[150, 44], [150, 36]], [[72, 14], [72, 34]], [[90, 96], [90, 62]], [[104, 50], [114, 58], [104, 64]], [[124, 45], [124, 62]]],
@@ -130,6 +133,7 @@ export const SETS = {
   // A Skin guards the yard gate; mazes of crushed cars under camo tarps; a rope-tied gate, a trailer
   // with a Skin on the toilet, the crane, a Quonset hangar, fuel tanks; a guard house switch opens the last gate.
   'white-trash': {
+    look: { wall: 'concreteWall', wallCol: 0xa8a49a, facadeTex: 'metal', bldTex: 'metal', bldCol: 0x9a8a80 },
     start: [12, 6], exit: [238, 62], blockH: [2.6, 4.4], blockMat: 'scrap',
     patrols: [[[76, 66], [76, 84]], [[100, 50], [140, 50]], [[116, 86], [119, 69], [150, 70]], [[96, 124], [96, 150]], [[112, 136], [130, 150]], [[180, 140], [210, 128]], [[218, 96], [220, 74]]],
     dress(K) {
@@ -154,6 +158,7 @@ export const SETS = {
   // raised guard hut (a lazy Skin watching TV: knock out the fuse box), the crane with no fuel blocking the
   // way to the crusher, the gasoline in the hangar, the crusher yard, a second crane, the exit doors.
   'fuelled': {
+    look: { wall: 'metal', facadeTex: 'concreteWall', facadeCol: 0x9a968c, bldTex: 'planks' },
     start: [130, 6], exit: [8, 182], blockH: [2.6, 4.2], blockMat: 'scrap',
     patrols: [[[114, 22], [114, 70]], [[130, 16], [130, 60], [146, 40]], [[148, 72], [148, 22]], [[100, 131], [100, 131]],
       [[90, 126], [62, 140]], [[125, 142], [125, 160]], [[102, 175], [126, 175]],
@@ -182,6 +187,7 @@ export const SETS = {
   // rope-tied door; the rocky pens; the padlocked gate (crowbar from the cave); the sniper on his platform;
   // the restaurant at the top, out the back to the exit.
   'grounds': {
+    look: { wall: 'stone', facadeTex: 'concreteWall', facadeCol: 0x8a8a84, bldTex: 'stucco', bldCol: 0x7a9aa8 },
     start: [22, 198], exit: [89, 3], noJunk: true,
     patrols: [[[30, 170], [60, 170]], [[70, 150], [55, 185]], [[40, 100], [69, 89]], [[60, 60], [65, 33]], [[40, 62], [48, 64]], [[50, 13], [50, 13]], [[40, 12], [70, 12]], [[80, 18], [85, 8]]],
     dress(K) {
@@ -201,6 +207,7 @@ export const SETS = {
   // Strapped for Cash: the other half of the zoo, foggy, from the restaurant down to the aquarium. Cash's
   // family are held as bait round the zoo; the shark's mouth opens once they're all saved or dead.
   'strapped': {
+    look: { wall: 'stone', facadeTex: 'concreteWall', facadeCol: 0x7a7e7a, bldTex: 'stucco', bldCol: 0x8aa08a },
     start: [85, 10], exit: [7, 197], noJunk: true,
     patrols: [[[46, 12], [50, 16]], [[40, 64], [38, 66]], [[52, 58], [50, 64]], [[17, 106], [17, 118]], [[75, 143], [72, 138]], [[26, 156], [24, 162]], [[60, 90], [29, 95]], [[30, 186], [30, 186]], [[50, 190], [50, 190]], [[40, 145], [80, 145]]],
     dress(K) {
@@ -213,6 +220,32 @@ export const SETS = {
       K.cafe(85.6, 142, -PI / 2); K.dome(30, 166, 4); K.lamp(60, 140, { h: 5, r: 12, col: 0xd8d8c0 }); K.lamp(20, 152, { h: 5, r: 12, col: 0xd8d8c0 });
       // behind the shark's mouth: the emptied pool, the souvenir shop and its fire exit
       K.pool(30, 190, 8, 5); K.shop(58, 194, PI); K.lamp(44, 184, { h: 4, r: 10, col: 0xc8e0ff });
+    },
+  },
+  // View of Innocence: the abandoned, unfinished mall, built split level. Ground floor (laundromat with a
+  // gun, the bar and its TV, toilets, the basement with the power switch), escalators up to the second floor
+  // (the toy store with the camera) and the third (the record store with the tape, the pharmacy).
+  'innocence': {
+    look: { wall: 'cinder', wallCol: 0xa89a88, facadeTex: 'concreteWall', bldTex: 'wallpaper', lineCol: { cinder: 0x9a9488, wallpaper: 0xc8a888 } }, inner: 'cinder', innerFloor: 'tfloor',
+    linings: [{ x0: 1, y0: 1, x1: 21, y1: 21, mat: 'polka' }, { x0: 1, y0: 60, x1: 22, y1: 79, mat: 'tiles' }, { x0: 89, y0: 41, x1: 99, y1: 49, mat: 'tiles' }, { x0: 72, y0: 41, x1: 99, y1: 61, mat: 'wallpaper' }, { x0: 80, y0: 1, x1: 99, y1: 18, mat: 'wallpaper' }, { x0: 51, y0: 1, x1: 64, y1: 14, mat: 'tiles' }, { x0: 85, y0: 62, x1: 99, y1: 79, mat: 'concreteWall' }],
+    start: [36, 76, PI], exit: [64, 79], noJunk: true,
+    zones: [{ x0: 1, x1: 49, y0: 1, y1: 39, h: 4.2 }, { x0: 50, x1: 99, y0: 1, y1: 39, h: 8.4 }, { x0: 85, x1: 99, y0: 66, y1: 79, h: -3.2 }],
+    ramps: [{ x0: 22, x1: 28, y0: 32, y1: 46, axis: 'y', h0: 4.2, h1: 0 }, { x0: 40, x1: 58, y0: 8, y1: 13, axis: 'x', h0: 4.2, h1: 8.4 }, { x0: 89, x1: 93, y0: 62, y1: 72, axis: 'y', h0: 0, h1: -3.2 }],
+    patrols: [[[40, 66], [56, 66]], [[50, 45], [50, 56]], [[64, 64], [64, 68]], [[78, 56], [86, 54]], [[10, 30], [40, 34]], [[30, 6], [44, 18]], [[8, 8], [14, 14]],
+      [[56, 25], [94, 25]], [[70, 32], [90, 34]], [[86, 6], [92, 12]], [[56, 5], [60, 10]], [[94, 44], [94, 44]]],
+    dress(K) {
+      // ground floor: the atrium with medallion tiles and planters, the laundromat, the bar
+      for (const [i, j] of [[40, 50], [60, 50], [50, 44], [50, 56]]) K.medallion(i, j, 1.8);
+      K.planter(36, 47, 4); K.planter(64, 47, 4); K.planter(36, 54, 4); K.planter(64, 54, 4);
+      K.washers(8, 63, 0, 5); K.washers(8, 75, PI, 5); K.shopfront(13, 59.4, 0, 'LAUNDROMAT', '#a8d8f0');
+      K.counter(80, 47, 0, 9); K.shopfront(70.6, 51, -PI / 2, 'BAR', '#f0c020', '#3a0c0c');
+      K.lamp(50, 50, { h: 4, r: 12, col: 0xe8f0d8 }); K.bulb(30, 70, { col: 0xd8e0c8 }); K.bulb(80, 55, { col: 0xffc890 }); K.bulb(10, 69, { col: 0xd8e8f0, flicker: 1 }); K.bulb(91, 13, { col: 0xe0a0e0 }); K.bulb(9, 9, { col: 0xf0e0a0 }); K.bulb(94, 74, { col: 0xff9a7a, flicker: 1 });
+      K.graffiti(29.5, 66, PI / 2, 2); K.graffiti(70.5, 70, -PI / 2, 2);
+      // second floor: the toy store, shutters, a kiosk
+      K.shopfront(21.4, 13, PI / 2, 'TOYS', '#f0e020', '#b01818'); K.kiosk(37, 26, 0); K.planter(12, 30, 4); K.bulb(30, 20, { col: 0xe8f0d8 });
+      // third floor: the record store and the pharmacy
+      K.shopfront(78.6, 10.5, -PI / 2, 'RECORDS', '#e050e0', '#1a0a2a'); K.shopfront(64.6, 7.5, PI / 2, 'PHARMACY', '#f0f0f0', '#a01818');
+      K.counter(90, 14, 0, 6); K.bulb(70, 26, { col: 0xe8f0d8 }); K.planter(84, 30, 4);
     },
   },
 };

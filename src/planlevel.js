@@ -6,9 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=27';
-import { PLANS } from './plans.js?v=27';
-import { SETS } from './sets.js?v=27';
+import { T, seeded } from './paint.js?v=29';
+import { PLANS } from './plans.js?v=29';
+import { HAND } from './handplans.js?v=29';
+import { SETS } from './sets.js?v=29';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -21,6 +22,7 @@ const STYLES = {
   cemetery: { ground: 'gravel', wall: 'stone', wallH: 2.4, facade: [3, 5], bld: [4, 9], block: 'grave', lamp: 0xd8e0ff, lamps: 0.6, grass: true },
   asylum:   { ground: 'tiles', wall: 'concrete', wallH: 3.6, facade: [6, 10], bld: [8, 12], block: 'counter', lamp: 0xe0ecd8, lamps: 1, grass: true },
   docks:    { ground: 'concrete', wall: 'corrugated', wallH: 3.6, facade: [7, 12], bld: [6, 10], block: 'crate', lamp: 0xffd090, lamps: 1 },
+  mallFloors: { ground: 'tiles', wall: 'concrete', wallH: 3.8, facade: [13, 14], bld: [3, 4], block: 'counter', lamp: 0xe8f0d8, lamps: 1.2 },
   rail:     { ground: 'gravel', wall: 'brick', wallH: 3.0, facade: [5, 9], bld: [4, 7], block: 'crate', lamp: 0xffb060, lamps: 0.8 },
 };
 
@@ -64,16 +66,18 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=27';
+import { makeKit } from './setkit.js?v=29';
 
 export function buildPlan(D, matFor) {
-  const def = D.def, P = PLANS[def.plan], S = STYLES[def.style] || STYLES.street, R = seeded(4000 + D.idx);
+  const def = D.def, P = PLANS[def.plan] || HAND[def.plan], R = seeded(4000 + D.idx);
+  let S = STYLES[def.style] || STYLES.street;
   const g = decode(P), W = P.w, H = P.h, m = P.m;
   const X = (i) => (i - W / 2) * m, Z = (j) => (j - H / 2) * m;
   D.B = { x0: X(0), x1: X(W), z0: Z(0), z1: Z(H) };
   const at = (i, j) => (i < 0 || j < 0 || i >= W || j >= H ? ' ' : g[j][i]);
   // ---------- the scene's set: floor heights (zones, ramps for stairs) and hand-placed dressing, in plan cells
   const SET = SETS[def.id] || {};
+  if (def.look || SET.look) S = { ...S, ...def.look, ...SET.look }; // the scene's own materials (see district.js TEX)
   const rampAt = (ci, cj) => { for (const r of SET.ramps || []) if (ci >= r.x0 && ci <= r.x1 && cj >= r.y0 && cj <= r.y1) { const t = r.axis === 'x' ? (ci - r.x0) / (r.x1 - r.x0) : (cj - r.y0) / (r.y1 - r.y0); return r.h0 + (r.h1 - r.h0) * Math.max(0, Math.min(1, t)); } return null; };
   const Hc = (ci, cj) => { const rh = rampAt(ci, cj); if (rh !== null) return rh; let h = 0; for (const z of SET.zones || []) if (ci >= z.x0 && ci < z.x1 && cj >= z.y0 && cj < z.y1) h = z.h; return h; };
   const isRamp = (i, j) => rampAt(i + 0.5, j + 0.5) !== null;
@@ -143,7 +147,7 @@ export function buildPlan(D, matFor) {
   const floorish = (i, j) => at(i, j) === '.' || at(i, j) === '#' || at(i, j) === 'b' || at(i, j) === 't' || at(i, j) === 'i';
   const levels = [...new Set([0, ...(SET.zones || []).map((z) => z.h)])];
   for (const lv of levels) for (const [i, j, w, h] of rects(W, H, (i, j) => floorish(i, j) && !isRamp(i, j) && Hc(i + 0.5, j + 0.5) === lv && !(SET.inner && at(i, j) === 'i'))) B('floor').quad(X(i), X(i + w), Z(j), Z(j + h), lv, 3.6);
-  if (SET.inner) for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'i' && !isRamp(i, j))) B(lining(i, j) === 'tiles' ? 'tfloor' : 'ifloor').quad(X(i), X(i + w), Z(j), Z(j + h), Hc(i + w / 2, j + h / 2), 3.6);
+  if (SET.inner) for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === 'i' && !isRamp(i, j))) B(lining(i, j) === 'tiles' ? 'tfloor' : (SET.innerFloor || 'ifloor')).quad(X(i), X(i + w), Z(j), Z(j + h), Hc(i + w / 2, j + h / 2), 3.6);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (floorish(i, j) && isRamp(i, j)) B('floor').quad4(X(i), X(i + 1), Z(j), Z(j + 1), Hc(i, j), Hc(i + 1, j), Hc(i, j + 1), Hc(i + 1, j + 1), 3.6);
   // where two levels meet without stairs: a retaining wall with a parapet on the high side
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
@@ -222,8 +226,9 @@ export function buildPlan(D, matFor) {
     // hang it off the nearest wall if there's one close, else a pole
     let wall = null; for (let r = 1; r < 5 && !wall; r++) for (const [a, b] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { const c = at(i + a, j + b); if (c === '#' || c === ' ' || c === 'B') { wall = [a, b]; break; } }
     const real = L.length < 14;
-    if (!wall && open(i, j, 4) < 0.9) continue; // poles only out in the open
-    if (wall) D.lamp(x + Math.sign(wall[0]) * 0.3, z + Math.sign(wall[1]) * 0.3, { h: 4.2, r: 10, i: 0.9, col: S.lamp, arm: 'none', real, flicker: R() < 0.3 ? 1 : 0 });
+    if (!wall && open(i, j, 4) < 0.9 && at(i, j) !== 'i') continue; // poles only out in the open
+    if (at(i, j) === 'i') D.lamp(x, z, { h: 3.0, r: 8, i: 0.8, col: S.lamp, arm: 'none', real, flicker: R() < 0.3 ? 1 : 0 }); // indoors: a bulb under the ceiling
+    else if (wall) D.lamp(x + Math.sign(wall[0]) * 0.3, z + Math.sign(wall[1]) * 0.3, { h: 4.2, r: 10, i: 0.9, col: S.lamp, arm: 'none', real, flicker: R() < 0.3 ? 1 : 0 });
     else D.lamp(x, z, { h: 5.2, r: 11, i: 1, col: S.lamp, real, flicker: R() < 0.25 ? 1 : 0, dir: R() * 6.28 });
     L.push([x, z]);
   }

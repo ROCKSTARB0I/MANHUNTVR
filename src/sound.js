@@ -1,7 +1,7 @@
 // sound.js — everything you hear, synthesized in WebAudio at runtime, plus the
 // voice player: recorded vo/<id>.mp3 if Nathan has made one, else speech.
-import { LINE, VOICES } from './lines.js?v=27';
-import { Score } from './score.js?v=27';
+import { LINE, VOICES } from './lines.js?v=29';
+import { Score } from './score.js?v=29';
 
 export class Sound {
   constructor() { this.ctx = null; this.vo = {}; this.queue = []; this.speaking = null; this.listener = null; this.subs = () => {}; this.voiceOn = {}; this.pulse = {}; }
@@ -33,7 +33,7 @@ export class Sound {
     this.preloadVO(Object.keys(LINE)); this.sample('sfx/hint.wav', 0); // warm the hint sound
   }
 
-  now() { return this.ctx.currentTime; }
+  now() { return this.ctx ? this.ctx.currentTime : 0; }
   src(buf, loop = false) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = loop; return s; }
   // spatial output node at a world position
   at(p) {
@@ -129,7 +129,7 @@ export class Sound {
   camBeep(p) { this.tone(this.at(p), { f: 1800, dur: 0.08, type: 'square', gain: 0.04 }); }
   spark(p) { const o = this.at(p); this.burst(o, { dur: 0.3, f: 6000, q: 0.7, gain: 0.3 }); this.tone(o, { f: 120, dur: 0.4, type: 'square', gain: 0.05 }); }
   stinger() { // a hit of the score when something big happens
-    const C = this.ctx, t0 = this.now();
+    if (!this.ctx) return; const C = this.ctx, t0 = this.now();
     for (const f of [55, 82.4, 116.5]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sawtooth'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.2); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 2.3); }
     this.burst(this.master, { dur: 1.6, f: 3000, q: 0.5, gain: 0.08, attack: 0.01, sweep: 400 });
   }

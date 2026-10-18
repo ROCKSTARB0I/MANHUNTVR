@@ -3,16 +3,17 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=27';
-import { makeHunterWeapon, Person } from './body.js?v=27';
-import { T } from './paint.js?v=27';
+import { PLANS } from './plans.js?v=29';
+import { HAND } from './handplans.js?v=29';
+import { makeHunterWeapon, Person } from './body.js?v=29';
+import { T } from './paint.js?v=29';
 
 const V = THREE.Vector3;
 
 export class Objectives {
   constructor(G) {
     this.G = G; this.text = ''; this.lockExit = false; this.parts = []; this.boxes = []; this.spots = []; this.tick = null;
-    const def = G.world.def, P = PLANS[def.plan];
+    const def = G.world.def, P = PLANS[def.plan] || HAND[def.plan];
     if (P) { this.X = (i) => (i - P.w / 2) * P.m; this.Z = (j) => (j - P.h / 2) * P.m; this.m = P.m; }
     const script = SCRIPTS[def.id];
     if (script && P) { script(this, G); G.world.bakeWalk(); }
@@ -105,6 +106,31 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // View of Innocence. The Innocentz carry revolvers here. Get a gun in the laundromat; find the tape (record
+  // store, third floor) and the camera (toy store, second floor); the bar TV has no power until the switch in
+  // the basement is thrown; play the tape. Hunter 11 hides in the bar toilets.
+  'innocence'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    H.forEach((h, k) => { if (!h) return; h.gun = true; if (k % 2 === 0) h.dropOnDeath = 'revolver'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon('revolver'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); });
+    O.hold(H[11]);
+    G.kit.spawn('revolver', new V(X(10), 0.95, Z(69)));
+    const thing = (i, j, y, col, w, h, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: 0.5 })); m.position.set(X(i), W.heightAt(X(i), Z(j)) + y, Z(j)); O.mesh(m); return m; };
+    const tape = thing(91, 15.2, 1.15, 0x1a1a1a, 0.19, 0.03, 0.1), cam = thing(8, 6, 0.9, 0x2a2a2a, 0.22, 0.14, 0.3);
+    const tv = thing(85, 41.6, 2.2, 0x111111, 1.1, 0.75, 0.4), screen = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.62), new THREE.MeshBasicMaterial({ color: 0x050505 })); screen.position.set(X(85), 2.2, Z(41.6) + 0.21); O.mesh(screen);
+    let haveTape = false, haveCam = false, power = false, phase = 0;
+    const set = () => O.set(phase === 0 ? 'Get your hands on a gun' : phase === 1 ? (haveTape ? 'Find the video camera' : haveCam ? 'Find the video tape' : 'Find the video tape and the video camera') : phase === 2 ? 'Go watch the video on the bar TV' : phase === 3 ? 'Find the power switch in the basement' : phase === 4 ? 'Go back to the bar TV' : 'Leave the mall');
+    O.set('Get your hands on a gun', 'dir_vi_intro');
+    O.spots.push({ at: O.cell(91, 16.5), at3: tape.position, r: 2, reach: 0.6, label: 'E — take the video tape', live: () => phase === 1 && !haveTape, act: () => { haveTape = true; tape.visible = false; G.sound.say(haveCam ? 'dir_vi_both' : 'dir_vi_tape'); if (haveCam) phase = 2; set(); } });
+    O.spots.push({ at: O.cell(9, 8), at3: cam.position, r: 2, reach: 0.6, label: 'E — take the video camera', live: () => phase === 1 && !haveCam, act: () => { haveCam = true; cam.visible = false; G.sound.say(haveTape ? 'dir_vi_both' : 'dir_vi_cam'); if (haveTape) phase = 2; set(); } });
+    O.spots.push({ at: O.cell(85, 44), at3: tv.position, r: 2.4, reach: 0.8, label: 'E — play the tape', live: () => phase === 2 || phase === 4,
+      act: () => { if (!power) { phase = 3; G.sound.click?.(); G.sound.say('dir_vi_power'); set(); return; }
+        phase = 5; screen.material.color.set(0x8aa0b0); G.vhs && (G.vhs.hot = 1); G.sound.tapeStatic?.(); G.sound.say('dir_vi_tape_play');
+        setTimeout(() => { screen.material.color.set(0x050505); G.sound.glass?.(tv.position); W.openGate(); G.director.gate = true; O.lockExit = false; set(); }, 9000); } });
+    O.spots.push({ at: O.cell(96, 76), at3: new V(X(97.5), -3.2 + 1.4, Z(76)), r: 2.2, reach: 0.7, label: 'E — throw the power switch', live: () => phase === 3,
+      act: () => { power = true; phase = 4; G.sound.buzz?.(O.cell(96, 76)); O.wake(H[11], O.cell(94, 44)); G.sound.say('dir_vi_powered'); set(); } });
+    O.tick = () => { if (phase === 0 && O.hasItem('revolver')) { phase = 1; G.sound.say('dir_vi_gun'); set(); } };
+  },
   // Strapped for Cash. The Wardogs hold Cash's family as bait, four of them, each under guard: if a guard
   // spots Cash near one, that one dies. Save at least one; then the shark's mouth opens; the switch in the
   // souvenir shop opens the fire exit. Hunters: 0 guards the store room, 1-2 the pens captive, 3 the tunnels,

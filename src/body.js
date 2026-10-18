@@ -3,9 +3,9 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=27';
-import { T, gangMask, WRAP } from './paint.js?v=27';
-import { addGear } from './gear.js?v=27';
+import { Loft, ring, blend } from './loft.js?v=29';
+import { T, gangMask, WRAP } from './paint.js?v=29';
+import { addGear } from './gear.js?v=29';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -595,6 +595,12 @@ export function makeHunterWeapon(kind) {
     const y = new THREE.MeshStandardMaterial({ color: 0xb08a14, roughness: 0.5 }), dk = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5 });
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.3), y); b.position.set(0, 0.06, 0.1); g.add(b);
     const n = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.1), dk); n.position.set(0, 0.03, 0.29); g.add(n);
+  } else if (kind === 'revolver') {
+    const st = new THREE.MeshStandardMaterial({ color: 0x2a2a2c, metalness: 0.85, roughness: 0.35 });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.17, 8), st); bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.04, 0.16); g.add(bar);
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.05, 10), st); cyl.rotation.x = Math.PI / 2; cyl.position.set(0, 0.03, 0.06); g.add(cyl);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.09, 0.035), new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.6 })); grip.position.set(0, -0.02, 0.0); g.add(grip);
+    g.userData.muzzle = new V(0, 0.04, 0.25);
   } else if (kind === 'shotgun') {
     const dark = new THREE.MeshStandardMaterial({ color: 0x161616, metalness: 0.6, roughness: 0.4 }), wood = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.6 });
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), dark); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.02, 0.36); g.add(barrel);
@@ -607,7 +613,7 @@ export function makeHunterWeapon(kind) {
     m.rotation.x = Math.PI / 2; m.position.z = 0.25; g.add(m);
   }
   // point the weapon along the hand (bone points down -Y); the chainsaw is carried out in front
-  g.rotation.x = kind === 'chainsaw' || kind === 'rifle' || kind === 'shotgun' || kind === 'nailgun' ? -0.35 : -Math.PI / 2 + 0.3;
+  g.rotation.x = kind === 'chainsaw' || kind === 'rifle' || kind === 'shotgun' || kind === 'nailgun' || kind === 'revolver' ? -0.35 : -Math.PI / 2 + 0.3;
   return g;
 }
 
