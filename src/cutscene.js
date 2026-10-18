@@ -6,8 +6,8 @@
 // transparent 2D layer on top. Desktop shows it full screen; VR shows it as a
 // flat screen in a dark room. Any key, click or controller button skips.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE as B } from './body.js?v=44';
-import { T } from './paint.js?v=44';
+import { Person, BONE as B } from './body.js?v=45';
+import { T } from './paint.js?v=45';
 
 const V = THREE.Vector3;
 const RW = 1280, RH = 720, W = 960, H = 540;
@@ -194,7 +194,7 @@ export class Cutscene {
 
   // ------------------------------------------------------------ run
   start(onDone, vr) {
-    this.active = true; this.t = 0; this.done = onDone; this.said = new Set(); this.flatline = false; this.hiss = false;
+    this.active = true; this.t = 0; this.waitT = 0; this.done = onDone; this.said = new Set(); this.flatline = false; this.hiss = false;
     const cp = this.camera.getWorldPosition(new V()), f = this.camera.getWorldDirection(new V()); f.y = 0; f.normalize();
     this.screen.position.copy(cp).addScaledVector(f, 3); this.screen.position.y = Math.max(1.4, cp.y);
     this.screen.lookAt(cp.x, this.screen.position.y, cp.z);
@@ -215,6 +215,8 @@ export class Cutscene {
   }
   update(dt) {
     if (!this.active) return;
+    // don't roll the tape until the sound is actually running (the anchor's lines start at 0.8 s)
+    const C = this.sound.ctx; if (C && C.state !== 'running' && (this.waitT = (this.waitT || 0) + dt) < 4) { C.resume(); return; }
     this.t += dt; const t = this.t;
     for (const [at, id] of LINES) if (t >= at && !this.said.has(id)) { this.said.add(id); this.sound.say(id); }
     const S = this.sound;

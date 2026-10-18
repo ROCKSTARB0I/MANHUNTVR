@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=44';
-import { HAND } from './handplans.js?v=44';
-import { makeHunterWeapon, Person } from './body.js?v=44';
-import { GANG_SETS } from './hunters.js?v=44';
-import { T } from './paint.js?v=44';
+import { PLANS } from './plans.js?v=45';
+import { HAND } from './handplans.js?v=45';
+import { makeHunterWeapon, Person } from './body.js?v=45';
+import { GANG_SETS } from './hunters.js?v=45';
+import { T } from './paint.js?v=45';
 
 const V = THREE.Vector3;
 
@@ -651,7 +651,8 @@ const SCRIPTS = {
     const { X, Z } = O, H = G.hunters, W = G.world;
     const courtGates = [...O.gateCol(104, 100, 126, () => 'chain'), ...O.gateCol(105, 128, 152, () => 'chain')];
     const fighter = H[2]; O.hold(fighter);
-    if (!G.kit.items.some((it) => it.kind === 'bag' && it.pos.distanceTo(O.cell(180, 60)) < 18)) G.kit.spawn('bag', new V(X(184), 0.04, Z(58)));
+    // the plastic bag lies on the alley floor a few steps before the Hood spraying the wall
+    if (!G.kit.items.some((it) => it.kind === 'bag' && it.pos.distanceTo(O.cell(172, 50)) < 10)) G.kit.spawn('bag', new V(X(172), 0.04, Z(50)));
     O.lockExit = true;
     const mallGate = O.fenceLine('col', 58, 100, 172, 'chain'); // the electric gate from the car park into the mall
     let phase = 0; const said = {}; const once = (k, id) => { if (said[k]) return; said[k] = 1; G.sound.say(id); };
