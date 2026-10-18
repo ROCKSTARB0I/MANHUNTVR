@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=38';
-import { HAND } from './handplans.js?v=38';
-import { makeHunterWeapon, Person } from './body.js?v=38';
-import { GANG_SETS } from './hunters.js?v=38';
-import { T } from './paint.js?v=38';
+import { PLANS } from './plans.js?v=39';
+import { HAND } from './handplans.js?v=39';
+import { makeHunterWeapon, Person } from './body.js?v=39';
+import { GANG_SETS } from './hunters.js?v=39';
+import { T } from './paint.js?v=39';
 
 const V = THREE.Vector3;
 
@@ -177,6 +177,29 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Border Patrol. Hunters: 0 the merc who comes to check the garage, 1-4 the front yard (4 faces the padlocked gate),
+  // 5-6 the lawn, 7-8 the fountain, 9-11 the crucifix field, 12-14 the maze, 15-16 the top of the stairs,
+  // 17-19 the courtyard, 20-21 snipers on the mansion balconies.
+  'border'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    H.forEach((h, k) => O.arm(h, [4, 5, 6, 7, 8, 12, 13, 14].includes(k) ? 'shotgun' : k <= 3 ? 'revolver' : 'rifle'));
+    O.hold(H[0]);
+    const door = O.gateRow(86, 185, 194, () => 'chain'), padlock = O.gateCol(149, 63, 70, () => 'chain');
+    O.set('You must find the side entrance to the mansion cellar', 'dir_bp_intro');
+    O.spots.push({ at: O.cell(194, 88.5), at3: new V(X(194), 1.3, Z(87.6)), r: 2.2, reach: 0.8, label: 'E — press the gate button', live: () => !door[0]?.open,
+      act: () => { for (const g of door) g.unlock(); G.sound.buzz?.(O.cell(194, 87)); O.wake(H[0], O.cell(190, 80), false); H[0]?.investigate?.(O.cell(190, 92)); } });
+    O.spots.push({ at: O.cell(147, 66.5), r: 2.4, reach: 0.8, label: 'E — break the padlock', live: () => !padlock[0]?.open,
+      act: () => { for (const g of padlock) g.unlock(); G.sound.bang?.(O.cell(149, 66)); G.noise?.(O.cell(149, 66), 12, 'player'); } });
+    let said = {}, sawT = 20;
+    const once = (k, line) => { if (!said[k]) { said[k] = 1; G.sound.say(line); } };
+    O.tick = (dt) => {
+      if (O.inCells(70, 119, 38, 70)) once('garden', 'cb_orders');
+      if (O.inCells(20, 160, 12, 25) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Get into the cellar through the side entrance'); once('yard', 'dir_bp_yard'); }
+      // somewhere in the grounds, Piggsy's chainsaw
+      sawT -= dt; if (sawT < 0) { sawT = 25 + Math.random() * 30; const far = O.cell(...[[40, 80], [130, 40], [150, 20], [60, 40]][Math.floor(Math.random() * 4)]).setY(1); const saw = G.sound.sawLoop?.(); if (saw) { saw(far, 1); setTimeout(() => saw(null, 0, true), 2500); } G.sound.say('piggsy_2', { at: far }); }
     };
   },
   // Trained to Kill. Hunters: 0-5 the stairs, parking and station cops, 6 SWAT on platform 1, 7-14 yard 1 (revolvers),

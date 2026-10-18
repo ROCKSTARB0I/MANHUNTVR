@@ -474,4 +474,35 @@ export const SETS = {
       K.tank(154, 48, 0); K.sign('YARD 2', 154, 45.4, PI, { w: 1.6, h: 0.5, y: 3.6 }); K.sign('NO EXIT', 3.4, 22, PI / 2, { w: 1.6, h: 0.5, y: 3, bg: '#c8b020', fg: '#1a1a1a' });
     },
   },
+  // Border Patrol: Starkweather's estate grounds, hand-built. The garage, the front yard Piggsy tore through, the
+  // padlocked gate, the hedge path and lawn, the fountain garden, the crucifix field and hedge maze (or the stairs
+  // under the snipers), the courtyard and the side entrance to the mansion cellar.
+  'border': {
+    start: [196, 102, PI], exit: [163, 18], noJunk: true, blockH: [2.5, 2.7], blockMat: 'grass',
+    look: { ground: 'gravel', wall: 'stone', wallCol: 0xa8a090, facadeTex: 'stone', facadeCol: 0x9a9284, bldTex: 'stucco', bldCol: 0xc8c0a8, bld: [12, 14], facade: [4, 4], lineCol: { concreteWall: 0x8a8a84, cinder: 0x9a968c } }, inner: 'concreteWall', innerFloor: 'ifloor',
+    zones: [{ x0: 60, x1: 71, y0: 9, y1: 12, h: 4.2 }, { x0: 110, x1: 121, y0: 9, y1: 12, h: 4.2 }],
+    tall: [{ x0: 60, x1: 71, y0: 11, y1: 12, h: 1.0 }, { x0: 110, x1: 121, y0: 11, y1: 12, h: 1.0 }, { x0: 180, x1: 187, y0: 92, y1: 101, h: 2.6 }, { x0: 168, x1: 173, y0: 70, y1: 75, h: 1.4 }, { x0: 92, x1: 99, y0: 45, y1: 52, h: 0.7 }, { x0: 80, x1: 87, y0: 90, y1: 97, h: 1.6 }, { x0: 104, x1: 111, y0: 74, y1: 79, h: 0.5 }],
+    patrols: [[[190, 82], [190, 82]],
+      [[170, 60], [190, 60]], [[180, 78], [200, 66]], [[160, 75], [175, 82]], [[151, 66], [151, 66]],
+      [[80, 70], [110, 86]], [[100, 100], [76, 80]],
+      [[78, 42], [112, 42]], [[110, 56], [76, 54]],
+      [[30, 60], [60, 70]], [[40, 72], [24, 58]], [[55, 58], [62, 74]],
+      [[62, 56], [62, 56]], [[22, 40], [50, 50]], [[46, 30], [30, 34]],
+      [[92, 27], [92, 27]], [[96, 27], [96, 27]],
+      [[40, 18], [140, 18]], [[150, 22], [100, 14]], [[30, 22], [70, 14]],
+      [[65, 9], [65, 9]], [[115, 9], [115, 9]]],
+    dress(K) {
+      // the garage and the yard: work light, bins, Piggsy's leftovers
+      K.bulb(190, 96, { col: 0xd8d8c8, flicker: 1 }); K.bins(204, 104, PI / 2); K.fusebox(194, 87.4, 0); K.sign('GATE', 194, 87.2, PI, { w: 0.8, h: 0.3, y: 1.9, bg: '#2a2a2a', fg: '#e8c040' });
+      for (let k = 0; k < 7; k++) K.blood(160 + Math.random() * 40, 55 + Math.random() * 28, 1.6); K.sheeted(178, 64, 1); K.sheeted(165, 78, 2.2); K.hanged(157, 56, 3.2);
+      for (const [i, j] of [[160, 70], [196, 70], [180, 54]]) K.lamp(i, j, { h: 5, r: 14, col: 0xd8e0f0 });
+      // the lawn, the statue on its hill, the gazebo, the fountain, garden lamps
+      K.statue(83, 93, 0); K.platform(107, 76, 0); K.tree(76, 100, 4); K.tree(114, 66, 4); K.tree(130, 70.5, 3);
+      for (const [i, j] of [[86, 64], [104, 64], [80, 40], [110, 40], [95, 56]]) K.lamp(i, j, { h: 4, r: 12, col: 0xe8e0c0 });
+      // the crucifix field, the maze lamps, the courtyard floodlights
+      for (const [i, j] of [[30, 62], [44, 66], [58, 62]]) K.hanged(i, j, 2.6); K.lamp(40, 70, { h: 4, r: 12, col: 0xe8e0c0 });
+      for (const [i, j] of [[40, 16], [80, 20], [130, 16], [150, 22]]) K.lamp(i, j, { h: 7, r: 18, col: 0xd8e0f0 });
+      K.sign('CELLAR', 160.6, 18, -PI / 2, { w: 1.4, h: 0.45, y: 2.4, bg: '#2a2620', fg: '#d8c8a8' });
+    },
+  },
 };
