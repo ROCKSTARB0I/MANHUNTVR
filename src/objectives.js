@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=31';
-import { HAND } from './handplans.js?v=31';
-import { makeHunterWeapon, Person } from './body.js?v=31';
-import { T } from './paint.js?v=31';
+import { PLANS } from './plans.js?v=32';
+import { HAND } from './handplans.js?v=32';
+import { makeHunterWeapon, Person } from './body.js?v=32';
+import { T } from './paint.js?v=32';
 
 const V = THREE.Vector3;
 
@@ -69,13 +69,13 @@ export class Objectives {
   gateCol(i, j0, j1, pick) { return this.runsV(i, j0, j1).map(([a, b]) => this.gate(this.X(i + 0.3), this.X(i + 0.7), this.Z(a), this.Z(b + 1), pick(a, b))); }
   gateRow(j, i0, i1, pick) { return this.runs(j, i0, i1).map(([a, b]) => this.gate(this.X(a), this.X(b + 1), this.Z(j + 0.3), this.Z(j + 0.7), pick(a, b))); }
   // a fence along a line of cells with one 4-cell door per long gap: returns the doors (they open); the rest stays shut
-  fenceLine(axis, k, a0, a1) {
+  fenceLine(axis, k, a0, a1, doorKind = 'chain') {
     const runs = axis === 'col' ? this.runsV(k, a0, a1) : this.runs(k, a0, a1), doors = [];
     const seg = (p, q, kind) => axis === 'col' ? this.gate(this.X(k + 0.3), this.X(k + 0.7), this.Z(p), this.Z(q), kind) : this.gate(this.X(p), this.X(q), this.Z(k + 0.3), this.Z(k + 0.7), kind);
     const longest = runs.reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m), runs[0] || [0, -1]);
     for (const [a, b] of runs) {
       if (a !== longest[0]) { seg(a, b + 1, 'fence'); continue; }
-      const mid = Math.round((a + b) / 2); if (mid - 2 > a) seg(a, mid - 2, 'fence'); doors.push(seg(mid - 2, mid + 2, 'chain')); if (b + 1 > mid + 2) seg(mid + 2, b + 1, 'fence');
+      const mid = Math.round((a + b) / 2); if (mid - 2 > a) seg(a, mid - 2, 'fence'); doors.push(seg(mid - 2, mid + 2, doorKind)); if (b + 1 > mid + 2) seg(mid + 2, b + 1, 'fence');
     }
     return doors;
   }
@@ -142,6 +142,37 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Mouth of Madness. Hunters: 0 the ward guard, 1-3 the park (3 has a revolver), 4-6 the greenhouses,
+  // 7 hides in the greenhouses, 8 and 10 guard the grounds, 9 the Smiley in the dress.
+  'madness'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const mesh = O.gateCol(23, 70, 96, () => 'chain'), green = O.gateCol(129, 28, 84, () => 'chain'), bricks = O.gateRow(33, 96, 202, () => 'scrap');
+    O.hold(H[7]);
+    if (H[3]) { H[3].gun = true; H[3].dropOnDeath = 'revolver'; const b = H[3].body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon('revolver'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); }
+    const dress = H[9]; if (dress) { const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.3, 0.55, 18, 2, true), new THREE.MeshStandardMaterial({ color: 0x8a5a7a, roughness: 0.9, side: THREE.DoubleSide })); sk.position.y = -0.25; dress.body.bones[0].add(sk); }
+    const box = (i, j, y, col, w, h, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 })); m.position.set(X(i), y, Z(j)); O.mesh(m); return m; };
+    box(12, 80, 0.6, 0x3a2a1a, 0.8, 1.2, 0.8); box(12, 80.6, 1.5, 0x3a2a1a, 0.8, 0.8, 0.12); // the electric chair
+    const can = box(186, 60, 0.25, 0xa81c14, 0.34, 0.45, 0.18);
+    let phase = 0, carrying = false, head = null, headHeld = false;
+    O.set('Kill the hunter and escape from the ward', 'dir_mm_intro');
+    O.spots.push({ at: O.cell(9, 75), r: 2, reach: 0.7, label: 'E — throw the switch on the chair', live: () => phase === 0,
+      act: () => { phase = 1; G.sound.buzz?.(O.cell(12, 80)); G.sound.painScream?.(new V(X(12), 1.2, Z(80))); for (const g of mesh) g.unlock(); H[0]?.investigate?.(O.cell(12, 80)); if (H[0]) H[0].susp = 0.5; } });
+    O.spots.push({ at: O.cell(186, 61.5), r: 2, reach: 0.6, label: 'E — pick up the gasoline', live: () => phase >= 2 && !carrying && can.visible, act: () => { carrying = true; can.visible = false; O.set('Destroy the bricked up doorway to gain access to the tower'); } });
+    const brick = bricks.reduce((a, b) => (b.len > (a?.len || 0) ? b : a), null); // the gasoline goes at the widest bricked gap; the blast opens them all
+    O.spots.push({ at: brick ? brick.at : new V(), r: 3, reach: 0.9, label: 'E — leave the gasoline and light it', live: () => carrying && brick && !brick.open,
+      act: () => { carrying = false; const c2 = box(0, 0, 0.25, 0xa81c14, 0.34, 0.45, 0.18); c2.position.set(brick.at.x, 0.25, brick.at.z + 0.6); O.set('Get clear'); setTimeout(() => { c2.visible = false; G.sound.bang?.(brick.at); G.flash?.(brick.at.clone().setY(1)); G.noise?.(brick.at, 30, 'player'); for (const g of bricks) g.unlock(); if (G.player.pos.distanceTo(brick.at) < 3.5) G.player.hurt?.(40, null); phase = 4; O.set('Kill the Smiley in the dress', 'dir_mm_bricks'); }, 3500); } });
+    O.spots.push({ at: O.cell(40, 77), r: 2.6, reach: 0.8, label: 'E — leave his head in the guard room', live: () => headHeld,
+      act: () => { headHeld = false; phase = 7; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Go through the open door', 'dir_mm_done'); } });
+    O.spots.push({ at: new V(), at3: null, r: 2, reach: 0.7, label: 'E — take his head', live: () => phase === 5 && head && head.visible, act: () => { head.visible = false; headHeld = true; phase = 6; O.set('Bring proof of the dress-wearing hunter\'s death to the Guard Room', 'dir_mm_head'); } });
+    const headSpot = O.spots[O.spots.length - 1];
+    O.tick = () => {
+      if (phase === 1 && H[0] && !H[0].alive) { phase = 2; O.set('Gain access to the Greenhouse section', 'dir_mm_ward'); }
+      if (phase === 2 && [1, 2, 3].every((k) => !H[k] || !H[k].alive)) { phase = 3; for (const g of green) g.unlock(); O.set('Find a way into the tower', 'dir_mm_green'); }
+      if (phase === 3 && G.player.pos.distanceTo(O.cell(160, 60)) < 14 && H[7]?.dormant) O.wake(H[7], O.cell(190, 70));
+      if (phase >= 4 && phase < 5 && dress && !dress.alive) { phase = 5; head = box(0, 0, 0.15, 0x9a7a5a, 0.22, 0.25, 0.22); head.position.copy(dress.pos).setY(0.15); headSpot.at = head.position; O.set('Take his head', 'dir_mm_dead'); }
+    };
+  },
   // Graveyard Shift: a lever in the guard hut opens the loading bay (and lets four Innocentz in); the lift needs
   // the failsafe in the basement; up top, the control room button opens the main doors.
   'graveyard'(O, G) {

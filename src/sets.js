@@ -284,4 +284,24 @@ export const SETS = {
       K.sign('CARCER CHEMICAL', 121, 40.5, 0, { w: 6, h: 1, y: 5, bg: '#1a2a3a', fg: '#c8d8e8', font: 'bold 60px Arial', lit: true });
     },
   },
+  // Mouth of Madness: the Smileys have the asylum. Out of the ward (the electric chair brings the guard in),
+  // through the park to the greenhouses, blow the bricked-up tower door, the lever in the tower, then the
+  // dress-wearing Smiley in the grounds beyond; his head goes to the guard room.
+  'madness': {
+    start: [6, 82], exit: [16, 93], noJunk: true, carve: [[76, 86, 114, 90, '.']],
+    look: { wall: 'cinder', wallCol: 0xc8c4b0, facadeTex: 'concreteWall', facadeCol: 0x9a9a92, bldTex: 'cinder', bldCol: 0xb0aca0, lineCol: { tiles: 0xc8c8b8, cinder: 0xb8b8a8 } },
+    patrols: [[[34, 78], [34, 74]], [[116, 50], [118, 74]], [[122, 70], [122, 40]], [[121, 42], [121, 42]], [[150, 60], [170, 74]], [[172, 44], [196, 64]], [[160, 78], [190, 78]], [[190, 70], [190, 70]], [[150, 20], [170, 12]], [[184, 14], [150, 16]], [[196, 26], [180, 30]]],
+    dress(K) {
+      // the ward: cell bars, a bulb, blood; the corridor and the guard room
+      K.bulb(12, 80, { col: 0xd8e0c8, flicker: 1 }); K.bulb(40, 76, { col: 0xd8e0c8 }); for (let k = 0; k < 4; k++) K.blood(4 + Math.random() * 16, 74 + Math.random() * 16, 1.2);
+      K.sign('GUARD ROOM', 40, 72.6, 0, { w: 2.2, h: 0.5, y: 2.4, bg: '#203020', fg: '#d8e0c8' });
+      // the yard and the park: dead trees, benches, the guard tower
+      K.lamp(80, 96, { h: 5, r: 12, col: 0xd8e0e8 }); K.lamp(118, 60, { h: 5, r: 12, col: 0xd8e0e8 }); K.platform(118, 34, 0);
+      // the greenhouses: glass houses over the tree beds
+      for (const [i, j] of [[146, 52], [184, 54], [150, 70]]) K.dome(i, j, 3.4);
+      K.lamp(170, 64, { h: 5, r: 12, col: 0xd8e8d0 }); K.graffiti(201, 50, -PI / 2, 2.2, 3, 0);
+      // the grounds beyond the tower
+      K.lamp(160, 14, { h: 5, r: 14, col: 0xc8d0e8 }); K.lamp(190, 22, { h: 5, r: 14, col: 0xc8d0e8 }); K.tree(176, 26, 4); K.tree(140, 12, 4);
+    },
+  },
 };

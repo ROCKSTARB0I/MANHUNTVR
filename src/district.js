@@ -4,8 +4,8 @@
 // hunters use to judge whether they can see you, and a walk grid for their
 // pathfinding. Everything is boxes on purpose: cheap to collide and to ray-test.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=31';
-import { buildPlan } from './planlevel.js?v=31';
+import { T, seeded } from './paint.js?v=32';
+import { buildPlan } from './planlevel.js?v=32';
 
 const V = THREE.Vector3;
 const CELL = 0.5, HC = 4; // walk/light cell, wall-index bucket (m)
@@ -1105,7 +1105,7 @@ export const SCENES = [
   { id: 'innocence', title: 'VIEW OF INNOCENCE', area: 'East Los Ablos', build: 'buildPlan', plan: 'innocence', style: 'mallFloors', B: { x0: -36, x1: 36, z0: -28, z1: 28 }, gang: 'innocentz', fog: 0.03, hunters: 12 },
   { id: 'drunk-driving', title: 'DRUNK DRIVING', area: 'East Los Ablos', build: 'buildPlan', plan: 'drunk-driving', style: 'street', variant: 'traffic', B: { x0: -38, x1: 38, z0: -24, z1: 24 }, gang: 'innocentz', fog: 0.045, hunters: 7 , look: { wall: 'cinder', wallCol: 0xa0988a, bldTex: 'stucco', bldCol: 0xa89a7a } },
   { id: 'graveyard', title: 'GRAVEYARD SHIFT', area: 'East Los Ablos', build: 'buildPlan', plan: 'graveyard', style: 'street', B: { x0: -34, x1: 34, z0: -22, z1: 22 }, gang: 'innocentz', fog: 0.04, hunters: 10, look: { wall: 'concreteWall', facadeTex: 'concreteWall', facadeCol: 0x8a8a84, bldTex: 'metal' } },
-  { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildAsylum', planWip: 'madness', style: 'asylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.06, amb: 0.65 },
+  { id: 'madness', title: 'MOUTH OF MADNESS', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'madness', style: 'asylum', B: { x0: -28, x1: 28, z0: -18, z1: 18 }, gang: 'smileys', fog: 0.05, hunters: 10 },
   { id: 'doing-time', title: 'DOING TIME', area: 'Darkwoods Penitentiary', build: 'buildPrison', B: { x0: -34, x1: 34, z0: -16, z1: 16 }, gang: 'smileys', fog: 0.055, amb: 0.6, hunters: 7 },
   { id: 'rabbit', title: 'KILL THE RABBIT', area: 'Darkwoods Penitentiary', build: 'buildPrison', variant: 'yard', B: { x0: -34, x1: 34, z0: -20, z1: 20 }, gang: 'smileys', fog: 0.045, hunters: 8, rabbit: true },
   { id: 'divided', title: 'DIVIDED THEY FALL', area: 'Darkwoods Penitentiary', build: 'buildPlan', plan: 'divided', style: 'street', B: { x0: -38, x1: 38, z0: -18, z1: 18 }, gang: 'wardogs', fog: 0.055, amb: 0.6, hunters: 8 , look: { wall: 'concreteWall', bldTex: 'cinder', bldCol: 0x9a9a92 } },
