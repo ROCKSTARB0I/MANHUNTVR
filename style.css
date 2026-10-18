@@ -127,3 +127,10 @@ canvas.cut { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: c
 #pauseList button { position: relative; }
 .slot .go, .slot .del { border-radius: 0; background: transparent; }
 .slot .go b { font-weight: normal; }
+
+/* the executions demo list */
+#execList{display:grid;grid-template-columns:auto auto auto auto;gap:6px 10px;align-items:center;max-height:60vh;overflow:auto}
+#execList .w{color:#e6e0d2;font:500 18px Oswald,Impact,sans-serif;letter-spacing:2px}
+#execList button{background:#141414;border:1px solid #333;font:500 14px Oswald,sans-serif;letter-spacing:2px;padding:6px 10px;cursor:pointer}
+#execList button:hover{border-color:#b2120c;color:#fff}
+#execList .l0{color:#9c9c9c}#execList .l1{color:#39c84a}#execList .l2{color:#e2231a}
