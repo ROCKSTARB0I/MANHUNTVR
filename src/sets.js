@@ -12,7 +12,11 @@ export const SETS = {
   // (box trucks, ambulance), then the mall's back corridor of shuttered shop
   // units to the REAR MALL DISPOSAL CHUTE.
   'born-again': {
-    look: { bldTex: 'cinder', bldCol: 0xa8a49a },
+    look: { bldTex: 'cinder', bldCol: 0xa8a49a, wallCol: 0x7a6a5e, lineCol: { concreteWall: 0x7d8a78, cinder: 0x9a968a, plaster: 0x8a8270, stucco: 0x9a968c, tiles: 0xc8c4b8, metal: 0x8a8e90 } },
+    // Carcer Market isn't all one brick: grimy green-grey concrete down the alley, breeze block round the court and
+    // the stair passage, bare concrete in the car park, tiles and metal cladding on the back of the mall
+    areas: [{ x0: 112, y0: 66, x1: 163, y1: 104, wall: 'cinder', facade: 'concreteWall' }, { x0: 150, y0: 0, x1: 206, y1: 104, wall: 'concreteWall' },
+      { x0: 100, y0: 104, x1: 206, y1: 176, wall: 'cinder', facade: 'plaster' }, { x0: 58, y0: 86, x1: 112, y1: 152, wall: 'stucco', facade: 'concreteWall' }, { x0: 0, y0: 100, x1: 58, y1: 176, wall: 'tiles', facade: 'metal' }],
     start: [197, 52, PI / 2], exit: [5, 133],
     zones: [{ x0: 105, y0: 68, x1: 160, y1: 103, h: -1.8 }, { x0: 105, y0: 103, x1: 137, y1: 117, h: -1.8 }],
     ramps: [{ x0: 130, x1: 137.5, y0: 103, y1: 131, axis: 'y', h0: -1.8, h1: 0 }, { x0: 91, x1: 105, y0: 109, y1: 117, axis: 'x', h0: 0, h1: -1.8 }],

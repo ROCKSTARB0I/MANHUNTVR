@@ -3,11 +3,11 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=42';
-import { HAND } from './handplans.js?v=42';
-import { makeHunterWeapon, Person } from './body.js?v=42';
-import { GANG_SETS } from './hunters.js?v=42';
-import { T } from './paint.js?v=42';
+import { PLANS } from './plans.js?v=43';
+import { HAND } from './handplans.js?v=43';
+import { makeHunterWeapon, Person } from './body.js?v=43';
+import { GANG_SETS } from './hunters.js?v=43';
+import { T } from './paint.js?v=43';
 
 const V = THREE.Vector3;
 
@@ -652,16 +652,19 @@ const SCRIPTS = {
     const courtGates = [...O.gateCol(104, 100, 126, () => 'chain'), ...O.gateCol(105, 128, 152, () => 'chain')];
     const fighter = H[2]; O.hold(fighter);
     if (!G.kit.items.some((it) => it.kind === 'bag' && it.pos.distanceTo(O.cell(180, 60)) < 18)) G.kit.spawn('bag', new V(X(184), 0.04, Z(58)));
+    O.lockExit = true;
+    const mallGate = O.fenceLine('col', 58, 100, 172, 'chain'); // the electric gate from the car park into the mall
     let phase = 0; const said = {}; const once = (k, id) => { if (said[k]) return; said[k] = 1; G.sound.say(id); };
-    O.set('Follow the street');
+    O.set('Follow the street', 'dir_ba_street');
     O.tick = () => {
       if (phase === 0 && H[0] && (G.player.pos.distanceTo(H[0].pos) < 14 || !H[0].alive)) { phase = 1; O.set('Execute the hunter with the plastic bag', 'dir_ba_bag'); }
       if (phase === 1 && H[0] && !H[0].alive) { phase = 2; O.set('Get down into the basketball court', 'dir_ba_court'); }
       if (phase <= 2 && O.inCells(105, 160, 68, 117) && W.heightAt(G.player.pos.x, G.player.pos.z) < -1.2) { phase = 3; O.wake(fighter, O.cell(112, 74)); O.set('Beat up the hunter using your fists', 'dir_ba_fists'); }
       if (phase === 3 && fighter && !fighter.alive) { phase = 4; for (const g of courtGates) g.unlock(); O.set('Find a way to the car park', 'dir_ba_gate'); }
       if (phase === 4 && O.inCells(58, 102, 95, 150)) { phase = 5; O.set('Kill the Hoods in the car park', 'dir_ba_carpark'); }
-      if (phase === 5 && H[3] && H[4] && !H[3].alive && !H[4].alive) { phase = 6; O.set('Find a way into the mall', 'dir_ba_mall'); }
+      if (phase <= 5 && phase >= 4 && [3, 4].every((k) => !H[k]?.alive)) { phase = 6; for (const g of mallGate) g.unlock(); O.set('Find a way into the mall', 'dir_ba_mall'); }
       if (phase === 6 && O.inCells(0, 56, 100, 176)) { phase = 7; O.set('Kill all the hunters to open the chute door', 'dir_ba_chute'); }
+      if (phase >= 6 && phase < 8 && [5, 6].every((k) => !H[k]?.alive)) { phase = 8; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Drop down the chute', 'dir_ba_open'); }
     };
   },
   // Doorway Into Hell: out of the chute and through a derelict house to the street; a padlocked gate

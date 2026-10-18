@@ -6,10 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=42';
-import { PLANS } from './plans.js?v=42';
-import { HAND } from './handplans.js?v=42';
-import { SETS } from './sets.js?v=42';
+import { T, seeded } from './paint.js?v=43';
+import { PLANS } from './plans.js?v=43';
+import { HAND } from './handplans.js?v=43';
+import { SETS } from './sets.js?v=43';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -66,7 +66,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=42';
+import { makeKit } from './setkit.js?v=43';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = HAND[def.plan] || PLANS[def.plan], R = seeded(4000 + D.idx);
@@ -164,17 +164,22 @@ export function buildPlan(D, matFor) {
   for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === ',')) B(S.grass ? 'grass' : 'floor').quad(X(i), X(i + w), Z(j), Z(j + h), 0.01 + Hc(i + w / 2, j + h / 2), 3.6);
   // the outer edge: void cells touching the plan become tall facades
   const edge = (i, j) => at(i, j) === ' ' && [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([a, b]) => { const c = at(i + a, j + b); return c !== ' '; });
-  for (const [i, j, w, h] of rects(W, H, edge)) {
-    const fh = S.facade[0] + R() * (S.facade[1] - S.facade[0]);
-    B('facade').box(X(i), X(i + w), lowest, fh, Z(j), Z(j + h), S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), fh);
-  }
-  // walls and fences on the plan's lines
-  for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === '#')) {
-    const outer = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === ' ');
-    const inner = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === 'i');
-    const wh = outer ? S.facade[0] : inner ? Math.max(S.wallH, 3.8) : S.wallH;
-    const base = Hc(i + w / 2, j + h / 2);
-    B(outer ? 'facade' : 'wall').box(X(i), X(i + w), lowest, wh + Math.max(0, base), Z(j), Z(j + h), outer && S.tenement ? 10.8 : 3.6); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
+  // the set can give parts of the map their own walls (SET.areas: {x0,y0,x1,y1, wall, facade} in plan cells)
+  const AREAS = SET.areas || [], areaOf = (i, j) => AREAS.findIndex((a) => i >= a.x0 && i < a.x1 && j >= a.y0 && j < a.y1);
+  for (let ak = -1; ak < AREAS.length; ak++) {
+    const A = AREAS[ak] || {}, fKey = A.facade || 'facade', wKey = A.wall || 'wall', fTile = (k) => (k === 'facade' && S.tenement ? 10.8 : 3.6);
+    for (const [i, j, w, h] of rects(W, H, (i, j) => edge(i, j) && areaOf(i, j) === ak)) {
+      const fh = S.facade[0] + R() * (S.facade[1] - S.facade[0]);
+      B(fKey).box(X(i), X(i + w), lowest, fh, Z(j), Z(j + h), fTile(fKey)); solid(X(i), X(i + w), Z(j), Z(j + h), fh);
+    }
+    // walls and fences on the plan's lines
+    for (const [i, j, w, h] of rects(W, H, (i, j) => at(i, j) === '#' && areaOf(i, j) === ak)) {
+      const outer = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === ' ');
+      const inner = [[-1, 0], [w, 0], [0, -1], [0, h]].some(([a, b]) => at(i + a, j + b) === 'i');
+      const wh = outer ? S.facade[0] : inner ? Math.max(S.wallH, 3.8) : S.wallH;
+      const base = Hc(i + w / 2, j + h / 2), key = outer ? fKey : wKey;
+      B(key).box(X(i), X(i + w), lowest, wh + Math.max(0, base), Z(j), Z(j + h), fTile(key)); solid(X(i), X(i + w), Z(j), Z(j + h), wh);
+    }
   }
   // indoors (when the set asks): every wall face inside a room gets plaster, or tiles in the rooms the set names
   if (SET.inner) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
