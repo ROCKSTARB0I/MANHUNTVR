@@ -6,10 +6,10 @@
 // the walls. Static geometry is merged per material so the Quest draws a few
 // big meshes instead of hundreds of boxes.
 import * as THREE from '../vendor/three.module.js';
-import { T, seeded } from './paint.js?v=29';
-import { PLANS } from './plans.js?v=29';
-import { HAND } from './handplans.js?v=29';
-import { SETS } from './sets.js?v=29';
+import { T, seeded } from './paint.js?v=31';
+import { PLANS } from './plans.js?v=31';
+import { HAND } from './handplans.js?v=31';
+import { SETS } from './sets.js?v=31';
 
 const V = THREE.Vector3;
 // what each scene looks like: ground, walls, heights, light, junk
@@ -66,7 +66,7 @@ class Batch {
   }
 }
 
-import { makeKit } from './setkit.js?v=29';
+import { makeKit } from './setkit.js?v=31';
 
 export function buildPlan(D, matFor) {
   const def = D.def, P = PLANS[def.plan] || HAND[def.plan], R = seeded(4000 + D.idx);
@@ -75,6 +75,7 @@ export function buildPlan(D, matFor) {
   const X = (i) => (i - W / 2) * m, Z = (j) => (j - H / 2) * m;
   D.B = { x0: X(0), x1: X(W), z0: Z(0), z1: Z(H) };
   const at = (i, j) => (i < 0 || j < 0 || i >= W || j >= H ? ' ' : g[j][i]);
+  for (const [x0, y0, x1, y1, c] of (SETS[def.id] || {}).carve || []) for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) if (g[j]) g[j][i] = c; // the set opens or closes cells the trace got wrong
   // ---------- the scene's set: floor heights (zones, ramps for stairs) and hand-placed dressing, in plan cells
   const SET = SETS[def.id] || {};
   if (def.look || SET.look) S = { ...S, ...def.look, ...SET.look }; // the scene's own materials (see district.js TEX)

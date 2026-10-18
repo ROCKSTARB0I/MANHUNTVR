@@ -1,20 +1,20 @@
 // MANHUNT — main: renderer, Quest + desktop input, Cash (head, hands, light,
 // noise, health), the HUD/wrist meters, the scene flow and the frame loop.
 import * as THREE from '../vendor/three.module.js';
-import { paintAll, T } from './paint.js?v=29';
-import { District, SCENES } from './district.js?v=29';
-import { spawnHunters } from './hunters.js?v=29';
-import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=29';
-import { Blood } from './blood.js?v=29';
-import { Objectives } from './objectives.js?v=29';
-import { Director } from './director.js?v=29';
-import { Sound } from './sound.js?v=29';
-import { makeHand, Person, BONE } from './body.js?v=29';
-import { VHS } from './vhs.js?v=29';
-import { Grime } from './grime.js?v=29';
-import { Cutscene } from './cutscene.js?v=29';
-import { Arms } from './arms.js?v=29';
-import { Finisher } from './finisher.js?v=29';
+import { paintAll, T } from './paint.js?v=31';
+import { District, SCENES } from './district.js?v=31';
+import { spawnHunters } from './hunters.js?v=31';
+import { Kit, LEVELS, SLOTS, SLOT } from './kit.js?v=31';
+import { Blood } from './blood.js?v=31';
+import { Objectives } from './objectives.js?v=31';
+import { Director } from './director.js?v=31';
+import { Sound } from './sound.js?v=31';
+import { makeHand, Person, BONE } from './body.js?v=31';
+import { VHS } from './vhs.js?v=31';
+import { Grime } from './grime.js?v=31';
+import { Cutscene } from './cutscene.js?v=31';
+import { Arms } from './arms.js?v=31';
+import { Finisher } from './finisher.js?v=31';
 
 const V = THREE.Vector3;
 const $ = (id) => document.getElementById(id);
@@ -118,7 +118,7 @@ const vHands = [0, 1].map((i) => {
 function useDesktopHands() { G.hands = dHands; dHands.forEach((h) => camera.add(h.obj)); vHands.forEach((h) => { h.obj.visible = false; }); }
 function useVRHands() { G.hands = vHands; dHands.forEach((h) => { if (h.item) G.kit.drop(h, new V()); camera.remove(h.obj); }); vHands.forEach((h) => { h.obj.visible = true; }); }
 useDesktopHands();
-const arms = new Arms(scene); G.arms = arms;
+const arms = null; G.arms = null; // Nathan prefers the first floating hands (no IK arms)
 // execution finishers: the cut to Cash beating the man to death (finisher.js)
 G.startFinisher = (o) => { G.finisher = new Finisher(G, o, { cashBody, camera, dolly, renderer, P }); };
 
@@ -664,7 +664,7 @@ renderer.setAnimationLoop(() => {
   if (G.state === 'loading') { loadingTick(dt); renderer.render(renderer.xr.isPresenting ? loadRoom : scene, camera); return; }
   if (G.state === 'cut') { cut.update(dt); if (renderer.xr.isPresenting) vrSkip(); cut.render(); return; }
   if (G.cineCam && !renderer.xr.isPresenting) { camera.position.copy(G.cineCam.p).sub(dolly.position); camera.lookAt(G.cineCam.look); camera.updateMatrixWorld(true); }
-  arms.update(camera, G.hands); // join the hands to Cash's shoulders
+
   vhs.render(scene, camera);
 });
 

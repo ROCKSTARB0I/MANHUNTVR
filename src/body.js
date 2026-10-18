@@ -3,9 +3,9 @@
 // verlet ragdoll that takes over the bones when someone dies. Also Cash's own
 // hands: jointed fingers, worn sleeves, scarred knuckles, prison ink.
 import * as THREE from '../vendor/three.module.js';
-import { Loft, ring, blend } from './loft.js?v=29';
-import { T, gangMask, WRAP } from './paint.js?v=29';
-import { addGear } from './gear.js?v=29';
+import { Loft, ring, blend } from './loft.js?v=31';
+import { T, gangMask, WRAP } from './paint.js?v=31';
+import { addGear } from './gear.js?v=31';
 
 const V = THREE.Vector3, Q = THREE.Quaternion;
 const up = new V(0, 1, 0), fwd = new V(0, 0, 1);
@@ -753,7 +753,7 @@ class Ragdoll {
 // bones that curl around whatever he's holding.
 export function makeHand(left = false) {
   const L = new Loft();
-  const skin = [0.55, 0.38, 0.28], knuckle = [0.6, 0.39, 0.31], nail = [0.72, 0.57, 0.5], scar = [0.66, 0.45, 0.38], sleeve = [0.14, 0.16, 0.2], cuff = [0.7, 0.64, 0.52], ink = skin; // Cash: dark Darkwoods inmate jacket, cream shirt cuff rolled at the wrist
+  const skin = [0.55, 0.38, 0.28], knuckle = [0.6, 0.39, 0.31], nail = [0.72, 0.57, 0.5], scar = [0.66, 0.45, 0.38], sleeve = [0.12, 0.12, 0.125], cuff = [0.16, 0.155, 0.155], ink = [0.17, 0.2, 0.24];
   const v = (x, y, z) => new V(x, y, z);
   // bones: 0 wrist, then per finger (index..pinky) 3 bones, thumb 3 bones
   const bones = [new THREE.Bone()]; bones[0].position.set(0, 0.075, 0.0);
@@ -830,6 +830,7 @@ export function makeHand(left = false) {
   const arm = [];
   arm.push(ring(v(-0.004, 0.085, -0.002), v(0, 1, 0), v(1, 0, 0), 0.03, 0.019, Wn(0), skin));
   arm.push(ring(v(-0.004, 0.13, 0), v(0, 1, 0), v(1, 0, 0), 0.031, 0.024, Wn(0), skin));
+  // faded prison ink: a band of barbed wire round the forearm
   arm.push(ring(v(-0.004, 0.148, 0), v(0, 1, 0), v(1, 0, 0), 0.032, 0.026, Wn(0), skin));
   arm.push(ring(v(-0.004, 0.153, 0), v(0, 1, 0), v(1, 0, 0), 0.0322, 0.0262, Wn(0), ink));
   arm.push(ring(v(-0.004, 0.163, 0), v(0, 1, 0), v(1, 0, 0), 0.0328, 0.027, Wn(0), ink));
@@ -841,7 +842,7 @@ export function makeHand(left = false) {
   arm.push(ring(v(-0.004, 0.23, 0), v(0, 1, 0), v(1, 0, 0), 0.049, 0.047, Wn(0), cuff));
   arm.push(ring(v(-0.004, 0.245, 0), v(0, 1, 0), v(1, 0, 0), 0.046, 0.045, Wn(0), sleeve));
   arm.push(ring(v(-0.004, 0.26, 0), v(0, 1, 0), v(1, 0, 0), 0.042, 0.048, Wn(0), sleeve));
-  arm.push(ring(v(-0.004, 0.29, 0), v(0, 1, 0), v(1, 0, 0), 0.044, 0.049, Wn(0), sleeve)); // the IK arm (arms.js) carries on from here
+  arm.push(ring(v(-0.004, 0.42, 0), v(0, 1, 0), v(1, 0, 0), 0.045, 0.05, Wn(0), sleeve));
   L.tube(arm, 18, { capEnd: true });
   // put bones into world-of-hand space: bone 0 sits at the wrist; children positions are relative
   const geo = L.geometry(left);
@@ -874,6 +875,5 @@ export function makeHand(left = false) {
   hand.curl(0.35);
   return hand;
 }
-
 
 export { B as BONE, SKIN_TONES };

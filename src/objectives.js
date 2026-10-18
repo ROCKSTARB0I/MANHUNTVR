@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=29';
-import { HAND } from './handplans.js?v=29';
-import { makeHunterWeapon, Person } from './body.js?v=29';
-import { T } from './paint.js?v=29';
+import { PLANS } from './plans.js?v=31';
+import { HAND } from './handplans.js?v=31';
+import { makeHunterWeapon, Person } from './body.js?v=31';
+import { T } from './paint.js?v=31';
 
 const V = THREE.Vector3;
 
@@ -40,7 +40,7 @@ export class Objectives {
       mesh.position.set(len / 2, 1.4, 0); panel.add(mesh);
       for (const y2 of [0.12, 2.7]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 6), metal); r.rotation.z = Math.PI / 2; r.position.set(len / 2, y2, 0); panel.add(r); }
       for (const x of [0, len]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.9, 8), metal); p.position.set(x, 1.45, 0); panel.add(p); }
-      if (kind === 'rope') { // rope wound round the gate and the post, knotted
+      if (kind === 'fence') { /* chain-link panel, no lock: never opens */ } else if (kind === 'rope') { // rope wound round the gate and the post, knotted
         const rope = W.mat('orope', { color: 0x8a7448, roughness: 1 });
         for (let k = 0; k < 5; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.018, 5, 12), rope); t.position.set(len - 0.02, 1.0 + k * 0.07, 0); t.rotation.set(Math.PI / 2, 0, k * 0.4); panel.add(t); }
         g.userData.lock = new V(cx + (alongX ? len / 2 : 0), y + 1.15, cz + (alongX ? 0 : len / 2));
@@ -68,6 +68,17 @@ export class Objectives {
   // gates across every gap in a column of cells (pick chooses the kind for each run)
   gateCol(i, j0, j1, pick) { return this.runsV(i, j0, j1).map(([a, b]) => this.gate(this.X(i + 0.3), this.X(i + 0.7), this.Z(a), this.Z(b + 1), pick(a, b))); }
   gateRow(j, i0, i1, pick) { return this.runs(j, i0, i1).map(([a, b]) => this.gate(this.X(a), this.X(b + 1), this.Z(j + 0.3), this.Z(j + 0.7), pick(a, b))); }
+  // a fence along a line of cells with one 4-cell door per long gap: returns the doors (they open); the rest stays shut
+  fenceLine(axis, k, a0, a1) {
+    const runs = axis === 'col' ? this.runsV(k, a0, a1) : this.runs(k, a0, a1), doors = [];
+    const seg = (p, q, kind) => axis === 'col' ? this.gate(this.X(k + 0.3), this.X(k + 0.7), this.Z(p), this.Z(q), kind) : this.gate(this.X(p), this.X(q), this.Z(k + 0.3), this.Z(k + 0.7), kind);
+    const longest = runs.reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m), runs[0] || [0, -1]);
+    for (const [a, b] of runs) {
+      if (a !== longest[0]) { seg(a, b + 1, 'fence'); continue; }
+      const mid = Math.round((a + b) / 2); if (mid - 2 > a) seg(a, mid - 2, 'fence'); doors.push(seg(mid - 2, mid + 2, 'chain')); if (b + 1 > mid + 2) seg(mid + 2, b + 1, 'fence');
+    }
+    return doors;
+  }
   cell(i, j) { return new V(this.X(i), 0, this.Z(j)); }
   inCells(i0, i1, j0, j1) { const P = this.G.player.pos, i = P.x / this.m + (this.X(0) / -this.m), j = P.z / this.m + (this.Z(0) / -this.m); return i >= i0 && i <= i1 && j >= j0 && j <= j1; }
   // a hunter kept out of sight until the scene calls him in
@@ -84,6 +95,30 @@ export class Objectives {
       rot('spine', 0.25); rot('neck', 0.45 + Math.sin(t * 2.3) * 0.08, Math.sin(t * 1.1) * 0.25); rot('armL', 0.55, 0, 0.3); rot('armR', 0.55, 0, -0.3); rot('foreL', -1.3, 0.4); rot('foreR', -1.3, -0.4); };
     P.animate(0.016, 0); this.mesh(P.root); this.captives = this.captives || []; const c = { P, at: at.clone(), alive: true, saved: false }; this.captives.push(c); return c;
   }
+  // an escort (the tramp): follows Cash or waits where he's told, walks the world's paths, can be hurt
+  companion(at, look) {
+    const G = this.G, W = G.world, P = new Person(Object.assign({ mask: null, weapon: null, hood: false, dirt: 1, stains: 0.6, seed: 91, bulk: 0.95 }, look));
+    P.root.position.set(at.x, W.heightAt(at.x, at.z), at.z); this.mesh(P.root);
+    const c = { P, pos: at.clone(), yaw: 0, hp: 100, alive: true, follow: false, path: [], pathT: 0 };
+    c.update = (dt) => {
+      if (!c.alive) { P.animate(dt, G.time); return; }
+      const me = G.player.pos, d = Math.hypot(me.x - c.pos.x, me.z - c.pos.z); let speed = 0;
+      if (c.follow && d > 2.2) {
+        c.pathT -= dt; if (c.pathT < 0 || !c.path.length) { c.path = W.path(c.pos, me) || []; c.pathT = 0.6; }
+        while (c.path.length && Math.hypot(c.path[0][0] - c.pos.x, c.path[0][1] - c.pos.z) < 0.5) c.path.shift();
+        const w = c.path[0] || [me.x, me.z], dx = w[0] - c.pos.x, dz = w[1] - c.pos.z, l = Math.hypot(dx, dz) || 1;
+        speed = d > 7 ? 3.0 : 1.9; c.pos.x += dx / l * Math.min(l, speed * dt); c.pos.z += dz / l * Math.min(l, speed * dt); if (!c.path.length) W.collide?.(c.pos, 0.3); // a found path is walkable; only bare steering needs pushing out of walls
+        const ty = Math.atan2(dx, dz); c.yaw += Math.atan2(Math.sin(ty - c.yaw), Math.cos(ty - c.yaw)) * Math.min(1, dt * 6);
+      }
+      P.anim.speed += (speed - P.anim.speed) * Math.min(1, dt * 6); P.anim.crouch = c.follow ? 0 : 0.6;
+      P.root.position.set(c.pos.x, W.heightAt(c.pos.x, c.pos.z), c.pos.z); P.root.rotation.y = c.yaw; P.animate(dt, G.time);
+      for (const h of G.hunters) if (h.alive && !h.dormant && h.aware?.() && h.pos.distanceTo(c.pos) < 1.7) c.hp -= 22 * dt;
+      if (c.hp <= 0) { c.alive = false; G.sound.painScream?.(c.pos.clone().setY(1.4)); G.blood?.pool?.(c.pos.clone(), 1.3); P.die(new V(), null, W); c.onDie?.(); }
+    };
+    this.spots.push({ at: c.pos, at3: c.pos, r: 2.6, reach: 1, label: '', live: () => c.alive && c.free, act: () => { c.follow = !c.follow; G.sound.say(c.follow ? 'tr_follow' : 'tr_wait'); } });
+    const spot = this.spots[this.spots.length - 1]; Object.defineProperty(spot, 'label', { get: () => c.follow ? 'E — tell the tramp to wait here' : 'E — tell the tramp to follow you' });
+    this.comp = c; return c;
+  }
   noCrowbars() { const K = this.G.kit; for (const it of [...K.items]) if (it.kind === 'crowbar' && !it.hand) K.remove(it); }
   hasItem(kind) { const G = this.G; return G.hands.some((h) => h.item?.kind === kind) || Object.values(G.kit.inv || {}).some((it) => it?.kind === kind); }
   nearPlayer(p, r) { const P = this.G.player.pos; return Math.hypot(P.x - p.x, P.z - p.z) < r; }
@@ -95,6 +130,7 @@ export class Objectives {
     // VR: squeeze grip with a hand on the spot (the knife does the cutting by touch)
     for (const h of this.G.hands) { if (h.desktop) continue; const g = h.grip > 0.6, was = h.gripPrev > 0.6; if (g && !was) for (const s of this.spots) if (s.live() && h.pos.distanceTo(s.at3 || s.at) < (s.reach || 0.6)) { s.act(); break; } }
     for (const c of this.captives || []) c.P.animate(dt, this.G.time);
+    this.comp?.update(dt);
     this.tick?.(dt);
   }
   dispose() {
@@ -106,6 +142,50 @@ export class Objectives {
 
 // ------------------------------------------------------------------ scene scripts
 const SCRIPTS = {
+  // Graveyard Shift: a lever in the guard hut opens the loading bay (and lets four Innocentz in); the lift needs
+  // the failsafe in the basement; up top, the control room button opens the main doors.
+  'graveyard'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const bay = O.fenceLine('row', 165, 20, 215), lift = O.fenceLine('row', 93, 20, 215);
+    for (const k of [3, 4, 5]) O.hold(H[k]);
+    H.forEach((h, k) => { if (!h || k < 7) return; h.gun = true; h.dropOnDeath = 'revolver'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon('revolver'); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); });
+    let phase = 0;
+    O.set('Find a way into the factory complex', 'dir_gs_intro');
+    O.spots.push({ at: O.cell(100, 190), at3: new V(X(100.9), 1.3, Z(184.7)), r: 2.6, reach: 0.7, label: 'E — pull the lever', live: () => phase <= 1,
+      act: () => { phase = 2; for (const g of bay) g.unlock(); G.sound.buzz?.(O.cell(100, 186)); for (const k of [3, 4, 5]) O.wake(H[k], O.cell(90 + (k - 3) * 10, 172)); O.set('Get into the loading bay and find the lift', 'dir_gs_bay'); } });
+    O.spots.push({ at: O.cell(82, 135), r: 2.4, reach: 0.7, label: 'E — reset the failsafe', live: () => phase === 3, act: () => { phase = 4; G.sound.buzz?.(O.cell(68, 124)); O.set('Get back to the lift', 'dir_gs_power'); } });
+    O.spots.push({ at: O.cell(112, 97), r: 2.6, reach: 0.8, label: 'E — call the lift', live: () => phase === 2 || phase === 4,
+      act: () => { if (phase === 2) { phase = 3; G.sound.click?.(); O.set('The lift is out of action. Deactivate the failsafe to power it up again', 'dir_gs_lift'); return; }
+        phase = 5; G.sound.buzz?.(O.cell(112, 96)); for (const g of lift) g.unlock(); O.set('Get to the reception area and exit the factory any way you can', 'dir_gs_up'); } });
+    O.spots.push({ at: O.cell(100, 60), r: 2.6, reach: 0.8, label: 'E — press the door release', live: () => phase === 5 || phase === 6,
+      act: () => { phase = 7; G.sound.buzz?.(O.cell(100, 60)); W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Get out through the main doors', 'dir_gs_doors'); } });
+    O.tick = () => { if (phase === 0 && G.player.pos.distanceTo(O.cell(100, 186)) < 18) { phase = 1; O.set('Use the lever in the guard hut to open the loading bay gates', 'dir_gs_hut'); }
+      if (phase === 5 && O.inCells(0, 233, 40, 90)) { phase = 6; O.set('The main doors are locked from the control room. Find the door release'); } };
+  },
+  // Drunk Driving: the Director gives Cash "a friend", a tramp locked up and guarded by a Babyface. The tramp is
+  // the key: every gate on the way to the graveyard opens only when he reaches it. Keep him alive.
+  'drunk-driving'(O, G) {
+    const H = G.hunters, W = G.world;
+    O.lockExit = true;
+    const g1 = O.fenceLine('col', 40, 85, 112), g2 = O.fenceLine('row', 116, 40, 160);
+    const tramp = O.companion(O.cell(10, 62), { top: [0.16, 0.24, 0.1], legs: [0.24, 0.2, 0.14], skin: [0.62, 0.44, 0.34], stubble: true, hair: [0.42, 0.12, 0.04], gear: [{ t: 'cap', col: [0.08, 0.12, 0.3] }] });
+    tramp.free = false;
+    const near = (gs) => gs.length && gs.some((g) => !g.open && g.at.distanceTo(tramp.pos) < 4.5);
+    let phase = 0;
+    const st = () => O.set((phase === 0 ? 'Rescue the tramp from his cell' : phase < 3 ? 'Take the tramp past the streets to the graveyard' : phase === 3 ? 'Take the tramp to the old tomb' : 'Go through the gate') + (tramp.alive && phase > 0 ? `  ·  TRAMP ${Math.max(0, Math.round(tramp.hp))}%` : ''));
+    O.set('Rescue the tramp from his cell', 'dir_dd_intro');
+    tramp.onDie = () => { G.sound.say('dir_dd_dead'); O.set('The tramp is dead'); setTimeout(() => G.player.hurt?.(999, null), 5000); };
+    let t = 0;
+    O.tick = (dt) => {
+      t += dt || 0.016;
+      if (phase === 0 && H[0] && !H[0].alive) { phase = 1; tramp.free = true; tramp.follow = true; G.sound.buzz?.(tramp.pos); G.sound.say('dir_dd_free'); }
+      if (phase === 1 && near(g1)) { phase = 2; for (const g of g1) g.unlock(); G.sound.say('dir_dd_gate'); }
+      if (phase === 2 && near(g2)) { phase = 3; for (const g of g2) g.unlock(); G.sound.say('dir_dd_yard'); }
+      if (phase === 3 && W.gate && tramp.pos.distanceTo(W.gate.position) < 8.5) { phase = 4; W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dd_tomb'); }
+      if (Math.floor(t * 2) !== Math.floor((t - (dt || 0.016)) * 2)) st();
+    };
+  },
   // View of Innocence. The Innocentz carry revolvers here. Get a gun in the laundromat; find the tape (record
   // store, third floor) and the camera (toy store, second floor); the bar TV has no power until the switch in
   // the basement is thrown; play the tape. Hunter 11 hides in the bar toilets.

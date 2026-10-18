@@ -248,4 +248,40 @@ export const SETS = {
       K.counter(90, 14, 0, 6); K.bulb(70, 26, { col: 0xe8f0d8 }); K.planter(84, 30, 4);
     },
   },
+  // Drunk Driving: East Los Ablos streets at night, escorting the tramp from his cell to the graveyard.
+  'drunk-driving': {
+    start: [6, 58], exit: [205, 131], noJunk: true,
+    look: { wall: 'cinder', wallCol: 0xa0988a, bldTex: 'stucco', bldCol: 0xa89a7a, facadeTex: null },
+    patrols: [[[14, 70], [20, 74]], [[30, 100], [52, 100]], [[70, 66], [95, 66]], [[104, 95], [104, 80]], [[118, 30], [140, 20]], [[100, 125], [140, 125]], [[150, 150], [170, 130]], [[175, 125], [190, 135]], [[120, 160], [150, 160]]],
+    dress(K) {
+      // the cell block: the tramp's cell, a fire, bins
+      K.bulb(10, 62, { col: 0xd8c890, flicker: 1 }); K.bins(20, 58, 0, 2); K.graffiti(1, 80, PI / 2, 2);
+      // the streets: burnt-out cars and the yellow bus, a barrel fire with three of them round it, rubble
+      K.fire(70, 72); K.fire(110, 40); for (const [i, j] of [[64, 80], [90, 88], [120, 100]]) K.rubble(i, j, 2, 1);
+      K.lamp(50, 96, { h: 5, r: 12, col: 0xd8d0a0 }); K.lamp(96, 70, { h: 5, r: 12, col: 0xd8d0a0 }); K.lamp(120, 40, { h: 5, r: 12, col: 0xd8d0a0 });
+      // the graveyard: headstones, crosses, dead trees, a mausoleum by the gate
+      for (let k = 0; k < 26; k++) { const i = 100 + (k % 9) * 9 + (k % 2) * 3, j = 120 + Math.floor(k / 9) * 14; K.prop('crate', i, j, Math.random() * 0.4); }
+      K.tree(140, 140, 4); K.tree(170, 122, 4.5); K.tree(110, 150, 4); K.lamp(150, 125, { h: 5, r: 14, col: 0xc8d0e8 }); K.lamp(190, 130, { h: 5, r: 14, col: 0xc8d0e8 });
+    },
+  },
+  // Graveyard Shift: not a cemetery, a factory in East Los Ablos. In by the loading bay (lever in the guard hut),
+  // the lift is dead until the failsafe in the basement is thrown, up to reception, the main doors are locked
+  // from the control room, out the front onto the street.
+  'graveyard': {
+    start: [14, 248], exit: [121, 6], noJunk: true, carve: [[116, 40, 126, 56, 'i']],
+    look: { wall: 'concreteWall', facadeTex: 'concreteWall', facadeCol: 0x8a8a84, bldTex: 'metal', lineCol: { concreteWall: 0x9a968c, cinder: 0xa0a090 } }, inner: 'cinder', linings: [{ x0: 52, y0: 94, x1: 90, y1: 132, mat: 'concreteWall' }],
+    patrols: [[[9, 222], [32, 232]], [[60, 182], [100, 182]], [[120, 186], [160, 176]], [[100, 172], [100, 172]], [[110, 172], [110, 172]], [[90, 172], [90, 172]], [[84, 132], [86, 122]], [[96, 140], [118, 150]], [[146, 110], [146, 140]], [[100, 66], [140, 70]]],
+    dress(K) {
+      // the street in, the compound: storage tanks, the guard hut with the lever, a lorry at the loading bay
+      K.lamp(16, 225, { h: 5.4, r: 12, col: 0xd8d0a0 }); K.lamp(60, 176, { h: 6, r: 14, col: 0xd8d0a0 }); K.lamp(140, 182, { h: 6, r: 14, col: 0xd8d0a0 });
+      for (const [i, j] of [[36, 176], [44, 186], [28, 186]]) K.tank(i, j, PI / 2);
+      K.guardhouse(100, 186, PI); K.boxTruck(130, 172, PI / 2); K.drums(150, 188, 4); K.fire(80, 190);
+      // inside: machinery, crates, the lift and the basement breaker
+      for (const [i, j] of [[70, 100], [90, 104], [104, 118], [76, 140], [110, 150]]) { K.prop('crate', i, j, 0.2); K.prop('barrel', i + 2, j + 1, 0); }
+      K.bulb(70, 112, { col: 0xd8e0c8, flicker: 1 }); K.bulb(100, 130, { col: 0xd8e0c8 }); K.bulb(112, 98, { col: 0xd8e0c8 });
+      // the yard to the east, the reception plaza out front, the silos
+      for (const [i, j] of [[150, 64], [156, 72]]) K.tank(i, j, 0); K.lamp(140, 100, { h: 6, r: 14, col: 0xd8d0a0 }); K.lamp(100, 64, { h: 5, r: 12, col: 0xe8f0d8 });
+      K.sign('CARCER CHEMICAL', 121, 40.5, 0, { w: 6, h: 1, y: 5, bg: '#1a2a3a', fg: '#c8d8e8', font: 'bold 60px Arial', lit: true });
+    },
+  },
 };
