@@ -2,7 +2,7 @@
 // camera on desktop); these join each hand back to a shoulder hung under the
 // head, with a two-bone IK elbow that drops down and out like a real arm.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=33';
+import { T } from './paint.js?v=34';
 
 const V = THREE.Vector3, UP = new V(0, 1, 0);
 const UPPER = 0.30, FORE = 0.19;          // shoulder->elbow, sleeve start->elbow (the hand mesh carries the first 12 cm of forearm)

@@ -1,8 +1,8 @@
 // hunters.js — the men paid to kill Cash. They see by the light you stand in,
 // hear what you do, investigate, search, hunt in packs, and talk while they do it.
 import * as THREE from '../vendor/three.module.js';
-import { Person, BONE, SKIN_TONES } from './body.js?v=33';
-import { T } from './paint.js?v=33';
+import { Person, BONE, SKIN_TONES } from './body.js?v=34';
+import { T } from './paint.js?v=34';
 
 const V = THREE.Vector3;
 // every scene has its own gang; g picks one of three voices, vp the gang's lines
@@ -191,7 +191,14 @@ export class Hunter {
     }
 
     let speed = 0, lookAround = 0;
-    switch (this.state) {
+    // a scripted runner (the White Rabbit): heads for the goal the scene gives him, lashes out only when caught
+    if (this.flee && this.state !== 'attack') {
+      const F = this.flee, d = this.pos.distanceTo(P.pos); this.susp = 0; this.state = 'flee';
+      if (d < 1.4 && P.alive) { this.state = 'attack'; this.atkT = 0; A.swing = 0; this.hitDone = false; }
+      else if (this.pos.distanceTo(F.goal) > 0.8) { this.goal.copy(F.goal); this.pathT -= dt; if (this.pathT < 0) { this.goPath(F.goal); this.pathT = 0.5; } speed = F.speed; this.followPath(dt); }
+      else this.face(P.pos, dt * 3);
+      this.talkT -= dt; if (this.talkT < 0 && d < 16) { this.talkT = 5 + Math.random() * 5; F.taunt?.(); }
+    } else switch (this.state) {
       case 'patrol': {
         const w = this.route[this.wp]; this.goal.set(w[0], 0, w[1]);
         if (this.pos.distanceTo(this.goal) < 0.6) { this.wp = (this.wp + 1) % this.route.length; this.lookT = Math.random() < 0.35 ? 2.5 : 0; }

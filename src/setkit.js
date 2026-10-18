@@ -3,7 +3,7 @@
 // floor height there. Vehicles, signs, a basketball court, shop shutters,
 // awnings, fences, fires, lamps, graffiti — what the real scenes are made of.
 import * as THREE from '../vendor/three.module.js';
-import { T } from './paint.js?v=33';
+import { T } from './paint.js?v=34';
 
 const V = THREE.Vector3;
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -188,6 +188,38 @@ export function makeKit(D, { X, Z, Hc, m }) {
     sinks: (i, j, ry, n = 3) => { const g = new THREE.Group(), wc = mat('porcelain', { color: 0xc8c2b0, roughness: 0.25 }), mir = mat('mirror', { color: 0x30342e, roughness: 0.1, metalness: 0.9 });
       for (let k = 0; k < n; k++) { const s = new THREE.Mesh(box(0.55, 0.18, 0.45), wc); s.position.set(k * 0.8, 0.85, 0.25); g.add(s); const mr = new THREE.Mesh(box(0.5, 0.6, 0.02), mir); mr.position.set(k * 0.8, 1.6, 0.03); g.add(mr); }
       return place(g, i, j, ry, n * 0.8, 0.5, 1); },
+    // Kill the Rabbit: the prison's back rooms. A steel morgue slab, the wall of body drawers, a furnace,
+    // a workshop bench with a vice, the dentist's chair under its lamp, a sheeted body.
+    slab: (i, j, ry) => { const g = new THREE.Group(), st = mat('steel', { color: 0x9a9c98, roughness: 0.3, metalness: 0.8 });
+      const t = new THREE.Mesh(box(2.0, 0.06, 0.8), st); t.position.y = 0.9; g.add(t); for (const x of [-0.8, 0.8]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 8), st); l.position.set(x, 0.45, 0); g.add(l); }
+      const dr = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 8), st); dr.position.set(0, 0.8, 0); g.add(dr);
+      return place(g, i, j, ry, 2.0, 0.8, 1); },
+    drawers: (i, j, ry, n = 4) => { const g = new THREE.Group(), st = mat('steel', { color: 0x9a9c98, roughness: 0.3, metalness: 0.8 }), dk = mat('steelDk', { color: 0x2a2c2a, roughness: 0.5, metalness: 0.6 });
+      const b = new THREE.Mesh(box(n * 0.75, 2.3, 0.6), dk); b.position.set(0, 1.15, 0.3); g.add(b);
+      for (let k = 0; k < n; k++) for (let r = 0; r < 3; r++) { const d = new THREE.Mesh(box(0.66, 0.66, 0.04), st); d.position.set(k * 0.75 - (n - 1) * 0.375, 0.42 + r * 0.74, 0.62); g.add(d); const h = new THREE.Mesh(box(0.2, 0.04, 0.05), dk); h.position.set(d.position.x, d.position.y + 0.18, 0.66); g.add(h); }
+      return place(g, i, j, ry, n * 0.75, 0.7, 2.3); },
+    sheeted: (i, j, ry) => { const g = new THREE.Group(), sh = mat('sheet', { color: 0xb8b4a8, roughness: 1 }), bl = mat('shroudblood', { color: 0x3a0806, roughness: 0.4 });
+      const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.4, 4, 10), sh); b.rotation.z = Math.PI / 2; b.scale.set(1, 1, 0.6); b.position.y = 1.02; g.add(b);
+      const s = new THREE.Mesh(new THREE.CircleGeometry(0.16, 10), bl); s.rotation.x = -Math.PI / 2; s.position.set(0.3, 1.16, 0); g.add(s); return place(g, i, j, ry); },
+    furnace: (i, j, ry) => { const g = new THREE.Group(), ir = mat('iron', { color: 0x2a2624, roughness: 0.8, metalness: 0.6 }), br = mat('firebrick', { map: T.brick?.map || null, color: 0x6a4a3a, roughness: 0.9 });
+      const b = new THREE.Mesh(box(2.6, 2.4, 1.8), br); b.position.y = 1.2; g.add(b); const d = new THREE.Mesh(box(1.0, 0.8, 0.08), ir); d.position.set(0, 0.9, 0.92); g.add(d);
+      const glow = new THREE.Mesh(box(0.8, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0xff6a1a })); glow.position.set(0, 0.55, 0.97); g.add(glow);
+      const fl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 3, 10), ir); fl.position.set(0.7, 3.2, -0.3); g.add(fl);
+      const L = new THREE.PointLight(0xff7a2a, 3, 7, 1.6); L.position.set(0, 0.8, 1.4); g.add(L);
+      return place(g, i, j, ry, 2.6, 1.8, 2.4); },
+    bench: (i, j, ry) => { const g = new THREE.Group(), wd = mat('deck', { map: T.wood.map, color: 0x7a6a54, roughness: 0.9 }), ir = mat('iron', { color: 0x2a2624, roughness: 0.8, metalness: 0.6 });
+      const t = new THREE.Mesh(box(2.4, 0.08, 0.9), wd); t.position.y = 0.92; g.add(t); for (const x of [-1.1, 1.1]) for (const z of [-0.35, 0.35]) { const l = new THREE.Mesh(box(0.08, 0.9, 0.08), ir); l.position.set(x, 0.45, z); g.add(l); }
+      const v = new THREE.Mesh(box(0.2, 0.18, 0.16), ir); v.position.set(0.9, 1.05, 0.3); g.add(v); const s = new THREE.Mesh(box(2.2, 0.04, 0.7), wd); s.position.y = 0.25; g.add(s);
+      return place(g, i, j, ry, 2.4, 0.9, 1); },
+    dentChair: (i, j, ry) => { const g = new THREE.Group(), lt = mat('vinyl', { color: 0x5a7a6a, roughness: 0.5 }), st = mat('steel', { color: 0x9a9c98, roughness: 0.3, metalness: 0.8 });
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.3, 0.5, 10), st); base.position.y = 0.25; g.add(base);
+      const seat = new THREE.Mesh(box(0.6, 0.12, 0.7), lt); seat.position.set(0, 0.6, 0); g.add(seat);
+      const back = new THREE.Mesh(box(0.6, 0.9, 0.12), lt); back.position.set(0, 1.0, -0.42); back.rotation.x = -0.5; g.add(back);
+      const leg = new THREE.Mesh(box(0.5, 0.1, 0.6), lt); leg.position.set(0, 0.48, 0.6); leg.rotation.x = 0.5; g.add(leg);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.8, 6), st); arm.position.set(0.5, 0.9, -0.2); g.add(arm);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.1, 12), st); lamp.position.set(0.3, 1.8, 0.1); g.add(lamp);
+      const tray = new THREE.Mesh(box(0.4, 0.03, 0.3), st); tray.position.set(-0.55, 0.95, 0.2); g.add(tray);
+      return place(g, i, j, ry, 0.8, 1.3, 1.2); },
     // a body wrapped in a filthy sheet, hung from the ceiling on a rope
     hanged: (i, j, y = 3.4) => { const g = new THREE.Group(), sheet = mat('shroud', { color: 0x6a5e4a, roughness: 1 }), bl = mat('shroudblood', { color: 0x3a0806, roughness: 0.4 }), rope = mat('rope', { color: 0x4a3a24, roughness: 1 });
       const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.1, 6, 12), sheet); b.position.y = y - 1.5; b.scale.z = 0.8; g.add(b);

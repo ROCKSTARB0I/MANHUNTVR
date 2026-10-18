@@ -3,10 +3,10 @@
 // (solid until opened, so hunters' paths respect them too), gives the Director his
 // instructions and sets the line of objective text on the HUD.
 import * as THREE from '../vendor/three.module.js';
-import { PLANS } from './plans.js?v=33';
-import { HAND } from './handplans.js?v=33';
-import { makeHunterWeapon, Person } from './body.js?v=33';
-import { T } from './paint.js?v=33';
+import { PLANS } from './plans.js?v=34';
+import { HAND } from './handplans.js?v=34';
+import { makeHunterWeapon, Person } from './body.js?v=34';
+import { T } from './paint.js?v=34';
 
 const V = THREE.Vector3;
 
@@ -171,6 +171,65 @@ const SCRIPTS = {
       if (phase === 3 && need('bat') && [7, 8, 9].every((k) => !H[k]?.alive) && !O.batRetry) { O.batRetry = 1; drop([3, 4, 5].filter((k) => H[k]?.dormant)); }
       if (phase === 4 && O.inCells(95, 130, 16, 72)) { phase = 5; st(); }
       if (phase >= 4 && [10, 11, 12, 13, 14, 15].every((k) => !H[k]?.alive) && O.lockExit) { W.openGate(); G.director.gate = true; O.lockExit = false; G.sound.say('dir_dt_done'); O.set('Walk out through the showers'); }
+    };
+  },
+  // Kill the Rabbit. Hunters: 0-3 in the cellblock's cells (let out when the gate slams), 4-6 the showers,
+  // 7 walks the back corridor, 8-12 the back rooms and the control room (all armed), 13-17 death row
+  // (17 the one in the pink dress), 18-19 the yard, 20 the White Rabbit himself, who carries the key.
+  'rabbit'(O, G) {
+    const H = G.hunters, W = G.world, { X, Z } = O;
+    O.lockExit = true;
+    const arm = (h, kind) => { if (!h) return; h.gun = true; h.dropOnDeath = kind === 'shotgun' ? 'rifle' : 'revolver'; const b = h.body; if (b.weapon) b.weapon.parent?.remove(b.weapon); b.weapon = makeHunterWeapon(kind); b.weapon.position.set(0, -0.1, 0.02); b.bones[10]?.add(b.weapon); };
+    [7, 8, 9, 10, 11, 12].forEach((k, n) => arm(H[k], n % 2 ? 'shotgun' : 'revolver'));
+    for (const k of [0, 1, 2, 3, 13, 14, 15, 16, 17]) O.hold(H[k]);
+    const pink = H[17]; if (pink) { const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.32, 0.6, 18, 2, true), new THREE.MeshStandardMaterial({ color: 0xd88aa8, roughness: 0.85, side: THREE.DoubleSide })); sk.position.y = -0.27; pink.body.bones[0].add(sk); }
+    // the White Rabbit: a filthy rabbit suit over a man, the key on a string round his neck
+    const R = H[20];
+    if (R) {
+      G.scene.remove(R.body.root); R.torch = null; R.beam = null;
+      const P = new Person({ mask: null, weapon: null, top: [0.8, 0.78, 0.74], legs: [0.78, 0.76, 0.72], skin: [0.6, 0.44, 0.34], hood: false, dirt: 1, stains: 0.9, seed: 77 });
+      const fur = new THREE.MeshStandardMaterial({ color: 0xd2cec4, roughness: 1 }), pinkM = new THREE.MeshStandardMaterial({ color: 0xc89a9a, roughness: 1 }), eyeM = new THREE.MeshBasicMaterial({ color: 0x080808 });
+      const hd = P.bones[4]; const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), fur); head.position.set(0, 0.11, 0.01); hd.add(head);
+      for (const sd of [1, -1]) { const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.26, 4, 8), fur); ear.position.set(0.065 * sd, 0.4, -0.01); ear.rotation.z = -0.2 * sd; hd.add(ear); const inr = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.2, 3, 6), pinkM); inr.position.set(0.065 * sd, 0.4, 0.02); inr.rotation.z = -0.2 * sd; hd.add(inr);
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), eyeM); e.position.set(0.055 * sd, 0.15, 0.145); hd.add(e); }
+      const teeth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.01), new THREE.MeshStandardMaterial({ color: 0xe8e0c8 })); teeth.position.set(0, 0.06, 0.158); hd.add(teeth);
+      const key = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.01), new THREE.MeshStandardMaterial({ color: 0xc8a848, metalness: 0.9, roughness: 0.3 })); key.position.set(0, -0.25, 0.17); hd.add(key);
+      R.body = P; G.scene.add(P.root); R.hp = 70; R.place();
+      const taunts = ['rb_taunt_1', 'rb_taunt_2', 'rb_taunt_3']; let tn = 0;
+      R.flee = { goal: O.cell(166, 39), speed: 0, taunt: () => G.sound.say(taunts[tn++ % 3]) };
+    }
+    let phase = 0, cellGate = null, shotT = 0, keyMesh = null;
+    const stairs = O.gateRow(84, 84, 91, () => 'chain'), shop = O.gateCol(63, 64, 71, () => 'chain'), sensor = O.gateRow(47, 49, 55, () => 'chain');
+    const yardRun = [[12, 12], [90, 10], [92, 42], [12, 42], [30, 26], [72, 28], [40, 12], [62, 42]].map(([i, j]) => O.cell(i, j));
+    O.set('Follow the rabbit by exiting the Cellblock', 'dir_kr_intro');
+    // the locker room switch reopens the cellblock gate
+    O.spots.push({ at: O.cell(170, 80), at3: new V(X(170), 1.3, Z(81.4)), r: 2.4, reach: 0.7, label: 'E — throw the gate switch', live: () => phase === 1,
+      act: () => { phase = 2; G.sound.buzz?.(O.cell(170, 81)); for (const g of cellGate || []) g.unlock(); O.set('Kill the patrolling hunter and get up to the Control Room', 'dir_kr_gate'); } });
+    // the sensor lock on the workshop's yard door
+    O.spots.push({ at: O.cell(51.5, 51), at3: new V(X(51.5), 1.3, Z(50)), r: 2.6, reach: 0.8, label: 'E — trip the sensor lock', live: () => phase === 5,
+      act: () => { phase = 6; G.sound.buzz?.(O.cell(51.5, 49)); for (const g of sensor) g.unlock(); if (R) { O.wake(R, O.cell(52, 38), false); R.flee.goal = yardRun[0]; R.flee.speed = 3.2; } for (const k of [18, 19]) H[k]?.investigate?.(O.cell(52, 40)); O.set('Kill the White Rabbit to get the KEY to the prison gates', 'dir_kr_chase'); } });
+    O.spots.push({ at: new V(), r: 2, reach: 0.7, label: 'E — take the key', live: () => phase === 7 && keyMesh?.visible,
+      act: () => { keyMesh.visible = false; phase = 8; W.openGate(); G.director.gate = true; O.lockExit = false; O.set('Get to the gates and exit the prison', 'dir_kr_out'); } });
+    const keySpot = O.spots[O.spots.length - 1];
+    let chase = 0;
+    O.tick = (dt) => {
+      // the rabbit runs out of the cellblock; once he's through, the gate slams and the cells open
+      if (phase === 0 && R) {
+        const d = R.pos.distanceTo(G.player.pos); if (!R.flee.speed && d < 9) { R.flee.goal = O.cell(115, 39); R.flee.speed = 3.0; }
+        if (R.flee.speed && R.pos.x < X(117)) { O.hold(R); cellGate = O.gateCol(119, 36, 42, () => 'chain'); W.bakeWalk(); G.sound.rattle?.(O.cell(119, 39)); for (const k of [0, 1, 2, 3]) O.wake(H[k], null, false);
+          phase = 1; O.set('The gate is locked. Find the switch in the locker room past the showers', 'dir_kr_locked'); }
+      }
+      if (phase === 2 && !H[7]?.alive && O.inCells(79, 98, 85, 97)) { phase = 3; for (const g of stairs) g.unlock(); for (const k of [13, 14, 15, 16, 17]) O.wake(H[k], null, true); O.set('Kill all the Death Row hunters', 'dir_kr_control'); }
+      if (phase === 3 && [13, 14, 15, 16, 17].every((k) => !H[k]?.alive)) { phase = 4; for (const g of shop) g.unlock(); O.set('Get to the Workshop any way you can', 'dir_kr_row'); }
+      if (phase === 4 && O.inCells(39, 62, 50, 83)) { phase = 5; O.set('Activate the sensor lock and chase that rabbit', 'dir_kr_shop'); }
+      if (phase === 6 && R) {
+        // run him round the yard: always for the corner farthest from Cash, tiring as the chase goes on
+        chase += dt; const me = G.player.pos, d = R.pos.distanceTo(me);
+        R.flee.speed = d < 14 ? Math.max(2.4, 3.4 - chase * 0.012) : 1.6;
+        shotT -= dt; if (shotT < 0 && (R.pos.distanceTo(R.flee.goal) < 1.5 || d < 7)) { shotT = 1.2;
+          let best = R.flee.goal, bs = -1; for (const p of yardRun) { const s2 = p.distanceTo(me) - 0.5 * p.distanceTo(R.pos); if (s2 > bs) { bs = s2; best = p; } } R.flee.goal = best; }
+        if (!R.alive) { phase = 7; keyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.16), new THREE.MeshStandardMaterial({ color: 0xc8a848, metalness: 0.9, roughness: 0.3, emissive: 0x3a2a08 })); keyMesh.position.copy(R.pos).setY(W.heightAt(R.pos.x, R.pos.z) + 0.03); O.mesh(keyMesh); keySpot.at = keyMesh.position; keySpot.at3 = keyMesh.position; O.set('Take the KEY from the rabbit', 'dir_kr_key'); }
+      }
     };
   },
   // Mouth of Madness. Hunters: 0 the ward guard, 1-3 the park (3 has a revolver), 4-6 the greenhouses,

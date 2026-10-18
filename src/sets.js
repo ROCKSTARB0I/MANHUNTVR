@@ -321,4 +321,43 @@ export const SETS = {
       K.sign('SHOWERS', 111.5, 34.4, PI, { w: 1.8, h: 0.5, y: 2.6 + 4.2, bg: '#2a2a20', fg: '#d8d0b0' });
     },
   },
+  // Kill the Rabbit: Darkwoods by night, hand-built from the map render. Out of the cellblock after the rabbit
+  // (the gate slams behind him), through the showers to the locker room switch, down the back corridor (dentist,
+  // morgue, furnace) and up to the control room, death row, the workshop and its sensor lock, the yard, the gates.
+  'rabbit': {
+    start: [176, 39, PI / 2], exit: [1, 25], noJunk: true,
+    look: { ground: 'concrete', wall: 'cinder', wallCol: 0xb0aca0, facadeTex: 'concreteWall', facadeCol: 0x8a8a84, bldTex: 'brick', bldCol: 0x8a6252, lineCol: { cinder: 0xa8aca0, tiles: 0xc8ccc0 } }, inner: 'cinder', innerFloor: 'ifloor',
+    linings: [{ x0: 146, y0: 51, x1: 179, y1: 83, mat: 'tiles' }, { x0: 119, y0: 52, x1: 134, y1: 77, mat: 'tiles' }],
+    zones: [{ x0: 79, x1: 98, y0: 85, y1: 97, h: 4.2 }],
+    ramps: [{ x0: 98, x1: 111.9, y0: 90, y1: 96, axis: 'x', h0: 4.2, h1: 0 }, { x0: 85, x1: 90, y0: 69, y1: 85, axis: 'y', h0: 0, h1: 4.2 }],
+    patrols: [[[128, 31], [128, 31]], [[140, 31], [140, 31]], [[152, 46], [152, 46]], [[164, 31], [164, 31]],
+      [[150, 60], [175, 60]], [[160, 64], [160, 58]], [[170, 62], [150, 64]],
+      [[115, 38], [115, 94]], [[123, 61], [130, 61]], [[126, 70], [124, 72]], [[126, 83], [128, 86]], [[126, 93], [130, 93]], [[88, 90], [94, 92]],
+      [[67, 53], [67, 53]], [[79, 53], [79, 53]], [[91, 53], [91, 53]], [[103, 53], [103, 53]], [[97, 53], [97, 53]],
+      [[20, 12], [90, 12]], [[20, 41], [90, 40]], [[166, 39], [166, 39]]],
+    dress(K) {
+      // the cellblock: bulbs down the corridor, a bunk in the cells
+      for (let i = 124; i < 178; i += 12) K.bulb(i, 39, { col: 0xd8e0c8, flicker: Math.random() < 0.3 ? 1 : 0 });
+      K.sign('CELLBLOCK D', 121, 36.4, 0, { w: 2, h: 0.5, y: 2.6, bg: '#2a2a20', fg: '#d8d0b0' }); for (let k = 0; k < 5; k++) K.blood(130 + Math.random() * 40, 38 + Math.random() * 3, 1.1);
+      // showers and lockers
+      K.stalls(156, 52.6, 0, 4); K.sinks(147.6, 62, PI / 2, 4); K.bulb(160, 60, { col: 0xd8e8e0, flicker: 1 }); K.bulb(170, 74, { col: 0xd8e8e0 }); K.bulb(154, 76, { col: 0xd8e8e0 });
+      // the back rooms off the corridor
+      K.dentChair(126, 58, -PI / 2); K.sign('DENTIST', 119.4, 55, -PI / 2, { w: 1.6, h: 0.45, y: 2.5, bg: '#20302a', fg: '#d8e0c8' }); K.bulb(126, 58, { col: 0xe8f0e8 });
+      K.slab(126, 68, 0); K.slab(126, 72, 0); K.sheeted(126, 72, 0); K.drawers(131.4, 70, -PI / 2, 4); K.sign('MORGUE', 119.4, 67, -PI / 2, { w: 1.6, h: 0.45, y: 2.5, bg: '#20302a', fg: '#d8e0c8' }); K.bulb(126, 70, { col: 0xd0e0e8, flicker: 1 });
+      K.furnace(128, 79.4, 0); K.sign('FURNACE', 119.4, 79, -PI / 2, { w: 1.6, h: 0.45, y: 2.5, bg: '#30201a', fg: '#e8c8a0' }); K.drums(122, 87, 3);
+      K.sign('WARDEN SECURE POST', 119.4, 93, -PI / 2, { w: 2.6, h: 0.45, y: 2.5, bg: '#202a30', fg: '#c8d8e8' }); K.counter(127, 92, 0, 4);
+      for (let j = 40; j < 96; j += 14) K.bulb(115, j, { col: 0xd8e0c8, flicker: Math.random() < 0.4 ? 1 : 0 });
+      // control room above death row
+      K.counter(84, 95.6, 0, 6); K.sign('CONTROL', 98.4, 92, PI / 2, { w: 1.6, h: 0.45, y: 4.2 + 2.5, bg: '#202a30', fg: '#c8d8e8' }); K.bulb(88, 91, { col: 0xd8e8f0 });
+      // death row: the hall, its cells, blood
+      for (const [i, j] of [[72, 62], [96, 62], [72, 78], [100, 78]]) K.bulb(i, j, { col: 0xd8e0c8, flicker: Math.random() < 0.5 ? 1 : 0 });
+      K.sign('DEATH ROW', 64.4, 60, PI / 2, { w: 2, h: 0.5, y: 2.6, bg: '#3a1a14', fg: '#e8d0b0' }); for (let k = 0; k < 6; k++) K.blood(66 + Math.random() * 40, 60 + Math.random() * 20, 1.3);
+      // the workshop
+      for (const [i, j] of [[44, 56], [44, 66], [44, 76], [56, 76]]) K.bench(i, j, 0); K.bulb(46, 60, { col: 0xffe2a0 }); K.bulb(56, 72, { col: 0xffe2a0 }); K.drums(58, 80, 4); K.timber(56, 56, 0);
+      K.sign('WORKSHOP', 63.4, 72, PI / 2, { w: 1.8, h: 0.45, y: 2.6, bg: '#2a2a20', fg: '#d8d0b0' });
+      // the yard: floodlights, the tower, graffiti
+      K.lamp(20, 20, { h: 7, r: 18, col: 0xd8e0f0 }); K.lamp(80, 20, { h: 7, r: 18, col: 0xd8e0f0 }); K.lamp(30, 40, { h: 7, r: 16, col: 0xd8e0f0 }); K.lamp(86, 40, { h: 7, r: 16, col: 0xd8e0f0 });
+      K.sign('DARKWOODS PENITENTIARY', 6.4, 25.5, PI / 2, { w: 4.2, h: 0.7, y: 4, bg: '#1a2a3a', fg: '#c8d8e8', lit: true }); K.graffiti(52, 45.4, PI, 2.2, 3, 2);
+    },
+  },
 };
